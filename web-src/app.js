@@ -2453,6 +2453,7 @@
       kit: window.PetKit,
       Pets: window.Pets,
       reduceMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      wide: window.innerWidth >= 900 && window.innerHeight >= 521 && window.innerWidth > window.innerHeight,
       insets: habitatInsets,
       onTap: onHabitatTap,
       onKick: uid => petAction(uid, id => Game.play(state, Date.now(), id)),
