@@ -1116,8 +1116,8 @@
         use.type = "button";
         use.className = "btn primary small";
         use.textContent = "Usar";
-        use.disabled = !Game.canUseItem(state, k, state.pet);
-        use.addEventListener("click", () => useItem(k));
+        use.disabled = !state.party.some(u => Game.canUseItem(state, k, u));
+        use.addEventListener("click", () => holdItem(k));
         box.append(use);
       }
       if (it.sell) {
@@ -1142,21 +1142,102 @@
     });
   }
 
-  function useItem(k) {
-    const r = Game.useItem(state, k, state.pet);
+  let held = null;
+
+  function holdItem(k) {
+    held = k;
+    if ($("bag-sheet").open) $("bag-sheet").close();
+    cardOpen = false;
+    renderHand();
+    render();
+  }
+
+  function dropHand() {
+    held = null;
+    if (habitat) habitat.hover(null);
+    renderHand();
+  }
+
+  function renderHand() {
+    const has = held && state && state.inventory[held] > 0;
+    if (held && !has) held = null;
+    $("hand").hidden = !has;
+    if (!has) return;
+    const it = Game.ITEMS[held];
+    $("hand-item").replaceChildren(itemIcon(held));
+    $("hand-item").setAttribute("aria-label", "Arraste " + it.name + " até uma criatura");
+    $("hand-name").innerHTML = "";
+    $("hand-name").append(it.name + " ");
+    const n = document.createElement("small");
+    n.textContent = "x" + state.inventory[held];
+    $("hand-name").append(n);
+  }
+
+  function giveItem(uid) {
+    const k = held;
+    if (!k || !state || evolvingNow) return;
+    const it = Game.ITEMS[k];
+    const name = (meta[Game.speciesOf(state, uid)] || {}).name || "";
+    if (!Game.canUseItem(state, k, uid)) {
+      showToast(name + " não precisa disso agora");
+      if (habitat) habitat.hover(null);
+      return;
+    }
+    const r = Game.useItem(state, k, uid);
     if (!r.changed) return;
+    if (uid !== state.pet) Game.selectPet(state, uid);
     saveState();
     scheduleSync();
-    const it = Game.ITEMS[k];
-    if (habitat && it.hunger) habitat.act(state.pet, "eat");
-    else if (habitat) habitat.act(state.pet, "jump");
-    if (r.levels > 0) {
-      showToast("Subiu para o nível " + r.level + "!");
-    } else {
-      showToast(it.name + " usado");
+    if (habitat) {
+      habitat.act(uid, it.hunger ? "eat" : "jump");
+      habitat.emote(uid, "heart");
     }
-    renderBag();
+    showToast(r.levels > 0 ? name + " subiu para o nível " + r.level + "!" : name + " recebeu " + it.name.toLowerCase());
+    cardOpen = true;
+    dropHand();
     render();
+  }
+
+  function bindHand() {
+    const btn = $("hand-item");
+    let ghost = null;
+    let downAt = null;
+    const place = e => {
+      ghost.style.translate = e.clientX + "px " + e.clientY + "px";
+      if (habitat) habitat.hover(habitat.pick(e.clientX, e.clientY));
+    };
+    btn.addEventListener("pointerdown", e => {
+      if (!held) return;
+      e.preventDefault();
+      downAt = { x: e.clientX, y: e.clientY };
+      try {
+        btn.setPointerCapture(e.pointerId);
+      } catch (err) {
+        downAt = { x: e.clientX, y: e.clientY };
+      }
+      ghost = document.createElement("div");
+      ghost.className = "hand-ghost";
+      ghost.append(itemIcon(held));
+      document.body.append(ghost);
+      $("hand").classList.add("dragging");
+      place(e);
+    });
+    btn.addEventListener("pointermove", e => {
+      if (ghost) place(e);
+    });
+    const end = e => {
+      if (!ghost) return;
+      ghost.remove();
+      ghost = null;
+      $("hand").classList.remove("dragging");
+      const moved = downAt && Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y) > 12;
+      const uid = moved && habitat ? habitat.pick(e.clientX, e.clientY) : null;
+      if (habitat) habitat.hover(null);
+      if (uid) giveItem(uid);
+    };
+    btn.addEventListener("pointerup", end);
+    btn.addEventListener("pointercancel", end);
+    $("hand-x").addEventListener("click", dropHand);
   }
 
   function expTypes(id) {
@@ -1760,6 +1841,7 @@
     if ($("shop-sheet").open) renderShop();
     if ($("bag-sheet").open) renderBag();
     renderHabitat(v, info);
+    renderHand();
     if ($("party-sheet").open) renderSheet(v);
     const evo = evolvingNow ? null : evolveTarget();
     $("evolve-btn").hidden = !evo;
@@ -1821,6 +1903,10 @@
 
   function onHabitatTap(uid) {
     if (!state || evolvingNow) return;
+    if (held) {
+      giveItem(uid);
+      return;
+    }
     if (uid !== state.pet) {
       const r = Game.selectPet(state, uid);
       if (r.changed) {
@@ -2124,6 +2210,7 @@
     });
 
     $("daynight").addEventListener("click", () => setNight(!(habitat && habitat.isNight())));
+    bindHand();
 
     $("treat").addEventListener("click", () => {
       const r = Game.treat(state);

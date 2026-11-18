@@ -2602,3 +2602,92 @@ a:focus-visible {
     animation: none;
   }
 }
+
+.hand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-self: center;
+  align-self: center;
+  padding: 6px 8px 6px 6px;
+  background: var(--paper);
+  color: var(--ink);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+  animation: card-in 0.22s ease-out;
+}
+
+.hand[hidden] {
+  display: none;
+}
+
+.hand-item {
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--sun);
+  cursor: grab;
+  touch-action: none;
+  animation: hand-bob 1.4s ease-in-out infinite;
+}
+
+.hand-item .item-ico {
+  width: 46px;
+  height: 46px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.hand.dragging .hand-item {
+  opacity: 0.35;
+  animation: none;
+  cursor: grabbing;
+}
+
+.hand-name {
+  font-size: 16px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.hand-name small {
+  margin-left: 2px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.hand-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 60;
+  width: 56px;
+  height: 56px;
+  margin: -28px 0 0 -28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--sun);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+.hand-ghost .item-ico {
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+@keyframes hand-bob {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hand-item {
+    animation: none;
+  }
+}
