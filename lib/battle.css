@@ -1190,3 +1190,25 @@
     max-height: 40vh;
   }
 }
+
+.bt-cmd {
+  height: 192px;
+}
+
+.bt-cmd .bt-moves {
+  display: grid;
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  height: 100%;
+}
+
+.bt-cmd .bt-moves[hidden] {
+  display: none;
+}
+
+.bt-cmd .bt-mv {
+  min-height: 0;
+}
+
+.bt-sheet {
+  min-height: 192px;
+}
