@@ -1018,7 +1018,7 @@ function render(s) {
   renderBox(s);
   cardEl.classList.toggle("empty-mode", !!s.needsStarter);
   const cur = s.party.find(p => p.id === s.pet);
-  nameEl.textContent = cur ? cur.name : s.needsStarter ? "Pets" : "";
+  nameEl.textContent = cur ? cur.name : s.needsStarter ? "Mythlings" : "";
   const v = Math.round(s.hunger);
   fillEl.style.width = v + "%";
   fillEl.style.background = barColor(s.hunger);

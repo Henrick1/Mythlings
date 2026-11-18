@@ -2,6 +2,8 @@ const { app, BrowserWindow, ipcMain, Menu, screen, shell, powerMonitor } = requi
 const path = require("path");
 const fs = require("fs");
 
+app.setPath("userData", path.join(app.getPath("appData"), "Pets"));
+
 if (process.platform === "linux") {
   app.commandLine.appendSwitch("ozone-platform", "x11");
   app.commandLine.appendSwitch("enable-transparent-visuals");
