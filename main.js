@@ -101,6 +101,7 @@ function loadState() {
   } catch (err) {}
   state = Game.normalize(saved, petIds);
   Game.catchUp(state);
+  if (state.battle && Battle.act(state, { kind: "run" }).changed) saveState();
 }
 
 function saveState() {
@@ -392,6 +393,12 @@ function openBattle() {
   battleWin.loadFile(path.join(__dirname, "battle.html"));
   battleWin.on("closed", () => {
     battleWin = null;
+    if (!state.battle) return;
+    Game.catchUp(state);
+    if (!Battle.act(state, { kind: "run" }).changed) return;
+    saveState();
+    scheduleSync();
+    broadcast();
   });
 }
 

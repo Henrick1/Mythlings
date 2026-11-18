@@ -1772,6 +1772,18 @@
     if ($("account-sheet").open) renderAccount();
   }
 
+  function evoStage(id) {
+    let n = 1;
+    let cur = id;
+    for (let k = 0; k < 4; k++) {
+      const from = Object.values(meta).find(m => m.evolvesTo === cur || (m.evolveBranches && Object.values(m.evolveBranches).includes(cur)));
+      if (!from) break;
+      n++;
+      cur = from.id;
+    }
+    return n;
+  }
+
   function habitatRows(v) {
     return v.party.filter(p => !p.away && hasPet(p.species)).map(p => ({ uid: p.id, species: p.species, name: (meta[p.species] && meta[p.species].name) || p.name, hunger: p.hunger, life: p.life, joy: p.joy, dying: p.dying }));
   }
@@ -1878,7 +1890,8 @@
         const remote = row ? Game.normalize(row.state, petIds) : null;
         const result = Game.merge(state, remote, Date.now(), { preferRemote: !!options.preferRemote && !!remote });
         state = result.state;
-        if (result.push) await cloud.push(state);
+        const dropped = !firstSyncDone && dropBattle(false);
+        if (result.push || dropped) await cloud.push(state);
         if (remote) await ensurePets(neededPets());
       }
       account.offline = false;
@@ -1981,9 +1994,19 @@
     battleUi.open();
   }
 
+  function dropBattle(sync = true) {
+    if (!state || !state.battle || !window.Battle || (battleUi && !$("battle-view").hidden)) return false;
+    const r = Battle.act(state, { kind: "run" });
+    if (!r || !r.changed) return false;
+    saveState();
+    if (sync) scheduleSync();
+    return true;
+  }
+
   function closeBattle() {
     if (battleUi) battleUi.close();
     $("battle-view").hidden = true;
+    dropBattle();
     if (habitat && !$("game-view").hidden) {
       habitat.resize();
       habitat.start();
@@ -2427,6 +2450,7 @@
     state = Game.normalize(store.read(STATE_KEY), petIds);
     Game.catchUp(state);
     saveState();
+    dropBattle(false);
     await Promise.all([ensurePets(neededPets()), PetStage.loadThumbs ? PetStage.loadThumbs(meta) : null]);
 
     cloud = PetsCloud.create({
@@ -2455,6 +2479,8 @@
       reduceMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
       wide: window.innerWidth >= 900 && window.innerHeight >= 521 && window.innerWidth > window.innerHeight,
       insets: habitatInsets,
+      stageOf: evoStage,
+      paused: () => !!document.querySelector("dialog.sheet[open]"),
       onTap: onHabitatTap,
       onKick: uid => petAction(uid, id => Game.play(state, Date.now(), id)),
       onEmpty: () => {
