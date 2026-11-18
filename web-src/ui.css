@@ -2585,6 +2585,15 @@ a:focus-visible {
     align-self: center;
     margin: 0 0 16px;
   }
+
+  .game.home .pet-card {
+    position: fixed;
+    top: 84px;
+    right: 24px;
+    width: 380px;
+    max-height: calc(100dvh - 108px);
+    overflow-y: auto;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
