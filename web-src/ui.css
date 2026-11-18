@@ -2144,3 +2144,452 @@ a:focus-visible {
 .chest-take:active {
   transform: scale(0.98);
 }
+
+.game.home {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: transparent;
+}
+
+.game.home .stage-wrap.habitat {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  flex: none;
+  margin: 0;
+  border-radius: 0;
+  background: linear-gradient(180deg, #8fd3f0 0%, #c9ecf6 38%, #e8f7d8 62%, #cdeaa8 100%);
+  transition: background 0.8s ease;
+}
+
+.game.home .stage-wrap.habitat.night {
+  background: linear-gradient(180deg, #0d1840 0%, #1d2d63 40%, #2b3f6b 64%, #1c3a35 100%);
+}
+
+.stage-wrap.habitat::after {
+  content: none;
+}
+
+.stage-wrap.habitat.burst::after {
+  content: "";
+  left: 0;
+  top: 0;
+  bottom: auto;
+  width: 100%;
+  height: 100%;
+  z-index: 4;
+  transform: none;
+  border-radius: 0;
+  background: #fffbe8;
+  animation: flash-out 0.7s ease-out forwards;
+}
+
+#habitat {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.stage-wrap.habitat #stage {
+  z-index: 3;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.stage-wrap.habitat.evolving #stage {
+  visibility: visible;
+}
+
+.stage-wrap.habitat.evolving::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: radial-gradient(circle at 50% 45%, rgba(255, 251, 232, 0.94) 0, rgba(255, 251, 232, 0.7) 30%, rgba(8, 28, 18, 0.62) 75%);
+  pointer-events: none;
+}
+
+.stage-wrap.habitat .hatch-text {
+  z-index: 4;
+  top: 18%;
+  color: #0f3a28;
+}
+
+.hab-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.stage-wrap.evolving .hab-fx {
+  visibility: hidden;
+}
+
+.hab-emote {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 34px;
+  height: 34px;
+  margin: -40px 0 0 -17px;
+  display: grid;
+  place-items: center;
+  background: #fff;
+  border-radius: 12px 12px 12px 3px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+  animation: hab-pop 0.25s ease-out;
+  will-change: transform;
+}
+
+.hab-emote svg {
+  width: 22px;
+  height: 22px;
+}
+
+.hab-tag {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: -30px 0 0;
+  padding: 5px 8px 4px;
+  border-radius: 7px;
+  background: var(--plate);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+@keyframes hab-pop {
+  from {
+    scale: 0.3;
+  }
+  to {
+    scale: 1;
+  }
+}
+
+.game.home .top {
+  position: relative;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.game.home .top > * {
+  pointer-events: auto;
+}
+
+.hab-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 14px 0 12px;
+  border: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  clip-path: polygon(var(--cut-s) 0, 100% 0, 100% calc(100% - var(--cut-s)), calc(100% - var(--cut-s)) 100%, 0 100%, 0 var(--cut-s));
+  cursor: pointer;
+}
+
+.hab-space {
+  flex: 1;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.game.home .panel {
+  position: relative;
+  z-index: 3;
+  width: 100%;
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 0 12px 36px;
+  gap: 10px;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.game.home .panel > * {
+  pointer-events: auto;
+}
+
+.hab-acts,
+.game.home .actions.hab-acts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.hab-acts .act {
+  min-height: 64px;
+  padding: 9px 4px 10px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.hab-acts .act b {
+  font-size: 15px;
+}
+
+.hab-acts #party-btn {
+  grid-column: auto;
+}
+
+.game.home .dock {
+  position: relative;
+  z-index: 3;
+  margin-top: 0;
+}
+
+.pet-card {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px 14px;
+  background: var(--paper);
+  color: var(--ink);
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  animation: card-in 0.22s ease-out;
+}
+
+.pet-card[hidden] {
+  display: none;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.pet-card .who {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pet-card .who h1.plate {
+  height: 38px;
+  min-width: 0;
+  font-size: 21px;
+  padding: 0 20px 0 12px;
+}
+
+.pet-card #level {
+  height: 38px;
+  padding: 0 10px;
+  background: var(--mist);
+}
+
+.pet-card #level b {
+  font-size: 19px;
+}
+
+.card-x {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: var(--mist);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.card-types .type-tags {
+  display: flex;
+  gap: 4px;
+}
+
+.card-types:empty {
+  display: none;
+}
+
+.pet-card .heal-timer {
+  position: static;
+  justify-self: start;
+  padding: 4px 12px 4px 4px;
+  background: var(--mist);
+  box-shadow: none;
+}
+
+.pet-card .heal-timer[hidden] {
+  display: none;
+}
+
+.pet-card .heal-timer svg {
+  width: 34px;
+  height: 34px;
+}
+
+.pet-card .stats {
+  gap: 6px;
+  padding: 0;
+  background: none;
+  clip-path: none;
+}
+
+.pet-card .stat {
+  grid-template-columns: 24px 84px minmax(0, 1fr) 42px;
+  grid-template-areas: none;
+  row-gap: 0;
+  gap: 8px;
+}
+
+.pet-card .stat > * {
+  grid-area: auto;
+}
+
+.pet-card .stat-ico {
+  width: 24px;
+  height: 24px;
+}
+
+.pet-card .stat-label,
+.pet-card .stat-val {
+  font-size: 14px;
+}
+
+.pet-card .bar {
+  height: 10px;
+}
+
+.card-acts {
+  display: flex;
+  gap: 8px;
+}
+
+.cbtn {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  height: 42px;
+  border: 0;
+  background: var(--mist);
+  color: var(--ink);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  box-shadow: inset 0 -3px 0 var(--line);
+  cursor: pointer;
+}
+
+.cbtn.main {
+  background: var(--leaf);
+  color: #fff;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.2);
+}
+
+.cbtn:disabled {
+  color: #8aa096;
+  box-shadow: none;
+  cursor: default;
+}
+
+.cbtn.main:disabled {
+  background: color-mix(in srgb, var(--leaf) 45%, var(--paper));
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.cbtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.cbtn .act-note {
+  top: -1px;
+  right: 6px;
+}
+
+.pet-card .btn.evolve {
+  width: 100%;
+}
+
+@media (orientation: landscape) and (max-height: 520px) {
+  .game.home {
+    display: flex;
+  }
+
+  .game.home .panel {
+    position: absolute;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: 84px;
+    width: min(320px, 44%);
+    margin: 0;
+    padding: 0;
+    justify-content: flex-end;
+  }
+
+  .hab-acts,
+  .game.home .actions.hab-acts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hab-acts .act {
+    min-height: 44px;
+    flex-direction: row;
+    gap: 6px;
+  }
+
+  .pet-card {
+    max-height: calc(100dvh - 270px - env(safe-area-inset-top));
+    overflow-y: auto;
+  }
+}
+
+@media (min-width: 900px) and (min-height: 521px) {
+  .game.home {
+    display: flex;
+    max-width: none;
+    padding: 0;
+  }
+
+  .game.home .top {
+    padding: 14px 24px;
+  }
+
+  .game.home .panel {
+    padding: 0 0 12px;
+  }
+
+  .game.home .dock {
+    align-self: center;
+    margin: 0 0 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hab-emote,
+  .pet-card {
+    animation: none;
+  }
+}
