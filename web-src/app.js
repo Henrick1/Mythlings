@@ -102,6 +102,9 @@
   let tab = "party";
   let swapIn = null;
   let lastPetId = null;
+  let habitat = null;
+  let cardOpen = false;
+  let partyKey = "";
   let shopTab = "items";
   let expTicker = 0;
   let dailyShown = "";
@@ -806,7 +809,17 @@
     const to = meta[target];
     evolvingNow = true;
     const wrap = $("stage-wrap");
-    ["feed", "treat", "party-btn"].forEach(b => ($(b).disabled = true));
+    ["feed", "treat", "party-btn", "feed-all", "ball-btn", "call-btn", "pet-btn"].forEach(b => ($(b).disabled = true));
+    cardOpen = false;
+    $("pet-card").hidden = true;
+    if (habitat) {
+      habitat.select(null);
+      habitat.hide(id, true);
+    }
+    stage.setPet(Game.speciesOf(state));
+    wrap.classList.add("evolving");
+    stage.resize();
+    stage.start();
     hatchLabel(wrap, "Hã? " + m.name + " está evoluindo!");
     wrap.classList.remove("burst");
     wrap.classList.add("hatching", "shake-1");
@@ -822,10 +835,13 @@
           scheduleSync();
         }
         lastPetId = state.pet + ":" + Game.speciesOf(state);
-        $("party-btn").disabled = false;
+        ["party-btn", "ball-btn", "call-btn", "pet-btn"].forEach(b => ($(b).disabled = false));
         setTimeout(() => {
-          wrap.classList.remove("burst");
+          wrap.classList.remove("burst", "evolving");
           hatchLabel(wrap, "");
+          stage.stop();
+          if (habitat) habitat.hide(id, false);
+          render();
         }, 2000);
         showToast(m.name + " evoluiu para " + to.name + "!");
         render();
@@ -1132,9 +1148,9 @@
     saveState();
     scheduleSync();
     const it = Game.ITEMS[k];
-    if (it.hunger) stage.play("eat", true);
+    if (habitat && it.hunger) habitat.act(state.pet, "eat");
+    else if (habitat) habitat.act(state.pet, "jump");
     if (r.levels > 0) {
-      stage.play("jump", true);
       showToast("Subiu para o nível " + r.level + "!");
     } else {
       showToast(it.name + " usado");
@@ -1391,11 +1407,11 @@
     $("game-view").hidden = name !== "game";
     $("starter-view").hidden = name !== "starter";
     if (name !== "starter" && starterStage) starterStage.stop();
-    if (name === "game" && stage) {
-      stage.resize();
-      stage.start();
-    } else if (stage) {
-      stage.stop();
+    if (name === "game" && habitat) {
+      habitat.resize();
+      habitat.start();
+    } else if (habitat) {
+      habitat.stop();
     }
   }
 
@@ -1743,24 +1759,87 @@
     $("treat-note").hidden = !note;
     if ($("shop-sheet").open) renderShop();
     if ($("bag-sheet").open) renderBag();
-    if (lastPetId !== v.pet + ":" + v.species) {
-      if (v.species && !hasPet(v.species)) ensurePets([v.species]).then(() => render());
-      else {
-        lastPetId = v.pet + ":" + v.species;
-        stage.setPet(v.species);
-      }
-    }
-    stage.setStatus({ hunger: v.hunger, life: v.life, dying: v.dying });
+    renderHabitat(v, info);
     if ($("party-sheet").open) renderSheet(v);
     const evo = evolvingNow ? null : evolveTarget();
     $("evolve-btn").hidden = !evo;
 
     if (evolvingNow) {
-      ["feed", "treat", "party-btn"].forEach(b => ($(b).disabled = true));
+      ["feed", "treat", "party-btn", "feed-all", "ball-btn", "call-btn", "pet-btn"].forEach(b => ($(b).disabled = true));
     } else {
       $("party-btn").disabled = false;
     }
     if ($("account-sheet").open) renderAccount();
+  }
+
+  function habitatRows(v) {
+    return v.party.filter(p => !p.away && hasPet(p.species)).map(p => ({ uid: p.id, species: p.species, name: (meta[p.species] && meta[p.species].name) || p.name, hunger: p.hunger, life: p.life, joy: p.joy, dying: p.dying }));
+  }
+
+  function renderHabitat(v, info) {
+    if (!habitat) return;
+    const missing = v.party.filter(p => !p.away && p.species && !hasPet(p.species)).map(p => p.species);
+    if (missing.length) ensurePets(missing).then(() => render());
+    habitat.setParty(habitatRows(v));
+    if (cardOpen && v.party.some(p => p.id === v.pet && p.away)) cardOpen = false;
+    habitat.select(cardOpen ? v.pet : null);
+    $("pet-card").hidden = !cardOpen;
+    const key = v.species + ":" + (info.types || []).join(",");
+    if (partyKey !== key) {
+      partyKey = key;
+      $("pet-types").replaceChildren(typeTags(info.types));
+    }
+    if (!evolvingNow) {
+      $("feed-all").disabled = !v.party.some(p => !p.away && p.hunger < 100);
+      $("pet-btn").disabled = v.dying || v.joy >= 100;
+      ["ball-btn", "call-btn"].forEach(b => ($(b).disabled = !v.party.some(p => !p.away)));
+    }
+  }
+
+  function petAction(uid, fn) {
+    if (!state || evolvingNow) return null;
+    const r = fn(uid);
+    if (!r || !r.changed) return r;
+    saveState();
+    scheduleSync();
+    if (r.levels > 0) showToast((meta[Game.speciesOf(state, uid)] || {}).name + " subiu para o nível " + r.level + "!");
+    render();
+    return r;
+  }
+
+  function onHabitatTap(uid) {
+    if (!state || evolvingNow) return;
+    if (uid !== state.pet) {
+      const r = Game.selectPet(state, uid);
+      if (r.changed) {
+        saveState();
+        scheduleSync();
+      }
+    }
+    cardOpen = true;
+    const r = petAction(uid, id => Game.play(state, Date.now(), id));
+    if (!r || !r.changed) render();
+  }
+
+  const DN_ICONS = {
+    day: '<circle cx="12" cy="12" r="5" fill="#ffb52e"/><g stroke="#ffb52e" stroke-width="2" stroke-linecap="round"><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2"/></g>',
+    night: '<path d="M15 3a8 8 0 1 0 6 13A9 9 0 0 1 15 3z" fill="#7d8ce8"/>'
+  };
+
+  function setNight(v) {
+    if (habitat) habitat.setNight(v);
+    $("stage-wrap").classList.toggle("night", v);
+    $("dn-label").textContent = v ? "Noite" : "Dia";
+    $("dn-icon").innerHTML = v ? DN_ICONS.night : DN_ICONS.day;
+  }
+
+  function habitatInsets() {
+    const wrap = $("stage-wrap").getBoundingClientRect();
+    const top = document.querySelector("#game-view .top").getBoundingClientRect();
+    const acts = $("feed-all").closest(".hab-acts").getBoundingClientRect();
+    const dock = document.querySelector("#game-view .dock").getBoundingClientRect();
+    const side = acts.left > wrap.left + wrap.width * 0.5;
+    return { top: Math.max(0, top.bottom - wrap.top), bottom: Math.max(0, wrap.bottom - (side ? dock.top - 26 : acts.top)), right: side ? Math.max(0, wrap.right - acts.left) : 0 };
   }
 
   function scheduleSync() {
@@ -1898,16 +1977,16 @@
         onChange: () => render()
       });
     $("battle-view").hidden = false;
-    if (stage) stage.stop();
+    if (habitat) habitat.stop();
     battleUi.open();
   }
 
   function closeBattle() {
     if (battleUi) battleUi.close();
     $("battle-view").hidden = true;
-    if (stage && !$("game-view").hidden) {
-      stage.resize();
-      stage.start();
+    if (habitat && !$("game-view").hidden) {
+      habitat.resize();
+      habitat.start();
     }
     render();
   }
@@ -1971,17 +2050,57 @@
     $("signup").addEventListener("click", () => submitAuth("signup"));
 
     $("feed").addEventListener("click", () => {
-      const r = Game.feed(state);
-      if (!r.changed) return;
+      const id = state.pet;
+      const r = petAction(id, uid => Game.feed(state, Date.now(), uid));
+      if (r && r.changed && habitat) habitat.feed(id);
+    });
+
+    $("feed-all").addEventListener("click", () => {
+      if (!state || evolvingNow) return;
+      const now = Date.now();
+      const fed = [];
+      let up = null;
+      state.party.forEach(uid => {
+        if (Game.isAway(state, uid)) return;
+        const r = Game.feed(state, now, uid);
+        if (!r.changed) return;
+        fed.push(uid);
+        if (r.levels > 0) up = { uid, level: r.level };
+      });
+      if (!fed.length) return;
       saveState();
-      stage.play("eat", true);
-      if (r.levels > 0) {
-        stage.play("jump", true);
-        showToast("Subiu para o nível " + r.level + "!");
-      }
       scheduleSync();
+      if (habitat) fed.forEach(uid => habitat.feed(uid));
+      if (up) showToast((meta[Game.speciesOf(state, up.uid)] || {}).name + " subiu para o nível " + up.level + "!");
       render();
     });
+
+    $("ball-btn").addEventListener("click", () => {
+      if (!habitat || evolvingNow) return;
+      cardOpen = false;
+      habitat.throwBall();
+      render();
+    });
+
+    $("call-btn").addEventListener("click", () => {
+      if (!habitat || evolvingNow) return;
+      cardOpen = false;
+      habitat.call();
+      render();
+    });
+
+    $("pet-btn").addEventListener("click", () => {
+      if (!state || !habitat) return;
+      habitat.cuddle(state.pet);
+      petAction(state.pet, uid => Game.play(state, Date.now(), uid));
+    });
+
+    $("card-close").addEventListener("click", () => {
+      cardOpen = false;
+      render();
+    });
+
+    $("daynight").addEventListener("click", () => setNight(!(habitat && habitat.isNight())));
 
     $("treat").addEventListener("click", () => {
       const r = Game.treat(state);
@@ -2215,68 +2334,12 @@
       d.querySelectorAll("[data-close]").forEach(b => b.addEventListener("click", () => d.close()));
     });
 
-    const wrap = $("stage-wrap");
-    let downX = 0;
-    let downY = 0;
-    let lastX = 0;
-    let lastY = 0;
-    let down = false;
-    let rotating = false;
-    wrap.addEventListener("pointerdown", e => {
-      downX = e.clientX;
-      downY = e.clientY;
-      lastX = e.clientX;
-      lastY = e.clientY;
-      down = true;
-      rotating = false;
-    });
-    wrap.addEventListener("pointermove", e => {
-      if (down) {
-        if (!rotating && Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) >= 10) {
-          rotating = true;
-          try {
-            wrap.setPointerCapture(e.pointerId);
-          } catch (_) {
-            rotating = true;
-          }
-          stage.spin.begin();
-        }
-        if (rotating) {
-          stage.spin.drag(e.clientX - lastX, e.clientY - lastY);
-          lastX = e.clientX;
-          lastY = e.clientY;
-          return;
-        }
-      }
-      const r = wrap.getBoundingClientRect();
-      const x = (e.clientX - (r.left + r.width / 2)) / (r.width / 2);
-      const y = -(e.clientY - (r.top + r.height * 0.45)) / (r.height / 2);
-      stage.setPointer(Math.max(-1, Math.min(1, x)), Math.max(-1, Math.min(1, y)));
-    });
-    const releaseSpin = () => {
-      down = false;
-      if (rotating) stage.spin.end();
-      rotating = false;
-    };
-    wrap.addEventListener("pointerup", e => {
-      const wasRotating = rotating;
-      releaseSpin();
-      if (!wasRotating && Math.abs(e.clientX - downX) + Math.abs(e.clientY - downY) < 10 && stage.interact()) {
-        const r = Game.play(state);
-        if (r.changed) {
-          saveState();
-          scheduleSync();
-          render();
-        }
-      }
-    });
-    wrap.addEventListener("pointercancel", releaseSpin);
 
     window.addEventListener("resize", () => {
-      stage.resize();
-      [starterStage, eggStage, preview].forEach(st => st && st.resize());
+      if (habitat) habitat.resize();
+      [stage, starterStage, eggStage, preview].forEach(st => st && st.resize());
     });
-    window.addEventListener("orientationchange", () => setTimeout(() => stage.resize(), 200));
+    window.addEventListener("orientationchange", () => setTimeout(() => habitat && habitat.resize(), 200));
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState !== "visible") {
@@ -2331,6 +2394,7 @@
       await loadScript("lib/egg.js");
       await loadScriptSafe("lib/chest.js");
       await loadScript("lib/stage.js");
+      await loadScript("lib/habitat.js");
       await loadScript("lib/ui-icons.js");
       await loadScript("lib/battle.js");
       await loadScriptSafe("lib/battle-stage.js");
@@ -2382,6 +2446,24 @@
       Pets: window.Pets,
       reduceMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches
     });
+    habitat = PetHabitat.create({
+      canvas: $("habitat"),
+      fx: $("hab-fx"),
+      THREE: window.THREE,
+      kit: window.PetKit,
+      Pets: window.Pets,
+      reduceMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      insets: habitatInsets,
+      onTap: onHabitatTap,
+      onKick: uid => petAction(uid, id => Game.play(state, Date.now(), id)),
+      onEmpty: () => {
+        if (!cardOpen) return;
+        cardOpen = false;
+        render();
+      }
+    });
+    const hour = new Date().getHours();
+    setNight(hour >= 19 || hour < 6);
 
     bindUi();
 
