@@ -201,19 +201,20 @@ function setPet(id) {
   idleTimers = (def.idle || []).map(i => t + i.min + Math.random() * (i.max - i.min));
 }
 
-function startAction(name) {
+function startAction(name, cry) {
   counts[name] = (counts[name] || 0) + 1;
   activeAction = { name, start: clock.getElapsedTime(), n: counts[name] };
+  if (window.Sfx && current) window.Sfx.action(current.def, name, { cry: !!cry, vol: 0.7 });
 }
 
-function play(name, queue) {
+function play(name, queue, cry) {
   if (!current || !current.def.actions[name]) return;
   if (dying && name !== "eat") return;
   if (activeAction) {
     if (queue) pendingAction = name;
     return false;
   }
-  startAction(name);
+  startAction(name, cry);
   return true;
 }
 
@@ -234,7 +235,7 @@ function currentAction(t) {
 function interact() {
   if (current && !dying) {
     const name = current.def.clickAction ? current.def.clickAction(++clicks) : "jump";
-    if (play(name)) window.pet.play();
+    if (play(name, false, true)) window.pet.play();
   }
   showTab();
 }

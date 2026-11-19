@@ -1123,6 +1123,28 @@ setInterval(() => {
   else bagScroll.querySelectorAll("[data-ends]").forEach(t => (t.textContent = "Volta em " + fmtTime(Number(t.dataset.ends) - Date.now())));
 }, 1000);
 openBattleBtn.addEventListener("click", () => window.pet.openBattle());
+const soundBtn = document.getElementById("sound-btn");
+function soundIcon() {
+  const on = !window.Sfx || window.Sfx.enabled();
+  document.getElementById("snd-on").style.display = on ? "" : "none";
+  document.getElementById("snd-off").style.display = on ? "none" : "";
+  soundBtn.setAttribute("aria-pressed", on ? "true" : "false");
+  soundBtn.title = on ? "Som ligado" : "Som desligado";
+}
+soundBtn.addEventListener("click", () => {
+  if (window.Sfx) window.Sfx.toggle();
+  soundIcon();
+});
+if (window.Sfx) window.Sfx.onChange(soundIcon);
+soundIcon();
+document.addEventListener(
+  "click",
+  e => {
+    const b = e.target.closest && e.target.closest("button");
+    if (b && !b.disabled && b !== soundBtn && window.Sfx) window.Sfx.play("tap");
+  },
+  true
+);
 openBoxBtn.addEventListener("click", () => {
   bagMode = null;
   boxMode = true;
