@@ -461,7 +461,8 @@ ipcMain.on("pets-meta", (_e, list) => {
               sad: petIds.includes(p.evolveBranches.sad) ? p.evolveBranches.sad : null
             }
           : null,
-      evolveLevel: Number.isInteger(p.evolveLevel) ? p.evolveLevel : 0
+      evolveLevel: Number.isInteger(p.evolveLevel) ? p.evolveLevel : 0,
+      evolveKos: Number.isInteger(p.evolveKos) ? p.evolveKos : 0
     };
   });
   broadcast();

@@ -2722,7 +2722,7 @@
     } catch (e) {}
 
     (window.PET_META || []).forEach(p => {
-      meta[p.id] = { id: p.id, dex: p.dex || 999, name: p.name, color: p.color, types: p.types, description: p.description || "", evolvesTo: p.evolvesTo || null, evolveBranches: p.evolveBranches || null, evolveLevel: p.evolveLevel || 0, stage: p.stage || 0, file: p.file, hash: p.hash };
+      meta[p.id] = { id: p.id, dex: p.dex || 999, name: p.name, color: p.color, types: p.types, description: p.description || "", evolvesTo: p.evolvesTo || null, evolveBranches: p.evolveBranches || null, evolveLevel: p.evolveLevel || 0, evolveKos: p.evolveKos || 0, stage: p.stage || 0, file: p.file, hash: p.hash };
     });
     petIds = Object.keys(meta).sort();
     if (window.Battle) Battle.setMeta(window.PET_META || []);
