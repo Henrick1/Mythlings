@@ -1301,7 +1301,7 @@ Pets.register({
         const R = o.baseR + o.bow * Math.sin(Math.PI * v * 0.92) - o.close * v * v;
         for (let i = 0; i <= NU; i++) {
           const u = (i / NU) * 2 - 1;
-          const rr = R + o.cup * (1 - u * u) * 0.14 + o.curl * Math.pow(v, 4) * (0.6 + 0.4 * Math.abs(u));
+          const rr = R + o.cup * (1 - u * u) * 0.14 + o.curl * Math.pow(v, 4) * (0.6 + 0.4 * Math.abs(u)) + (o.skew || 0) * u * Math.min(1, v * 3);
           const th = (u * hw) / Math.max(0.2, R);
           pos.push(Math.sin(th) * rr, y, Math.cos(th) * rr - o.baseR);
           let c = mix3(A, B, 0.35 + 0.65 * (0.5 + 0.5 * u) * Math.min(1, v * 1.6));
@@ -1339,9 +1339,9 @@ Pets.register({
       return hinge;
     };
     const deg = d => (d * Math.PI) / 180;
-    [62, 126, 180, 234, 298].forEach(d => addPetal(deg(d), { baseR: 0.46, baseY: 0.04, L: 1.62, W: 0.66, bow: 0.42, close: 0.14, cup: 0.6, curl: 0.16 }, 0));
-    [94, 152, 208, 266].forEach(d => addPetal(deg(d), { baseR: 0.4, baseY: 0.2, L: 1.6, W: 0.56, bow: 0.4, close: 0.2, cup: 0.5, curl: 0.1 }, 1));
-    [0, 60, 120, 180, 240, 300].forEach(d => addPetal(deg(d + 30), { baseR: 0.34, baseY: 1.52, L: 0.3, W: 0.26, bow: 0.08, close: -0.02, cup: 0.45, curl: 0.12, tilt: 0.55 }, 2));
+    [62, 126, 180, 234, 298].forEach(d => addPetal(deg(d), { baseR: 0.46, baseY: 0.04, L: 1.62, W: 0.6, bow: 0.42, close: 0.14, cup: 0.6, curl: 0.16, skew: 0.1 }, 0));
+    [94, 152, 208, 266].forEach(d => addPetal(deg(d), { baseR: 0.36, baseY: 0.2, L: 1.6, W: 0.5, bow: 0.3, close: 0.2, cup: 0.4, curl: 0.1, skew: 0.05 }, 1));
+    [0, 60, 120, 180, 240, 300].forEach(d => addPetal(deg(d + 30), { baseR: 0.34, baseY: 1.52, L: 0.3, W: 0.26, bow: 0.08, close: -0.02, cup: 0.45, curl: 0.12, tilt: 0.55, skew: 0.04 }, 2));
 
     const leafGeo = (() => {
       const sh = new THREE.Shape();
@@ -1564,14 +1564,28 @@ Pets.register({
 
     const shards = [];
     const crown = new THREE.Group();
-    crown.position.set(0, HC + 0.03, -0.07);
-    crown.rotation.x = -0.24;
+    crown.position.set(0, HC + 0.03, -0.12);
+    crown.rotation.x = -0.16;
     crown.scale.setScalar(1.38);
     head.add(crown);
     {
       const RO = 0.43;
       const RI = 0.31;
       const AA = 1.32;
+      const RB = 0.46;
+      const bendV = (x, y, z) => {
+        const a = x / RB;
+        const d = RB - z;
+        return new THREE.Vector3(Math.sin(a) * d, y, RB - Math.cos(a) * d);
+      };
+      const place = (o, x, y, z) => {
+        const w = new THREE.Group();
+        w.position.copy(bendV(x, y, z));
+        w.rotation.y = -x / RB;
+        w.add(o);
+        crown.add(w);
+        return w;
+      };
       const sh = new THREE.Shape();
       const N = 64;
       for (let i = 0; i <= N; i++) {
@@ -1584,38 +1598,50 @@ Pets.register({
         const a = lerp(-AA, AA, i / N);
         sh.lineTo(Math.sin(a) * RI, Math.cos(a) * RI);
       }
-      const g = new THREE.ExtrudeGeometry(sh, { depth: 0.035, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.01, bevelSegments: 2, curveSegments: 4 });
-      g.translate(0, 0, -0.0175);
+      const g = new THREE.ExtrudeGeometry(sh, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.014, bevelSize: 0.01, bevelSegments: 2, curveSegments: 4 });
+      g.translate(0, 0, -0.025);
+      {
+        const pa = g.attributes.position;
+        for (let i = 0; i < pa.count; i++) {
+          const v = bendV(pa.getX(i), pa.getY(i), pa.getZ(i));
+          pa.setXYZ(i, v.x, v.y, v.z);
+        }
+        g.computeVertexNormals();
+      }
       crown.add(mesh(g, crystalMat, false));
-      const band = mesh(new THREE.TorusGeometry(0.335, 0.014, 8, 48, AA * 2), cobaltMat, false);
-      band.rotation.z = Math.PI / 2 - AA;
-      band.position.z = 0.03;
-      crown.add(band);
+      [0.042, -0.042].forEach(zz => {
+        const pts = [];
+        for (let i = 0; i <= 40; i++) {
+          const a = lerp(-AA, AA, i / 40);
+          pts.push(bendV(Math.sin(a) * 0.335, Math.cos(a) * 0.335, zz));
+        }
+        crown.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 60, 0.014, 8, false), cobaltMat, false));
+      });
       const beadGeo = new THREE.SphereGeometry(0.014, 10, 8);
       for (let i = 0; i <= 18; i++) {
         const a = lerp(-AA + 0.08, AA - 0.08, i / 18);
         const r = RO - 0.035 + 0.07 * (1 - Math.abs(a) / AA);
-        const b = mesh(beadGeo, i % 2 ? whiteMat : cobaltMat, false);
-        b.position.set(Math.sin(a) * r, Math.cos(a) * r, 0.032);
-        crown.add(b);
+        [0.04, -0.04].forEach(zz => {
+          const b = mesh(beadGeo, i % 2 ? whiteMat : cobaltMat, false);
+          b.position.copy(bendV(Math.sin(a) * r, Math.cos(a) * r, zz));
+          crown.add(b);
+        });
       }
       [-1.05, -0.7, -0.35, 0, 0.35, 0.7, 1.05].forEach((a, i) => {
         const mid = 1 - Math.abs(a) / 1.05;
         const len = 0.1 + mid * 0.22;
-        const cg = new THREE.CylinderGeometry(0, 0.028 + mid * 0.012, len, 6);
+        const cg = new THREE.CylinderGeometry(0, 0.03 + mid * 0.012, len, 6);
         cg.translate(0, len / 2, 0);
         const spike = mesh(cg, crystalMat, false);
         const piv = new THREE.Group();
         const r = RO + 0.07 * (1 - Math.abs(a) / AA) - 0.005;
-        piv.position.set(Math.sin(a) * r, Math.cos(a) * r, -0.01);
         piv.rotation.z = -a;
         piv.add(spike);
-        crown.add(piv);
+        place(piv, Math.sin(a) * r, Math.cos(a) * r, 0);
         shards.push({ sh: spike, mid, ph: i * 0.9 });
       });
       const gem = new THREE.Group();
-      gem.position.set(0, 0.42, 0.045);
-      crown.add(gem);
+      place(gem, 0, 0.42, 0.06);
       for (let k = 0; k < 6; k++) {
         const arm = mesh(new THREE.BoxGeometry(0.013, 0.085, 0.013), whiteMat, false);
         arm.position.set(Math.sin((k / 6) * TAU) * 0.042, Math.cos((k / 6) * TAU) * 0.042, 0);
@@ -1897,7 +1923,7 @@ Pets.register({
         if (glad) bloom = Math.max(bloom, 0.1 + 0.06 * Math.sin(t * 0.7) * motion);
         petals.forEach(({ hinge, layer, ph: pp, tilt }) => {
           const k = layer === 2 ? 0.55 : layer === 1 ? 0.85 : 1;
-          const flut = Math.sin(t * 1.3 + pp) * 0.015 * motion + charge * Math.sin(t * 40 + pp) * 0.03 + (layer === 1 ? glad * Math.sin(t * 2.4 + pp) * 0.12 * motion : 0);
+          const flut = Math.sin(t * 1.3) * 0.012 * motion + charge * Math.sin(t * 40) * 0.025 + (layer === 1 ? glad * (Math.sin(t * 2.4 + pp) * 0.5 - 0.5) * 0.14 * motion : 0);
           hinge.rotation.x = lerp(hinge.rotation.x, tilt + bloom * k * 1.05 + flut, 0.25);
         });
         headHinge.rotation.x = lerp(headHinge.rotation.x, -headOpen * 1.1, 0.35);
