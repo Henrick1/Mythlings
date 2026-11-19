@@ -4,6 +4,8 @@ Pets.register({
   name: "Matrinho",
   color: "#2f5bc4",
   types: ["ice"],
+  evolvesTo: "matriosca",
+  evolveLevel: 16,
   description: "Uma bonequinha de gelo pintada à mão com flores azuis, no jeito da porcelana Gzhel. Por dentro é oca e guarda um friozinho que nunca acaba. Quando fica feliz, gira a cabeça como quem desenrosca a tampa e solta flocos de neve.",
   actions: {
     jump: { duration: 0.95 },
