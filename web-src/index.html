@@ -206,6 +206,25 @@
   </article>
 </dialog>
 
+<dialog id="lab-sheet" class="sheet lab-sheet" aria-labelledby="lab-title">
+  <div class="sheet-head">
+    <button class="icon-btn close" type="button" data-close aria-label="Voltar"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+    <h2 id="lab-title" class="plate"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15h9"/></svg><span>Teste de criaturas</span></h2>
+  </div>
+  <select id="lab-select" class="lab-select" aria-label="Criatura"></select>
+  <div id="lab-preview" class="dex-preview lab-preview" aria-label="Arraste para girar, use dois dedos ou a roda do mouse para zoom"><canvas id="lab-canvas"></canvas></div>
+  <div class="lab-tools">
+    <button id="lab-zoom-out" class="btn soft small" type="button" aria-label="Afastar">−</button>
+    <button id="lab-zoom-in" class="btn soft small" type="button" aria-label="Aproximar">+</button>
+    <button id="lab-move" class="btn soft small" type="button" aria-pressed="false">Mover</button>
+    <button id="lab-reset" class="btn soft small" type="button">Centralizar</button>
+    <button id="lab-idle" class="btn soft small" type="button" aria-pressed="true">Ações sozinho</button>
+    <button id="lab-dying" class="btn soft small" type="button" aria-pressed="false">Morrendo</button>
+  </div>
+  <h4 class="lab-h">Animações</h4>
+  <div id="lab-actions" class="lab-actions"></div>
+</dialog>
+
 <dialog id="egg-sheet" class="sheet" aria-labelledby="egg-title">
   <div class="sheet-head">
     <button class="icon-btn close" type="button" data-close aria-label="Voltar"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
@@ -310,6 +329,7 @@
     <p id="account-status" class="hint"></p>
     <div class="btn-col">
       <button id="sound-toggle" class="btn soft" type="button" aria-pressed="true">Som ligado</button>
+      <button id="lab-open" class="btn soft" type="button">Teste de criaturas</button>
       <button id="sync-now" class="btn soft" type="button">Sincronizar agora</button>
       <button id="install" class="btn soft" type="button" hidden>Instalar o app</button>
       <a id="desk-dl-link" class="btn soft" href="#" rel="noopener" hidden>Baixar para Windows</a>

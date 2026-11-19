@@ -295,6 +295,116 @@
     });
   }
 
+  let lab = null;
+  let labMove = false;
+  let labIdle = true;
+  let labDying = false;
+
+  const LAB_NAMES = {
+    arco: "Arco voltaico", attack: "Ataque", beam: "Raio", blast: "Explosão", bless: "Bênção", bloom: "Florescer", bow: "Reverência", bubble: "Bolhas", choque: "Choque", claw: "Garra", count: "Contar", crawl: "Rastejar", cross: "Cruzar", curl: "Enrolar", curto: "Curto-circuito", dance: "Dança", eat: "Comer", eclipse: "Eclipse", flare: "Labareda", flex: "Flexionar", fly: "Voar", frost: "Nevasca", fume: "Fumaça", gills: "Guelras", hide: "Esconder", jet: "Jato", jump: "Pulo", kick: "Chute", lanterns: "Lanternas", lift: "Levantar", open: "Abrir", peek: "Espiar", psy: "Psíquico", puff: "Baforada", pulse: "Pulso", punch: "Soco", reign: "Reinar", ring: "Tocar", roar: "Rugido", roll: "Rolar", root: "Enraizar", scan: "Escanear", shadow: "Sombra", shine: "Brilho", sink: "Afundar", slam: "Pancada", sneeze: "Espirro", spark: "Faísca", spin: "Giro", splash: "Respingo", spread: "Espalhar", stomp: "Pisada", swim: "Nadar", tangle: "Embolar", toxic: "Tóxico", unwind: "Desenrolar", wag: "Abanar", wobble: "Tremida", zap: "Faísca"
+  };
+  function labLabel(def, k) {
+    const sp = def.battle && def.battle.special && def.battle.special.action === k;
+    return (LAB_NAMES[k] || k.charAt(0).toUpperCase() + k.slice(1)) + (sp ? " ★" : "");
+  }
+
+  function renderLabActions() {
+    const box = $("lab-actions");
+    box.replaceChildren();
+    const id = $("lab-select").value;
+    const def = window.Pets && Pets.find(id);
+    if (!def) return;
+    const add = (label, dur, fn) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn soft small lab-act";
+      const n = document.createElement("b");
+      n.textContent = label;
+      b.append(n);
+      if (dur) {
+        const d = document.createElement("small");
+        d.textContent = dur;
+        b.append(d);
+      }
+      b.addEventListener("click", fn);
+      box.append(b);
+    };
+    Object.keys(def.actions || {}).forEach(k => add(labLabel(def, k), def.actions[k].duration.toFixed(1) + "s", () => lab && lab.run(k)));
+    add("Toque", "", () => lab && lab.interact());
+  }
+
+  function labPick(id) {
+    ensurePets([id]).then(() => {
+      if (!lab || $("lab-select").value !== id) return;
+      lab.setPet(id);
+      lab.setStatus({ hunger: 100, life: 100, dying: labDying });
+      renderLabActions();
+    });
+  }
+
+  function labToggle(btn, on) {
+    btn.setAttribute("aria-pressed", on ? "true" : "false");
+  }
+
+  function openLab() {
+    const sel = $("lab-select");
+    if (!sel.options.length) {
+      Object.values(meta)
+        .sort((a, b) => (a.dex || 999) - (b.dex || 999))
+        .forEach(m => {
+          const op = document.createElement("option");
+          op.value = m.id;
+          op.textContent = dexNum(m.id) + " " + m.name;
+          sel.append(op);
+        });
+      const cur = state && state.pet ? Game.speciesOf(state, state.pet) : null;
+      if (cur && meta[cur]) sel.value = cur;
+    }
+    $("account-sheet").close();
+    $("lab-sheet").showModal();
+    if (!lab) {
+      lab = PetStage.create({
+        canvas: $("lab-canvas"),
+        THREE: window.THREE,
+        kit: window.PetKit,
+        Pets: window.Pets,
+        reduceMotion: false
+      });
+    }
+    lab.setIdle(labIdle);
+    requestAnimationFrame(() => {
+      lab.resize();
+      lab.start();
+    });
+    labPick(sel.value);
+  }
+
+  function bindLab() {
+    $("lab-open").addEventListener("click", openLab);
+    $("lab-select").addEventListener("change", e => labPick(e.target.value));
+    $("lab-sheet").addEventListener("close", () => {
+      if (lab) lab.stop();
+    });
+    stageGestures($("lab-preview"), () => lab, { panMode: () => labMove });
+    $("lab-zoom-in").addEventListener("click", () => lab && lab.zoomBy(1.25));
+    $("lab-zoom-out").addEventListener("click", () => lab && lab.zoomBy(0.8));
+    $("lab-reset").addEventListener("click", () => lab && lab.resetView());
+    $("lab-move").addEventListener("click", () => {
+      labMove = !labMove;
+      labToggle($("lab-move"), labMove);
+    });
+    $("lab-idle").addEventListener("click", () => {
+      labIdle = !labIdle;
+      labToggle($("lab-idle"), labIdle);
+      if (lab) lab.setIdle(labIdle);
+    });
+    $("lab-dying").addEventListener("click", () => {
+      labDying = !labDying;
+      labToggle($("lab-dying"), labDying);
+      if (lab) lab.setStatus({ hunger: labDying ? 10 : 100, life: labDying ? 5 : 100, dying: labDying });
+    });
+  }
+
   function renderEvoChain(id, owned) {
     let first = id;
     const seen = new Set([id]);
@@ -388,6 +498,77 @@
       kit: window.PetKit,
       Pets: window.Pets,
       reduceMotion: reduce()
+    });
+  }
+
+  function stageGestures(el, getStage, o = {}) {
+    const pts = new Map();
+    let mode = null;
+    let pinch = null;
+    const measure = () => {
+      const [a, b] = [...pts.values()];
+      return { d: Math.hypot(a.x - b.x, a.y - b.y), x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    };
+    el.addEventListener("pointerdown", e => {
+      const st = getStage();
+      if (!st) return;
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch (_) {
+        mode = mode || null;
+      }
+      pts.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (pts.size === 1) {
+        mode = e.button === 2 || e.shiftKey || (o.panMode && o.panMode()) ? "pan" : "spin";
+        if (mode === "spin") st.spin.begin();
+      } else if (pts.size === 2) {
+        if (mode === "spin") st.spin.end();
+        mode = "pinch";
+        pinch = measure();
+      }
+    });
+    el.addEventListener("pointermove", e => {
+      const st = getStage();
+      const prev = pts.get(e.pointerId);
+      if (!st || !prev) return;
+      const dx = e.clientX - prev.x;
+      const dy = e.clientY - prev.y;
+      prev.x = e.clientX;
+      prev.y = e.clientY;
+      if (mode === "spin" && pts.size === 1) st.spin.drag(dx, dy);
+      else if (mode === "pan" && pts.size === 1) st.panBy(dx, dy);
+      else if (mode === "pinch" && pts.size >= 2) {
+        const g = measure();
+        if (pinch.d > 8 && g.d > 8) st.zoomBy(g.d / pinch.d);
+        st.panBy(g.x - pinch.x, g.y - pinch.y);
+        pinch = g;
+      }
+    });
+    const up = e => {
+      const st = getStage();
+      if (!pts.has(e.pointerId)) return;
+      pts.delete(e.pointerId);
+      if (pts.size === 0) {
+        if (mode === "spin" && st) st.spin.end();
+        mode = null;
+      } else if (mode === "pinch" && pts.size === 1) mode = "hold";
+    };
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+    el.addEventListener(
+      "wheel",
+      e => {
+        const st = getStage();
+        if (!st) return;
+        e.preventDefault();
+        st.zoomBy(Math.exp(-e.deltaY * 0.001));
+      },
+      { passive: false }
+    );
+    el.addEventListener("contextmenu", e => e.preventDefault());
+    el.addEventListener("dblclick", () => {
+      const st = getStage();
+      if (st) st.resetView();
     });
   }
 
@@ -2399,34 +2580,8 @@
     $("dex-sheet").addEventListener("close", () => {
       if (preview) preview.stop();
     });
-    const pv = $("dex-preview");
-    let pvDown = false;
-    let pvX = 0;
-    let pvY = 0;
-    pv.addEventListener("pointerdown", e => {
-      if (!preview) return;
-      pvDown = true;
-      pvX = e.clientX;
-      pvY = e.clientY;
-      try {
-        pv.setPointerCapture(e.pointerId);
-      } catch (_) {
-        pvDown = true;
-      }
-      preview.spin.begin();
-    });
-    pv.addEventListener("pointermove", e => {
-      if (!pvDown || !preview) return;
-      preview.spin.drag(e.clientX - pvX, e.clientY - pvY);
-      pvX = e.clientX;
-      pvY = e.clientY;
-    });
-    const pvUp = () => {
-      if (pvDown && preview) preview.spin.end();
-      pvDown = false;
-    };
-    pv.addEventListener("pointerup", pvUp);
-    pv.addEventListener("pointercancel", pvUp);
+    stageGestures($("dex-preview"), () => preview);
+    bindLab();
 
     $("account-btn").addEventListener("click", () => {
       $("account-sheet").showModal();
