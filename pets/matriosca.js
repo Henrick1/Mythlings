@@ -4,6 +4,8 @@ Pets.register({
   name: "Matrióscea",
   color: "#2a52b8",
   types: ["ice"],
+  evolvesTo: "gzhelvora",
+  evolveLevel: 32,
   description: "Cresceu uma casca nova de gelo transparente e levou o Matrinho guardado na barriga, onde ele ainda espia e cochila. A pintura azul virou vitral por fora. Quando briga, abre a cabeça e é o pequeno lá de dentro que sopra a nevasca.",
   actions: {
     jump: { duration: 1.0 },
