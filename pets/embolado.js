@@ -4,7 +4,6 @@ Pets.register({
   name: "Embolado",
   color: "#2b2d33",
   types: ["electric"],
-  stage: 2,
   evolveBranches: { happy: "fiacarca", sad: "emaranhidra" },
   evolveLevel: 32,
   description: "Uma bola de fios embaraçados que rola pela cidade juntando cabos soltos pelo caminho. Várias pontas desencapadas ficam para fora soltando faísca, e ninguém sabe ao certo quantas cabeças ele tem, nem ele mesmo.",

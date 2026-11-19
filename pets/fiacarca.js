@@ -4,7 +4,6 @@ Pets.register({
   name: "Fiaçarca",
   color: "#c8743a",
   types: ["electric", "dragon"],
-  stage: 3,
   description: "Quando o emaranhado se desembaraça por completo, os fios se trançam numa serpente de cobre que vive do próprio arco elétrico. Entre os chifres de cada cabeça um raio sobe sem parar, e as três juntas fecham um triângulo de luz que zumbe como uma subestação.",
   actions: {
     jump: { duration: 1.1 },

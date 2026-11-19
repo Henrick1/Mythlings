@@ -4,7 +4,6 @@ Pets.register({
   name: "Emaranhidra",
   color: "#f07a1a",
   types: ["electric", "dragon"],
-  stage: 3,
   description: "Nasceu de um emaranhado de fios esquecido no alto do poste que resolveu ter vontade própria. Cada cabeça é um cabo diferente e nenhuma concorda com a outra, mas quando todas se encostam pelas pontas desencapadas o curto-circuito ilumina o quarteirão inteiro.",
   actions: {
     jump: { duration: 1.1 },
