@@ -38,7 +38,7 @@ Ao abrir sem sessão, o painel pede e-mail e senha. Também dá para continuar s
 No terminal:
 
 ```
-curl -fsSL https://raw.githubusercontent.com/Henrick1/Pets/main/scripts/instalar-ubuntu.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Henrick1/Mythlings/main/scripts/instalar-ubuntu.sh | bash
 ```
 
 Isso baixa a versão mais recente (`Mythlings-Linux.AppImage`) para `~/.local/share/pets`, instala o `libfuse2` se faltar e cria o atalho Mythlings na tela de aplicativos. Rodar o mesmo comando de novo atualiza.
