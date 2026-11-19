@@ -1212,3 +1212,57 @@
 .bt-sheet {
   min-height: 192px;
 }
+
+.bt-st {
+  align-self: center;
+  padding: 3px 6px 2px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  color: #fff;
+  border-radius: 4px;
+  background: #7d8580;
+  transform: translateY(-1px);
+}
+
+.bt-st.st-brn {
+  background: #e8642c;
+}
+
+.bt-st.st-psn {
+  background: #9a4fc4;
+}
+
+.bt-st.st-par {
+  background: #e2b21c;
+  color: #2a2410;
+}
+
+.bt-st.st-slp {
+  background: #7d8aa0;
+}
+
+.bt-st.st-frz {
+  background: #49b6d8;
+}
+
+.bt-passive {
+  display: grid;
+  gap: 2px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  background: var(--b-paper);
+  border-left: 4px solid var(--b-ink);
+}
+
+.bt-passive b {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.bt-passive span {
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--b-ink-2);
+}
