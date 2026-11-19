@@ -407,8 +407,9 @@ Pets.register({
       { key: "coax", dir: V3(-1, 0.4, 0.25), H: V3(-1.72, 1.92, 0.56), yaw: -0.4, pitch: 0.2, s: 1.3, neckR: 0.11, color: C.white, eye: 0.46 },
       { key: "ext", dir: V3(1, 0.48, 0.25), H: V3(1.74, 2.14, 0.62), yaw: 0.38, pitch: -0.06, s: 1.25, neckR: 0.105, color: C.orange, eye: 0.5 }
     ];
-    const J_LOCAL = V3(0, -0.1, -0.2);
+    const J_LOCAL = V3(0, -0.08, -0.12);
     const J_DIR = V3(0, -0.5, -1).normalize();
+    const J_Q = new THREE.Quaternion().setFromUnitVectors(V3(0, 0, 1), J_DIR);
 
     const buildHead = h => {
       const g = new THREE.Group();
@@ -419,10 +420,11 @@ Pets.register({
       const skull = mesh(new THREE.SphereGeometry(0.24, 32, 24), skinMat);
       skull.scale.set(1, 0.86, 1.1);
       g.add(skull);
-      const back = mesh(new THREE.CylinderGeometry(0.1, 0.16, 0.2, 20), skinMat);
-      back.position.set(0, -0.11, -0.16);
-      back.rotation.x = -1.1;
-      g.add(back);
+      const neckEnd = (h.key === "phone" ? 0.1 : h.neckR * 0.92) / h.s;
+      const boot = mesh(new THREE.TorusGeometry(neckEnd + 0.012, 0.02, 10, 28), skinMat, false);
+      boot.position.copy(J_LOCAL).addScaledVector(J_DIR, 0.12);
+      boot.quaternion.copy(J_Q);
+      g.add(boot);
       const jawHinge = new THREE.Group();
       jawHinge.position.set(0, -0.12, 0.05);
       g.add(jawHinge);
@@ -496,9 +498,9 @@ Pets.register({
           g.add(tip);
         });
         [0, 1, 2].forEach(i => {
-          const rib = mesh(new THREE.TorusGeometry(0.105 - i * 0.012, 0.024, 8, 22), skinMat, false);
-          rib.position.set(0, -0.19 - i * 0.045, -0.24 - i * 0.07);
-          rib.rotation.x = -1.1 + Math.PI / 2;
+          const rib = mesh(new THREE.TorusGeometry(0.1 - i * 0.006, 0.022, 8, 24), skinMat, false);
+          rib.position.copy(J_LOCAL).addScaledVector(J_DIR, 0.19 + i * 0.055);
+          rib.quaternion.copy(J_Q);
           g.add(rib);
         });
         const tagWire = mesh(new THREE.TorusGeometry(0.025, 0.004, 6, 14), nickelMat, false);
