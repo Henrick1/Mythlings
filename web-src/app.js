@@ -906,6 +906,8 @@
     return parts.join(", ");
   }
 
+  const sfx = (name, x) => window.Sfx && window.Sfx.play(name, x);
+
   function buzz(ms) {
     try {
       if (navigator.vibrate) navigator.vibrate(ms);
@@ -923,6 +925,7 @@
       return;
     }
     const from = shownCoins;
+    if (value > from) sfx("coins");
     const t0 = performance.now();
     const step = now => {
       const k = Math.max(0, Math.min(1, (now - t0) / 650));
@@ -1076,9 +1079,10 @@
       buy.addEventListener("click", () => {
         const before = state.coins;
         const r = Game.buyItem(state, k);
-        if (!r.changed) return;
+        if (!r.changed) return sfx("deny");
         saveState();
         scheduleSync();
+        sfx("buy");
         buzz(18);
         shownCoins = before;
         setBagCoins(state.coins, true);
@@ -1131,6 +1135,7 @@
           if (!r.changed) return;
           saveState();
           scheduleSync();
+          sfx("sell");
           showToast("+" + r.coins + " moedas");
           renderBag();
           render();
@@ -1146,6 +1151,7 @@
 
   function holdItem(k) {
     held = k;
+    sfx("pick");
     if ($("bag-sheet").open) $("bag-sheet").close();
     cardOpen = false;
     renderHand();
@@ -1179,12 +1185,14 @@
     const it = Game.ITEMS[k];
     const name = (meta[Game.speciesOf(state, uid)] || {}).name || "";
     if (!Game.canUseItem(state, k, uid)) {
+      sfx("deny");
       showToast(name + " não precisa disso agora");
       if (habitat) habitat.hover(null);
       return;
     }
     const r = Game.useItem(state, k, uid);
     if (!r.changed) return;
+    sfx(r.levels > 0 ? "levelup" : it.life || it.revive ? "heal" : "give");
     if (uid !== state.pet) Game.selectPet(state, uid);
     saveState();
     scheduleSync();
@@ -1237,7 +1245,10 @@
     };
     btn.addEventListener("pointerup", end);
     btn.addEventListener("pointercancel", end);
-    $("hand-x").addEventListener("click", dropHand);
+    $("hand-x").addEventListener("click", () => {
+      sfx("drop");
+      dropHand();
+    });
   }
 
   function expTypes(id) {
@@ -1466,6 +1477,7 @@
         : "Volte todo dia para ganhar mais. Se faltar um dia, recomeça do dia 1.";
     $("daily-claim").textContent = "Pegar " + d.coins + " moedas";
     $("daily-sheet").showModal();
+    sfx("toast");
   }
 
   function showToast(text) {
@@ -1789,6 +1801,14 @@
     else status = "Ainda não sincronizado.";
     $("account-status").textContent = status;
     $("build").textContent = "Versão " + (window.PETS_BUILD || "local");
+    soundLabel();
+  }
+
+  function soundLabel() {
+    const on = !window.Sfx || window.Sfx.enabled();
+    $("sound-toggle").textContent = on ? "Som ligado" : "Som desligado";
+    $("sound-toggle").setAttribute("aria-pressed", on ? "true" : "false");
+    $("sound-toggle").hidden = !window.Sfx;
   }
 
   function render() {
@@ -2152,6 +2172,14 @@
   }
 
   function bindUi() {
+    document.addEventListener(
+      "click",
+      e => {
+        const b = e.target.closest && e.target.closest("button, .dex-card, [role=button]");
+        if (b && !b.disabled) sfx("tap");
+      },
+      true
+    );
     $("auth-form").addEventListener("submit", e => {
       e.preventDefault();
       submitAuth("signin");
@@ -2274,10 +2302,11 @@
       if (bought.egg && bought.egg > Date.now()) return;
       const before = state.coins;
       const r = Game.buyEgg(state, baseIds());
-      if (!r.changed) return;
+      if (!r.changed) return sfx("deny");
       ensurePets(neededPets());
       saveState();
       scheduleSync();
+      sfx("buy");
       buzz([15, 40, 25]);
       shownCoins = before;
       setBagCoins(state.coins, true);
@@ -2301,6 +2330,7 @@
       const r = Game.claimDaily(state);
       $("daily-sheet").close();
       if (!r.changed) return;
+      sfx("reward");
       saveState();
       scheduleSync();
       showToast("+" + r.coins + " moedas" + (r.item ? " e " + Game.ITEMS[r.item].name : ""));
@@ -2404,6 +2434,12 @@
     });
 
     $("sync-now").addEventListener("click", () => syncNow({ preferRemote: false }));
+    $("sound-toggle").addEventListener("click", () => {
+      if (!window.Sfx) return;
+      window.Sfx.toggle();
+      soundLabel();
+      sfx("tap");
+    });
 
     $("release-cancel").addEventListener("click", () => $("release-sheet").close());
     $("release-ok").addEventListener("click", () => {
@@ -2497,6 +2533,8 @@
         await loadScript(THREE_CDN);
       }
       if (!window.THREE) throw new Error("three");
+      await loadScriptSafe("lib/sfx.js");
+      if (window.Sfx) window.Sfx.setStageResolver(id => (meta[id] ? evoStage(id) : 0));
       await loadScript("lib/game.js");
       await loadScript("lib/cloud.js");
       await loadScript("lib/types.js");

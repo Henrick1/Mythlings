@@ -7,6 +7,15 @@ const loadScript = src =>
     document.body.appendChild(el);
   });
 
+document.addEventListener(
+  "click",
+  e => {
+    const b = e.target.closest && e.target.closest("button");
+    if (b && !b.disabled && window.Sfx) window.Sfx.play("tap");
+  },
+  true
+);
+
 (async () => {
   const files = await window.pet.getPetFiles();
   await Promise.all(files.map(loadScript));
