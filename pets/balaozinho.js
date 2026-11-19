@@ -4,6 +4,7 @@ Pets.register({
   name: "Inflapo",
   color: "#7d98b4",
   types: ["flying"],
+  move: "fly",
   evolvesTo: "zepelume",
   evolveLevel: 16,
   description: "Um filhote aviador que nunca tira os óculos de voo. Enche a bolsa vermelha do pescoço como um balão para flutuar e, quando ela esvazia, solta rajadas de vento. Com fome, a bolsa murcha e ele pousa emburrado.",
