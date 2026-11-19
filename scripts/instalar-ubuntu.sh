@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -e
 
-REPO="Henrick1/Pets"
+REPO="Henrick1/Mythlings"
 URL="https://github.com/$REPO/releases/download/desktop/Mythlings-Linux.AppImage"
 ICON_URL="https://raw.githubusercontent.com/$REPO/main/assets/icon.png"
 DEST="$HOME/.local/share/pets"
