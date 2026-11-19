@@ -411,44 +411,103 @@ Pets.register({
     const J_DIR = V3(0, -0.5, -1).normalize();
     const J_Q = new THREE.Quaternion().setFromUnitVectors(V3(0, 0, 1), J_DIR);
 
+    const keyAt = (keys, z) => {
+      if (z <= keys[0][0]) return keys[0].slice(1);
+      const n = keys.length;
+      if (z >= keys[n - 1][0]) return keys[n - 1].slice(1);
+      let i = 0;
+      while (keys[i + 1][0] < z) i++;
+      const k0 = keys[Math.max(0, i - 1)];
+      const k1 = keys[i];
+      const k2 = keys[i + 1];
+      const k3 = keys[Math.min(n - 1, i + 2)];
+      const u = (z - k1[0]) / (k2[0] - k1[0]);
+      const out = [];
+      for (let c = 1; c < k1.length; c++) {
+        const m1 = ((k2[c] - k0[c]) / (k2[0] - k0[0] || 1)) * (k2[0] - k1[0]);
+        const m2 = ((k3[c] - k1[c]) / (k3[0] - k1[0] || 1)) * (k2[0] - k1[0]);
+        const u2 = u * u;
+        const u3 = u2 * u;
+        out.push((2 * u3 - 3 * u2 + 1) * k1[c] + (u3 - 2 * u2 + u) * m1 + (-2 * u3 + 3 * u2) * k2[c] + (u3 - u2) * m2);
+      }
+      return out;
+    };
+    const headLoft = (keys, nTop, nBot, NZ, NU) => {
+      const z0 = keys[0][0];
+      const z1 = keys[keys.length - 1][0];
+      const pos = [];
+      const idx = [];
+      for (let j = 0; j <= NZ; j++) {
+        const v = j / NZ;
+        const z = lerp(z0, z1, (1 - Math.cos(v * Math.PI)) / 2);
+        const [w, top, bot] = keyAt(keys, z);
+        const mid = (top + bot) / 2;
+        for (let i = 0; i < NU; i++) {
+          const a = (i / NU) * TAU;
+          const c = Math.cos(a);
+          const sn = Math.sin(a);
+          const ex = sn >= 0 ? 2 / nTop : 2 / nBot;
+          pos.push(w * Math.sign(c) * Math.pow(Math.abs(c), ex), mid + (sn >= 0 ? top - mid : mid - bot) * Math.sign(sn) * Math.pow(Math.abs(sn), ex), z);
+        }
+      }
+      for (let j = 0; j < NZ; j++)
+        for (let i = 0; i < NU; i++) {
+          const a = j * NU + i;
+          const b = j * NU + ((i + 1) % NU);
+          idx.push(a, b, a + NU, b, b + NU, a + NU);
+        }
+      const capA = pos.length / 3;
+      const ka = keyAt(keys, z0);
+      pos.push(0, (ka[1] + ka[2]) / 2, z0 - 0.012);
+      const capB = pos.length / 3;
+      const kb = keyAt(keys, z1);
+      pos.push(0, (kb[1] + kb[2]) / 2, z1 + 0.008);
+      for (let i = 0; i < NU; i++) {
+        idx.push(capA, (i + 1) % NU, i);
+        idx.push(capB, NZ * NU + i, NZ * NU + ((i + 1) % NU));
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      geo.setIndex(idx);
+      geo.computeVertexNormals();
+      return geo;
+    };
     const buildHead = h => {
       const g = new THREE.Group();
       g.rotation.order = "YXZ";
       body.add(g);
       const skinMat = rubber(h.color);
       const mats = [skinMat];
-      const BUMPS = {
-        power: [[0, 0.2, 0.02, 0.09, 0.018], [0, 0.06, -0.22, 0.12, 0.02]],
-        phone: [[0, 0.16, 0.12, 0.1, 0.012]],
-        net: [[0, 0.17, -0.04, 0.1, 0.012]],
-        coax: [[-0.15, -0.08, 0.06, 0.07, 0.02], [0.15, -0.08, 0.06, 0.07, 0.02]],
-        ext: [[-0.15, -0.04, 0.1, 0.09, 0.02], [0.15, -0.04, 0.1, 0.09, 0.02]]
-      };
+      const SHAPE = {
+        power: { keys: [[-0.25, 0.07, 0.04, -0.06], [-0.21, 0.17, 0.12, -0.13], [-0.1, 0.25, 0.175, -0.17], [0.04, 0.27, 0.185, -0.175], [0.15, 0.24, 0.15, -0.16], [0.23, 0.17, 0.075, -0.14], [0.27, 0.12, 0.03, -0.12]], nt: 3.2, nb: 2.4, eye: [0.13, 0.125, 0.135], eyeYaw: 0.42 },
+        phone: { keys: [[-0.22, 0.07, 0.05, -0.05], [-0.18, 0.17, 0.15, -0.11], [-0.06, 0.22, 0.2, -0.13], [0.06, 0.215, 0.19, -0.13], [0.16, 0.17, 0.13, -0.12], [0.22, 0.11, 0.06, -0.1], [0.25, 0.08, 0.025, -0.08]], nt: 2.2, nb: 2.2, eye: [0.105, 0.1, 0.16], eyeYaw: 0.34 },
+        net: { keys: [[-0.24, 0.07, 0.04, -0.05], [-0.2, 0.16, 0.12, -0.1], [-0.08, 0.23, 0.155, -0.12], [0.05, 0.235, 0.145, -0.115], [0.16, 0.2, 0.1, -0.1], [0.24, 0.15, 0.055, -0.09], [0.28, 0.12, 0.035, -0.085]], nt: 2.4, nb: 2.6, eye: [0.13, 0.115, 0.08], eyeYaw: 0.5 },
+        coax: { keys: [[-0.23, 0.07, 0.05, -0.05], [-0.19, 0.16, 0.15, -0.11], [-0.07, 0.205, 0.19, -0.13], [0.05, 0.195, 0.17, -0.13], [0.14, 0.14, 0.1, -0.115], [0.2, 0.1, 0.045, -0.105], [0.23, 0.09, 0.025, -0.095]], nt: 2.1, nb: 2.3, eye: [0.11, 0.095, 0.11], eyeYaw: 0.4 },
+        ext: { keys: [[-0.22, 0.08, 0.04, -0.05], [-0.18, 0.2, 0.11, -0.11], [-0.06, 0.27, 0.15, -0.14], [0.06, 0.28, 0.15, -0.14], [0.16, 0.24, 0.11, -0.13], [0.22, 0.17, 0.06, -0.12], [0.25, 0.13, 0.03, -0.11]], nt: 2.6, nb: 2.4, eye: [0.135, 0.14, 0.06], eyeYaw: 0.48 }
+      }[h.key];
+      const er = 0.22 * h.eye;
+      const [EX, EY, EZ] = SHAPE.eye;
       const sculpt = () => {
-        const geo = new THREE.SphereGeometry(1, 56, 40);
+        const geo = headLoft(SHAPE.keys, SHAPE.nt, SHAPE.nb, 56, 40);
         const pa = geo.attributes.position;
-        const bumps = [
-          [-0.1, 0.115, 0.17, 0.065, 0.024],
-          [0.1, 0.115, 0.17, 0.065, 0.024],
-          [-0.15, -0.055, 0.11, 0.08, 0.02],
-          [0.15, -0.055, 0.11, 0.08, 0.02],
-          [0, 0.0, 0.24, 0.08, 0.016],
-          [0, 0.07, -0.2, 0.13, 0.014]
-        ].concat(BUMPS[h.key] || []);
+        const na = geo.attributes.normal;
+        const bumps = [];
+        [-1, 1].forEach(sd => {
+          bumps.push([sd * EX, EY - er * 0.25, EZ - er * 0.35, er * 0.95, er * 0.45]);
+          bumps.push([sd * EX * 1.05, EY + er * 0.75, EZ + er * 0.15, er * 0.7, 0.018]);
+          bumps.push([sd * SHAPE.keys[3][1] * 0.72, -0.07, 0.1, 0.075, 0.018]);
+        });
+        bumps.push([0, SHAPE.keys[4][2] * 0.9, 0.17, 0.06, 0.012]);
+        bumps.push([0, SHAPE.keys[2][2] * 0.5, -0.19, 0.11, 0.014]);
         const p = V3();
-        const n = V3();
         for (let i = 0; i < pa.count; i++) {
-          n.set(pa.getX(i), pa.getY(i), pa.getZ(i)).normalize();
-          p.set(n.x * 0.24, n.y * 0.205, n.z * 0.265);
-          if (p.y < 0) p.y *= 0.86;
-          if (p.z < 0 && p.y < 0) p.x *= 1 - 0.35 * Math.min(1, (-p.z / 0.265) * (-p.y / 0.18));
+          p.set(pa.getX(i), pa.getY(i), pa.getZ(i));
           let disp = 0;
           bumps.forEach(([bx, by, bz, br, ba]) => {
             const d2 = (p.x - bx) ** 2 + (p.y - by) ** 2 + (p.z - bz) ** 2;
             disp += ba * Math.exp(-d2 / (br * br));
           });
-          p.addScaledVector(n, disp);
-          pa.setXYZ(i, p.x, p.y, p.z);
+          pa.setXYZ(i, p.x + na.getX(i) * disp, p.y + na.getY(i) * disp, p.z + na.getZ(i) * disp);
         }
         geo.computeVertexNormals();
         return geo;
@@ -519,15 +578,15 @@ Pets.register({
       });
       const eyes = [-1, 1].map(sd => {
         const e = eye({ size: h.eye, pupilColor: h.key === "net" ? (sd < 0 ? 0x1f9a4a : 0xe2781c) : 0x1c1d26 });
-        e.g.position.set(sd * 0.112, 0.075, 0.185);
-        e.g.rotation.set(-0.08, sd * 0.36, 0);
+        e.g.position.set(sd * EX, EY, EZ);
+        e.g.rotation.set(-0.2, sd * SHAPE.eyeYaw, 0);
         g.add(e.g);
         return e;
       });
       const brows = [];
       const lids = [];
       const browMat = h.key === "power" || h.key === "net" ? darkMat : rubber(0x3a3020);
-      const BR = { power: [[0.07, 0.19], [0.07, 0.19]], phone: [[-0.05, 0.212], [-0.05, 0.212]], net: [[-0.22, 0.22], [0.16, 0.182]], ext: [[-0.1, 0.205], [-0.1, 0.205]] }[h.key];
+      const BR = { power: [[0.07, 0], [0.07, 0]], phone: [[-0.05, 0.02], [-0.05, 0.02]], net: [[-0.22, 0.032], [0.16, -0.004]], ext: [[-0.1, 0.014], [-0.1, 0.014]] }[h.key];
       const browGeo = new THREE.TorusGeometry(0.075, 0.016, 8, 16, 1.25);
       browGeo.rotateZ(Math.PI / 2 - 0.625);
       browGeo.translate(0, -0.075, 0);
@@ -535,9 +594,10 @@ Pets.register({
         [-1, 1].forEach((sd, k) => {
           const b = mesh(browGeo, h.color === C.black ? rubber(0x0c0d10) : browMat, false);
           b.scale.set(1, 1, 0.6);
-          b.position.set(sd * 0.112, BR[k][1], 0.19);
-          b.rotation.x = -0.25;
-          b.userData = { ang: BR[k][0], y0: BR[k][1] };
+          const y0 = EY + er * 1.02 + 0.015 + BR[k][1];
+          b.position.set(sd * EX, y0, EZ + er * 0.15);
+          b.rotation.set(-0.35, sd * SHAPE.eyeYaw * 0.8, 0);
+          b.userData = { ang: BR[k][0], y0 };
           g.add(b);
           brows.push({ b, sd });
         });
@@ -556,9 +616,9 @@ Pets.register({
         const blushMat = new THREE.MeshStandardMaterial({ color: h.key === "phone" ? 0xf2a0a8 : 0xe2563a, roughness: 0.8, transparent: true, opacity: 0.75 });
         [-1, 1].forEach(sd => {
           const bl = mesh(new THREE.CircleGeometry(0.036, 20), blushMat, false);
-          bl.position.set(sd * 0.168, -0.02, 0.175);
-          bl.lookAt(V3(sd * 0.168, -0.02, 0.175).multiply(V3(1.6, 1, 1.4)));
-          bl.position.multiplyScalar(1.04);
+          const bx = SHAPE.keys[4][1] * 0.86;
+          bl.position.set(sd * bx, -0.035, 0.15);
+          bl.lookAt(V3(sd * (bx + 1), -0.035, 0.15 + 0.9));
           g.add(bl);
         });
       }
@@ -569,15 +629,98 @@ Pets.register({
         tongue.rotation.set(0.35, 0.3, 0);
         jawHinge.add(tongue);
       }
-      if (h.key === "phone") {
-        const pts = [];
-        for (let i = 0; i <= 60; i++) {
-          const u = i / 60;
-          const a = u * TAU * 2.2;
-          pts.push(V3(Math.sin(a) * 0.035 * (1 - u * 0.4), 0.15 + u * 0.16 + Math.cos(a) * 0.012, -0.02 - Math.cos(a) * 0.035 * (1 - u * 0.4) + u * 0.03));
-        }
-        const curl = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 90, 0.011, 8), skinMat, false);
-        g.add(curl);
+      if (h.key === "power")
+        [-1, 1].forEach(sd => {
+          const ear = new THREE.Group();
+          ear.position.set(sd * 0.235, 0.11, -0.07);
+          ear.rotation.set(0.25, sd * 0.35, sd * -2.0, "YXZ");
+          g.add(ear);
+          const e1 = mesh(flapGeo(0.17, 0.13), flapMat, false);
+          e1.rotation.x = Math.PI / 2;
+          e1.rotation.y = Math.PI;
+          ear.add(e1);
+          h.ears = (h.ears || []).concat([{ g: ear, sd }]);
+        });
+      if (h.key === "phone")
+        [-1, 1].forEach(sd => {
+          const pts = [];
+          const A = V3(sd * 0.17, 0.13, -0.04);
+          const B = V3(sd * 0.33, -0.1, -0.07);
+          const d = B.clone().sub(A).normalize();
+          const p1 = V3().crossVectors(d, V3(0, 0, 1)).normalize();
+          const p2 = V3().crossVectors(d, p1).normalize();
+          for (let i = 0; i <= 80; i++) {
+            const u = i / 80;
+            const a = u * TAU * 5;
+            const r = 0.03 * Math.min(1, u * 6) * (1 - u * 0.2);
+            const c = A.clone().lerp(B, u).addScaledVector(V3(sd, 0.4, 0), Math.sin(u * Math.PI) * 0.04);
+            pts.push(c.addScaledVector(p1, Math.cos(a) * r).addScaledVector(p2, Math.sin(a) * r));
+          }
+          const coil = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 160, 0.012, 8), skinMat, false);
+          g.add(coil);
+          const tip = mesh(new THREE.BoxGeometry(0.04, 0.03, 0.05), clearMat, false);
+          tip.position.copy(pts[80]).add(V3(0, -0.015, 0));
+          g.add(tip);
+        });
+      if (h.key === "net") {
+        const sh = new THREE.Shape();
+        sh.moveTo(0, 0);
+        sh.bezierCurveTo(0.02, 0.07, 0.1, 0.11, 0.2, 0.09);
+        sh.bezierCurveTo(0.17, 0.05, 0.2, 0.02, 0.26, 0);
+        sh.lineTo(0, 0);
+        const fg = new THREE.ExtrudeGeometry(sh, { depth: 0.012, bevelEnabled: true, bevelThickness: 0.004, bevelSize: 0.004, bevelSegments: 2 });
+        fg.translate(0, 0, -0.006);
+        const fin = mesh(fg, clearMat, false);
+        fin.rotation.y = Math.PI / 2;
+        fin.position.set(0, 0.13, 0.12);
+        fin.renderOrder = 2;
+        g.add(fin);
+        const PAIRS = [[0xe2781c, 0xf6e9dc], [0x3f9b4c, 0xf6e9dc]];
+        [-1, 1].forEach(sd =>
+          PAIRS.forEach(([ca, cb], k) => {
+            [ca, cb].forEach((c, j) => {
+              const pts = [];
+              for (let i = 0; i <= 30; i++) {
+                const u = i / 30;
+                const tw = u * TAU * 3 + j * Math.PI;
+                const base = V3(sd * (0.11 + u * 0.14), -0.06 - k * 0.02 - u * (0.06 + k * 0.05) + u * u * 0.03, 0.22 - u * 0.05);
+                pts.push(base.add(V3(0, Math.cos(tw) * 0.006, Math.sin(tw) * 0.006)));
+              }
+              g.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, 0.0055, 5), rubber(c), false));
+            });
+          })
+        );
+      }
+      if (h.key === "coax") {
+        const hub = mesh(new THREE.SphereGeometry(0.035, 14, 10), nickelMat, false);
+        hub.position.set(0, 0.195, -0.06);
+        g.add(hub);
+        [-1, 1].forEach(sd => {
+          const ant = new THREE.Group();
+          ant.position.copy(hub.position);
+          ant.rotation.set(-0.3, 0, sd * -0.5);
+          g.add(ant);
+          [0.011, 0.008, 0.006].forEach((r, i) => {
+            const seg = mesh(new THREE.CylinderGeometry(r, r, 0.11, 8), nickelMat, false);
+            seg.position.y = 0.055 + i * 0.1;
+            ant.add(seg);
+          });
+          const ball = mesh(new THREE.SphereGeometry(0.014, 10, 8), nickelMat, false);
+          ball.position.y = 0.32;
+          ant.add(ball);
+          h.ears = (h.ears || []).concat([{ g: ant, sd }]);
+        });
+      }
+      if (h.key === "ext") {
+        const sw = mesh(new THREE.BoxGeometry(0.09, 0.03, 0.06), rubber(0x2a2c33), false);
+        sw.position.set(0, 0.155, -0.06);
+        sw.rotation.x = -0.25;
+        g.add(sw);
+        const rocker = mesh(new THREE.BoxGeometry(0.07, 0.025, 0.045), new THREE.MeshStandardMaterial({ color: 0xe0302a, emissive: 0xc01810, emissiveIntensity: 0.5, roughness: 0.4 }), false);
+        rocker.position.set(0, 0.175, -0.06);
+        rocker.rotation.x = -0.45;
+        g.add(rocker);
+        h.rocker = rocker;
       }
       if (h.key === "coax")
         for (let i = 0; i < 3; i++) {
@@ -1132,6 +1275,10 @@ Pets.register({
           h.brows.forEach(({ b, sd }) => {
             b.rotation.z = sd * (b.userData.ang + sq * 0.2);
             b.position.y = b.userData.y0 - sq * 0.02;
+          });
+          if (h.ears) h.ears.forEach(({ g: e, sd }, k) => {
+            if (e.userData.rz0 === undefined) e.userData.rz0 = e.rotation.z;
+            e.rotation.z = e.userData.rz0 + sd * (Math.sin(t * 2.1 + k * 1.3) * 0.08 * motion - sq * 0.25);
           });
           if (h.tag) h.tag.rotation.z = Math.sin(t * 2.4) * 0.25 * motion + rot[i].roll * -1.2;
           if (h.leds) h.leds.forEach((l, k) => (l.material.emissiveIntensity = (Math.sin(t * (k ? 9 : 13)) > 0.2 ? 1.2 : 0.15) * vigor));
