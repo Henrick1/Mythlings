@@ -1236,8 +1236,8 @@ Pets.register({
       g.add(mesh(geo, petalInMat, false));
       return g;
     };
-    const budMat = new THREE.MeshPhysicalMaterial({ color: 0xd8f0ff, roughness: 0.05, clearcoat: 1, transparent: true, opacity: 0.2, depthWrite: false });
-    const budInMat = new THREE.MeshPhysicalMaterial({ color: 0x9fd2ff, roughness: 0.1, transparent: true, opacity: 0.12, side: THREE.BackSide, depthWrite: false, emissive: 0x2a6fc0, emissiveIntensity: 0.25 });
+    const bodyMat = new THREE.MeshPhysicalMaterial({ color: 0xf2f7ff, roughness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.15 });
+    const cavMat = new THREE.MeshStandardMaterial({ color: 0x8fb4ee, roughness: 0.4, emissive: 0x2a6fc0, emissiveIntensity: 0.25, side: THREE.BackSide });
 
     const root = new THREE.Group();
     const sway = new THREE.Group();
@@ -1265,8 +1265,15 @@ Pets.register({
       }
       return 0.34;
     };
-    squash.add(mesh(new THREE.LatheGeometry(budPts, 64), budMat, false));
-    squash.add(mesh(new THREE.LatheGeometry(budPts.map(p => new THREE.Vector2(Math.max(0, p.x - 0.03), p.y)), 48), budInMat, false));
+    const DOOR = 1.08;
+    {
+      const lower = budPts.filter(p => p.y <= 1.5);
+      const og = new THREE.LatheGeometry(lower.map(p => new THREE.Vector2(Math.max(0, p.x - 0.008), p.y)), 56, DOOR - 0.02, TAU - 2 * DOOR + 0.04);
+      squash.add(mesh(og, bodyMat));
+      squash.add(mesh(og, cavMat, false));
+      const upper = budPts.filter(p => p.y >= 1.36);
+      squash.add(mesh(new THREE.LatheGeometry(upper.map(p => new THREE.Vector2(Math.max(0, p.x - 0.008), p.y)), 56), bodyMat));
+    }
     {
       const floor = mesh(new THREE.CircleGeometry(0.42, 40), new THREE.MeshPhysicalMaterial({ color: 0xe8f6ff, roughness: 0.4, transparent: true, opacity: 0.7 }), false);
       floor.rotation.x = -Math.PI / 2;
@@ -1326,22 +1333,227 @@ Pets.register({
       g.computeVertexNormals();
       return g;
     };
-    const petals = [];
-    const addPetal = (phi, o, layer, parent = squash) => {
-      const piv = new THREE.Group();
-      piv.position.set(Math.sin(phi) * o.baseR, o.baseY, Math.cos(phi) * o.baseR);
-      piv.rotation.y = phi;
-      parent.add(piv);
+    const plates = [];
+    const plateGeo = o => {
+      const NU = 14;
+      const NV = 24;
+      const pos = [];
+      const uvs = [];
+      const idx = [];
+      for (let j = 0; j <= NV; j++) {
+        const v = j / NV;
+        const y = lerp(o.y0, o.y1, v);
+        let hw = o.half * (0.82 + 0.18 * smooth(0, 0.12, v));
+        if (v > 0.7) hw *= Math.sqrt(Math.max(0, 1 - Math.pow((v - 0.7) / 0.3, 2)));
+        for (let i = 0; i <= NU; i++) {
+          const u = (i / NU) * 2 - 1;
+          const rr = budR(y) + o.off + o.skew * u + o.cup * (1 - u * u) + o.curl * smooth(0.75, 1, v);
+          const th = u * Math.max(0.002, hw);
+          pos.push(Math.sin(th) * rr, y - o.y0, Math.cos(th) * rr - budR(o.y0));
+          uvs.push(i / NU, v);
+        }
+      }
+      for (let j = 0; j < NV; j++)
+        for (let i = 0; i < NU; i++) {
+          const a = j * (NU + 1) + i;
+          const b = a + NU + 1;
+          idx.push(a, b, a + 1, a + 1, b, b + 1);
+        }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      return g;
+    };
+    const addPlate = (phi, o, layer) => {
+      const rot = new THREE.Group();
+      rot.rotation.y = phi;
+      squash.add(rot);
       const hinge = new THREE.Group();
-      piv.add(hinge);
-      hinge.add(petalMesh(petalGeo(o)));
-      petals.push({ hinge, layer, phi, ph: phi * 1.7 + layer, tilt: o.tilt || 0 });
-      return hinge;
+      hinge.position.set(0, o.y0, budR(o.y0));
+      rot.add(hinge);
+      hinge.add(petalMesh(plateGeo(o)));
+      plates.push({ hinge, layer, ph: phi * 1.7 });
     };
     const deg = d => (d * Math.PI) / 180;
-    [62, 126, 180, 234, 298].forEach(d => addPetal(deg(d), { baseR: 0.46, baseY: 0.04, L: 1.62, W: 0.6, bow: 0.42, close: 0.14, cup: 0.6, curl: 0.16, skew: 0.1 }, 0));
-    [94, 152, 208, 266].forEach(d => addPetal(deg(d), { baseR: 0.36, baseY: 0.2, L: 1.6, W: 0.5, bow: 0.3, close: 0.2, cup: 0.4, curl: 0.1, skew: 0.05 }, 1));
-    [0, 60, 120, 180, 240, 300].forEach(d => addPetal(deg(d + 30), { baseR: 0.34, baseY: 1.52, L: 0.3, W: 0.26, bow: 0.08, close: -0.02, cup: 0.45, curl: 0.12, tilt: 0.55, skew: 0.04 }, 2));
+    [92, 152, 208, 268].forEach(d => addPlate(deg(d), { y0: 0.05, y1: 1.62, half: deg(37), off: 0.022, skew: 0.012, cup: 0.012, curl: 0.03 }, 0));
+    [0, 60, 120, 180, 240, 300].forEach(d => addPlate(deg(d + 30), { y0: 1.4, y1: 1.92, half: deg(35), off: 0.03, skew: 0.012, cup: 0.01, curl: 0.04 }, 2));
+
+    const paintDoor = () => {
+      if (!hasDoc) return [null, null];
+      const PW = 256;
+      const PH = 512;
+      const cv = document.createElement("canvas");
+      cv.width = PW;
+      cv.height = PH;
+      const g = cv.getContext("2d");
+      const av = document.createElement("canvas");
+      av.width = PW;
+      av.height = PH;
+      const ga = av.getContext("2d");
+      ga.fillStyle = "#ffffff";
+      ga.fillRect(0, 0, PW, PH);
+      g.fillStyle = "#f7fbff";
+      g.fillRect(0, 0, PW, PH);
+      const sx = PW / 0.82;
+      const sy = PH / 1.38;
+      const wy = PH * (1 - 0.56);
+      const flower = (ctx, rs) => {
+        ctx.beginPath();
+        for (let k = 0; k <= 96; k++) {
+          const a = (k / 96) * TAU;
+          const r = rs * (0.8 + 0.2 * Math.cos(a * 6));
+          const x = Math.sin(a) * r * sx;
+          const y = wy - Math.cos(a) * r * sy;
+          if (k === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+      };
+      const gr = g.createLinearGradient(0, PH, 0, 0);
+      gr.addColorStop(0, COBALT_D);
+      gr.addColorStop(0.5, COBALT);
+      gr.addColorStop(1, "#4f74d0");
+      g.fillStyle = gr;
+      g.beginPath();
+      g.moveTo(PW * 0.18, PH);
+      g.bezierCurveTo(PW * 1.1, PH * 0.92, PW * 1.0, PH * 0.4, PW * 0.62, PH * 0.12);
+      g.bezierCurveTo(PW * 0.9, PH * 0.45, PW * 0.7, PH * 0.82, PW * 0.18, PH);
+      g.fill();
+      [0.3, 0.5, 0.7].forEach((k, i) => {
+        const x = PW * (0.55 + i * 0.1);
+        const y = PH * (0.62 + i * 0.1);
+        const sg = g.createLinearGradient(x, y - 60, x + 30, y + 40);
+        sg.addColorStop(0, COBALT_D);
+        sg.addColorStop(1, "rgba(79,116,208,0)");
+        g.fillStyle = sg;
+        g.beginPath();
+        g.moveTo(x, y - 60);
+        g.quadraticCurveTo(x + 50, y - 10, x + 14, y + 44);
+        g.quadraticCurveTo(x + 2, y, x, y - 60);
+        g.fill();
+      });
+      g.strokeStyle = COBALT;
+      g.lineWidth = 6;
+      g.lineCap = "round";
+      [[0.5, 0.22, 34], [0.75, 0.3, 26], [0.6, 0.86, 22]].forEach(([u, v, r]) => {
+        g.beginPath();
+        g.arc(PW * u, PH * v, r, 0.3, 4.6);
+        g.stroke();
+        g.beginPath();
+        g.arc(PW * u + r * 0.9, PH * v - r * 0.2, 6, 0, TAU);
+        g.fillStyle = COBALT;
+        g.fill();
+      });
+      g.fillStyle = COBALT_D;
+      g.fillRect(PW - 16, 0, 16, PH);
+      g.fillRect(0, PH - 14, PW, 14);
+      g.fillRect(0, 0, PW, 12);
+      g.fillStyle = "#ffffff";
+      g.fillRect(PW - 22, 0, 4, PH);
+      g.strokeStyle = COBALT_D;
+      g.lineWidth = 16;
+      flower(g, 0.27);
+      g.stroke();
+      g.strokeStyle = "#ffffff";
+      g.lineWidth = 4;
+      flower(g, 0.3);
+      g.stroke();
+      ga.fillStyle = "#000000";
+      flower(ga, 0.25);
+      ga.fill();
+      const tex = new THREE.CanvasTexture(cv);
+      tex.anisotropy = 4;
+      return [tex, new THREE.CanvasTexture(av)];
+    };
+    const [doorTex, doorAlpha] = paintDoor();
+    const doorOutMat = new THREE.MeshPhysicalMaterial({ map: doorTex, alphaMap: doorAlpha, alphaTest: 0.5, color: hasDoc ? 0xffffff : 0x2146ab, roughness: 0.22, clearcoat: 1, clearcoatRoughness: 0.08, side: THREE.BackSide });
+    const doorInMat = new THREE.MeshPhysicalMaterial({ map: petalInMat.map, alphaMap: doorAlpha, alphaTest: 0.5, color: 0x7f9fe0, roughness: 0.25, clearcoat: 1, side: THREE.FrontSide });
+    const doors = [-1, 1].map(sd => {
+      const RH = 0.765;
+      const ph = sd * DOOR;
+      const piv = new THREE.Group();
+      piv.position.set(Math.sin(ph) * RH, 0, Math.cos(ph) * RH);
+      squash.add(piv);
+      const off = new THREE.Group();
+      off.position.set(-piv.position.x, 0, -piv.position.z);
+      piv.add(off);
+      const NU = 16;
+      const NV = 28;
+      const pos = [];
+      const uvs = [];
+      const idx = [];
+      const yTop = u => 1.42 + 0.16 * Math.sin((u * Math.PI) / 2);
+      const at = (u, v, extra = 0) => {
+        const y = lerp(0.08, yTop(u), v);
+        const rr = budR(y) + 0.036 + extra;
+        const a = sd * u * DOOR;
+        return new THREE.Vector3(Math.sin(a) * rr, y, Math.cos(a) * rr);
+      };
+      for (let j = 0; j <= NV; j++)
+        for (let i = 0; i <= NU; i++) {
+          const u = i / NU;
+          const v = j / NV;
+          const p = at(u, v);
+          pos.push(p.x, p.y, p.z);
+          uvs.push(u, v);
+        }
+      for (let j = 0; j < NV; j++)
+        for (let i = 0; i < NU; i++) {
+          const a = j * (NU + 1) + i;
+          const b = a + NU + 1;
+          if (sd > 0) idx.push(a, b, a + 1, a + 1, b, b + 1);
+          else idx.push(a, a + 1, b, a + 1, b + 1, b);
+        }
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2));
+      g.setIndex(idx);
+      g.computeVertexNormals();
+      off.add(mesh(g, doorOutMat));
+      off.add(mesh(g, doorInMat, false));
+      const studGeo = new THREE.SphereGeometry(0.026, 12, 8, 0, TAU, 0, Math.PI / 2);
+      const placeOut = (o, u, v, extra) => {
+        const p = at(u, v, extra);
+        o.position.copy(p);
+        const n = new THREE.Vector3(p.x, 0, p.z).normalize();
+        o.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), n);
+        off.add(o);
+      };
+      [0.08, 0.2, 0.32, 0.8, 0.92].forEach(v => placeOut(mesh(studGeo, cobaltMat, false), 0.05, v, 0));
+      [0.25, 0.5, 0.75].forEach(u => placeOut(mesh(studGeo, cobaltMat, false), u, 0.97, 0));
+      [0.25, 0.78].forEach(v => {
+        const hg = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.16, 12), cobaltMat, false);
+        const p = at(1, v, 0.01);
+        hg.position.copy(p);
+        off.add(hg);
+      });
+      [[0.55, 0.12], [0.85, 0.3], [0.6, 0.36], [0.85, 0.62], [0.55, 0.86], [0.28, 0.14], [0.28, 0.9], [0.62, 0.62]].forEach(([u, v], i) => {
+        const len = 0.14 + (i % 3) * 0.035;
+        const cg = new THREE.ConeGeometry(0.036, len, 6);
+        cg.translate(0, len / 2, 0);
+        const sp = mesh(cg, crystalMat, false);
+        const p = at(u, v, -0.006);
+        sp.position.copy(p);
+        sp.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(-p.x, 0, -p.z).normalize());
+        off.add(sp);
+      });
+      if (sd > 0) {
+        const latch = new THREE.Group();
+        placeOut(latch, 0.0, 0.3, 0.01);
+        const plate = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.02, 6), cobaltMat, false);
+        latch.add(plate);
+        for (let k = 0; k < 3; k++) {
+          const arm = mesh(new THREE.BoxGeometry(0.015, 0.025, 0.12), whiteMat, false);
+          arm.position.y = 0.015;
+          arm.rotation.y = (k / 3) * Math.PI;
+          latch.add(arm);
+        }
+      }
+      return { piv, sd };
+    });
+
 
     const leafGeo = (() => {
       const sh = new THREE.Shape();
@@ -1921,10 +2133,13 @@ Pets.register({
 
         const glad = joy >= 90 && !dying && !action ? 1 : 0;
         if (glad) bloom = Math.max(bloom, 0.1 + 0.06 * Math.sin(t * 0.7) * motion);
-        petals.forEach(({ hinge, layer, ph: pp, tilt }) => {
-          const k = layer === 2 ? 0.55 : layer === 1 ? 0.85 : 1;
-          const flut = Math.sin(t * 1.3) * 0.012 * motion + charge * Math.sin(t * 40) * 0.025 + (layer === 1 ? glad * (Math.sin(t * 2.4 + pp) * 0.5 - 0.5) * 0.14 * motion : 0);
-          hinge.rotation.x = lerp(hinge.rotation.x, tilt + bloom * k * 1.05 + flut, 0.25);
+        plates.forEach(({ hinge, layer, ph: pp }) => {
+          const flare = layer === 2 ? bloom * 0.35 + glad * (Math.sin(t * 2.4 + pp) * 0.5 + 0.5) * 0.22 * motion : bloom * 0.14;
+          hinge.rotation.x = lerp(hinge.rotation.x, Math.max(0, flare) + charge * Math.sin(t * 40) * 0.01, 0.25);
+        });
+        const doorT = Math.max(0, bloom) * 1.45 + charge * Math.abs(Math.sin(t * 30)) * 0.05;
+        doors.forEach(({ piv, sd }) => {
+          piv.rotation.y = lerp(piv.rotation.y, sd * doorT, frost ? 0.18 : 0.25);
         });
         headHinge.rotation.x = lerp(headHinge.rotation.x, -headOpen * 1.1, 0.35);
         headHinge.position.y = lerp(headHinge.position.y, HEAD_Y0 + headLift + bloom * 0.05, 0.35);
@@ -1953,8 +2168,8 @@ Pets.register({
         shards.forEach(({ sh, mid, ph: sp }) => {
           sh.scale.y = 1 + Math.sin(t * 2 + sp) * 0.035 * motion + charge * 0.3 * (0.4 + mid);
         });
-        coreLight.intensity = 0.3 * vigor + bloom * 1.0 + charge * 0.6 + burst * 1.4;
-        budInMat.opacity = 0.12 + charge * 0.12;
+        coreLight.intensity = 0.3 * vigor + bloom * 0.3 + charge * 0.4 + burst * 0.7;
+        cavMat.emissiveIntensity = 0.25 + charge * 0.5 + bloom * 0.1;
 
         swirl.forEach(w => {
           if (!frost || frost.p < 0.5 || frost.p > 0.98) {
