@@ -1,6 +1,6 @@
 Pets.register({
   id: "emaranhidra",
-  dex: 36,
+  dex: 38,
   name: "Emaranhidra",
   color: "#f07a1a",
   types: ["electric", "dragon"],
