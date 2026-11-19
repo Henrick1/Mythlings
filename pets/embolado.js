@@ -203,6 +203,26 @@ Pets.register({
       made += 1;
     }
 
+    [
+      [V3(0.2, 0.3, -1), 0.75, C.black],
+      [V3(-0.45, -0.25, -1), 0.7, C.gray],
+      [V3(0.5, -0.35, -0.9), 0.62, C.black],
+      [V3(-0.15, 0.7, -0.7), 0.6, C.red],
+      [V3(0.05, -0.1, -1), 0.45, C.black]
+    ].forEach(([c, ang, col], k) => {
+      c.normalize();
+      const a = V3().crossVectors(c, V3(0, 1, 0)).normalize();
+      const b = V3().crossVectors(c, a).normalize();
+      const pts = [];
+      const lay = KR * (1.02 + (k % 2) * 0.05);
+      for (let i = 0; i < 14; i++) {
+        const q = (i / 14) * TAU;
+        const d = c.clone().multiplyScalar(Math.cos(ang)).addScaledVector(a, Math.sin(ang) * Math.cos(q)).addScaledVector(b, Math.sin(ang) * Math.sin(q)).normalize();
+        pts.push(KC.clone().addScaledVector(d, lay * (1 + Math.sin(q * 3 + k) * 0.02)));
+      }
+      ball.add(staticTube(pts, col === C.black ? 0.075 : 0.065, matOf(col), true, 60, 10));
+    });
+
     const faceG = new THREE.Group();
     faceG.position.copy(KC);
     faceG.quaternion.setFromUnitVectors(V3(0, 0, 1), FACE);
