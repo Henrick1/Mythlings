@@ -5,6 +5,7 @@ Pets.register({
   color: "#2b2d33",
   types: ["electric"],
   evolveBranches: { happy: "fiacarca", sad: "emaranhidra" },
+  evolveKos: 30,
   evolveLevel: 32,
   description: "Uma bola de fios embaraçados que rola pela cidade juntando cabos soltos pelo caminho. Várias pontas desencapadas ficam para fora soltando faísca, e ninguém sabe ao certo quantas cabeças ele tem, nem ele mesmo.",
   actions: {
