@@ -270,7 +270,7 @@ Pets.register({
     const J_DIR = V3(0, -0.35, -1).normalize();
     const HORN_A = 0.34;
     const HORN_L = 0.5;
-    const hornBase = sd => V3(sd * 0.04, 0.115, -0.08);
+    const hornBase = sd => V3(sd * 0.055, 0.15, -0.075);
     const hornDir = sd => V3(sd * Math.sin(HORN_A), Math.cos(HORN_A), -0.18).normalize();
 
     const buildHead = h => {
@@ -286,47 +286,167 @@ Pets.register({
         cr.position.set(0, -0.01, z);
         g.add(cr);
       });
-      const wedge = (sx, sy, sz, bottom) => {
-        const geo = new THREE.SphereGeometry(1, 44, 30);
-        const pa = geo.attributes.position;
-        for (let i = 0; i < pa.count; i++) {
-          let x = pa.getX(i);
-          let y = pa.getY(i);
-          const z = pa.getZ(i);
-          const f = (z + 1) / 2;
-          x *= 1.12 - 0.5 * Math.pow(f, 1.4);
-          y *= 1.0 - 0.32 * f;
-          if (y < 0) y *= bottom;
-          pa.setXYZ(i, x * sx, y * sy, z * sz);
+      const keyAt = (keys, z) => {
+        if (z <= keys[0][0]) return keys[0].slice(1);
+        const n = keys.length;
+        if (z >= keys[n - 1][0]) return keys[n - 1].slice(1);
+        let i = 0;
+        while (keys[i + 1][0] < z) i++;
+        const k0 = keys[Math.max(0, i - 1)];
+        const k1 = keys[i];
+        const k2 = keys[i + 1];
+        const k3 = keys[Math.min(n - 1, i + 2)];
+        const u = (z - k1[0]) / (k2[0] - k1[0]);
+        const out = [];
+        for (let c = 1; c < k1.length; c++) {
+          const m1 = ((k2[c] - k0[c]) / (k2[0] - k0[0] || 1)) * (k2[0] - k1[0]);
+          const m2 = ((k3[c] - k1[c]) / (k3[0] - k1[0] || 1)) * (k2[0] - k1[0]);
+          const u2 = u * u;
+          const u3 = u2 * u;
+          out.push((2 * u3 - 3 * u2 + 1) * k1[c] + (u3 - 2 * u2 + u) * m1 + (-2 * u3 + 3 * u2) * k2[c] + (u3 - u2) * m2);
         }
+        return out;
+      };
+      const loft = (keys, nTop = 2.6, nBot = 4, NZ = 40, NU = 28) => {
+        const z0 = keys[0][0];
+        const z1 = keys[keys.length - 1][0];
+        const pos = [];
+        const idx = [];
+        for (let j = 0; j <= NZ; j++) {
+          const z = lerp(z0, z1, j / NZ);
+          const [w, top, bot] = keyAt(keys, z);
+          const mid = (top + bot) / 2;
+          for (let i = 0; i < NU; i++) {
+            const a = (i / NU) * TAU;
+            const c = Math.cos(a);
+            const sn = Math.sin(a);
+            const ex = sn >= 0 ? 2 / nTop : 2 / nBot;
+            const x = w * Math.sign(c) * Math.pow(Math.abs(c), ex);
+            const y = mid + (sn >= 0 ? top - mid : mid - bot) * Math.sign(sn) * Math.pow(Math.abs(sn), ex);
+            pos.push(x, y, z);
+          }
+        }
+        for (let j = 0; j < NZ; j++)
+          for (let i = 0; i < NU; i++) {
+            const a = j * NU + i;
+            const b = j * NU + ((i + 1) % NU);
+            const c = a + NU;
+            const d = b + NU;
+            idx.push(a, b, c, b, d, c);
+          }
+        const capA = pos.length / 3;
+        const ka = keyAt(keys, z0);
+        pos.push(0, (ka[1] + ka[2]) / 2, z0);
+        const capB = pos.length / 3;
+        const kb = keyAt(keys, z1);
+        pos.push(0, (kb[1] + kb[2]) / 2, z1);
+        for (let i = 0; i < NU; i++) {
+          idx.push(capA, (i + 1) % NU, i);
+          idx.push(capB, NZ * NU + i, NZ * NU + ((i + 1) % NU));
+        }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        geo.setIndex(idx);
         geo.computeVertexNormals();
         return geo;
       };
-      const skull = mesh(wedge(0.23, 0.19, 0.37, 0.6), copperMat);
-      skull.position.set(0, 0.0, 0.12);
+      const SK = [
+        [-0.35, 0.07, 0.06, -0.05],
+        [-0.31, 0.14, 0.11, -0.085],
+        [-0.17, 0.2, 0.162, -0.1],
+        [-0.03, 0.19, 0.158, -0.088],
+        [0.08, 0.15, 0.112, -0.074],
+        [0.22, 0.122, 0.082, -0.066],
+        [0.35, 0.098, 0.064, -0.07],
+        [0.42, 0.078, 0.046, -0.078],
+        [0.46, 0.036, 0.02, -0.072]
+      ];
+      const skAt = z => keyAt(SK, z);
+      const skull = mesh(loft(SK, 2.5, 4.5, 48, 32), copperMat);
       g.add(skull);
-      const ridge = mesh(wedge(0.06, 0.03, 0.26, 1), copperDark, false);
-      ridge.position.set(0, 0.17, 0.04);
-      g.add(ridge);
+      const palate = mesh(new THREE.SphereGeometry(1, 20, 10), new THREE.MeshStandardMaterial({ color: 0x2a1410, roughness: 0.7 }), false);
+      palate.scale.set(0.12, 0.012, 0.26);
+      palate.position.set(0, -0.074, 0.14);
+      g.add(palate);
+      const chisel = new THREE.MeshPhysicalMaterial({ color: 0x9a4c26, roughness: 0.35, metalness: 0.4, clearcoat: 0.6, flatShading: true });
       [-1, 1].forEach(sd => {
-        const n = mesh(new THREE.SphereGeometry(0.012, 8, 6), darkMat, false);
-        n.scale.set(1.6, 0.6, 1);
-        n.position.set(sd * 0.04, 0.045, 0.44);
-        n.rotation.z = sd * 0.4;
-        g.add(n);
+        const br = mesh(new THREE.SphereGeometry(1, 7, 5), chisel);
+        br.scale.set(0.06, 0.03, 0.16);
+        br.position.set(sd * 0.128, 0.158, -0.01);
+        br.rotation.set(0.08, sd * 0.22, sd * 0.32);
+        g.add(br);
+        const bs = mesh(new THREE.ConeGeometry(0.026, 0.11, 6), chisel, false);
+        bs.position.set(sd * 0.165, 0.17, -0.15);
+        bs.rotation.set(-1.15, 0, -sd * 0.45);
+        g.add(bs);
+        const ck = mesh(new THREE.SphereGeometry(1, 7, 5), chisel, false);
+        ck.scale.set(0.032, 0.03, 0.13);
+        ck.position.set(sd * 0.188, -0.03, -0.11);
+        ck.rotation.y = sd * 0.12;
+        g.add(ck);
+        const ckSpike = mesh(new THREE.ConeGeometry(0.018, 0.07, 5), chisel, false);
+        ckSpike.position.set(sd * 0.2, -0.04, -0.24);
+        ckSpike.rotation.set(-1.4, 0, -sd * 0.6);
+        g.add(ckSpike);
+        const nos = mesh(new THREE.SphereGeometry(1, 12, 8), darkMat, false);
+        nos.scale.set(0.017, 0.008, 0.024);
+        nos.position.set(sd * 0.034, skAt(0.39)[1] - 0.004, 0.39);
+        nos.rotation.set(0.25, sd * 0.4, 0);
+        g.add(nos);
+        const rim = mesh(new THREE.TorusGeometry(0.019, 0.006, 6, 14), chisel, false);
+        rim.scale.set(1, 1.3, 1);
+        rim.position.copy(nos.position).add(V3(0, 0.004, 0));
+        rim.rotation.set(Math.PI / 2 - 0.25, 0, sd * 0.4);
+        g.add(rim);
+      });
+      [
+        [0, -0.17, 0.15, 0.036, -0.8],
+        [0, -0.27, 0.12, 0.03, -0.95],
+        [0, -0.34, 0.08, 0.024, -1.1],
+        [0.1, -0.24, 0.08, 0.022, -1.0],
+        [-0.1, -0.24, 0.08, 0.022, -1.0],
+        [0, 0.12, 0.035, 0.018, -0.35],
+        [0, 0.21, 0.03, 0.016, -0.35]
+      ].forEach(([x, z, hgt, r, tilt]) => {
+        const sp = mesh(new THREE.ConeGeometry(r, hgt, 6), chisel, false);
+        sp.position.set(x, skAt(z)[1] - Math.abs(x) * 0.25 + hgt * 0.25, z);
+        sp.rotation.set(tilt, 0, -x * 3);
+        g.add(sp);
       });
       [-1, 1].forEach(sd => {
-        const br = mesh(new THREE.SphereGeometry(0.075, 18, 12), copperDark);
-        br.scale.set(0.85, 0.24, 1.7);
-        br.position.set(sd * 0.12, 0.158, 0.03);
-        br.rotation.set(0.12, sd * 0.25, sd * 0.25);
-        g.add(br);
+        const rg = mesh(new THREE.SphereGeometry(1, 7, 5), chisel, false);
+        rg.scale.set(0.016, 0.013, 0.17);
+        const [w, top] = skAt(0.2);
+        rg.position.set(sd * w * 0.62, top - 0.008, 0.2);
+        rg.rotation.set(0.12, -sd * 0.13, 0);
+        g.add(rg);
+      });
+      const toothGeo = new THREE.ConeGeometry(0.011, 0.036, 6);
+      const fangGeo = new THREE.ConeGeometry(0.016, 0.075, 7);
+      [0.03, 0.09, 0.15, 0.2, 0.25, 0.31, 0.37].forEach(z => {
+        const [w, , bot] = skAt(z);
+        const fang = Math.abs(z - 0.31) < 0.01;
+        [-1, 1].forEach(sd => {
+          const tt = mesh(fang ? fangGeo : toothGeo, steelMat, false);
+          tt.position.set(sd * w * 0.93, bot - (fang ? 0.026 : 0.012), z);
+          tt.rotation.set(Math.PI, 0, sd * 0.08);
+          g.add(tt);
+        });
+      });
+      [-0.022, 0.022].forEach(x => {
+        const tt = mesh(toothGeo, steelMat, false);
+        tt.position.set(x, skAt(0.43)[2] - 0.012, 0.43);
+        tt.rotation.x = Math.PI - 0.25;
+        g.add(tt);
       });
       const bulbs = [-1, 1].map(sd => {
         const bg = new THREE.Group();
-        bg.position.set(sd * 0.148, 0.085, 0.12);
-        bg.rotation.set(-0.15, sd * 0.6, 0);
-        bg.scale.setScalar(1.18);
+        bg.position.set(sd * 0.158, 0.088, 0.03);
+        bg.rotation.set(-0.12, sd * 0.62, 0);
+        bg.scale.setScalar(1.05);
+        const ring = mesh(new THREE.TorusGeometry(0.072, 0.014, 8, 24), new THREE.MeshPhysicalMaterial({ color: 0x5a2a14, roughness: 0.45, metalness: 0.4 }), false);
+        ring.position.z = 0.0;
+        bg.add(ring);
         g.add(bg);
         const sock = mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.05, 16), nickelMat, false);
         sock.rotation.x = Math.PI / 2;
@@ -385,37 +505,49 @@ Pets.register({
         hg.add(tip);
         return hg;
       });
+      const HINGE = V3(0, -0.085, -0.17);
       const jawHinge = new THREE.Group();
-      jawHinge.position.set(0, -0.07, 0.02);
+      jawHinge.position.copy(HINGE);
       g.add(jawHinge);
-      const jaw = mesh(wedge(0.17, 0.055, 0.28, 1), steelMat);
-      jaw.position.set(0, -0.02, 0.17);
+      const JK = [
+        [-0.23, 0.1, -0.06, -0.13],
+        [-0.12, 0.138, -0.074, -0.158],
+        [0.05, 0.12, -0.076, -0.14],
+        [0.22, 0.092, -0.074, -0.122],
+        [0.36, 0.07, -0.074, -0.106],
+        [0.43, 0.048, -0.077, -0.099],
+        [0.465, 0.02, -0.082, -0.093]
+      ];
+      const jaw = mesh(loft(JK, 4, 2.6, 40, 28), steelMat);
+      jaw.position.copy(HINGE).negate();
       jawHinge.add(jaw);
-      const toothGeo = new THREE.ConeGeometry(0.014, 0.03, 4);
-      for (let i = 0; i < 6; i++) {
-        const z = 0.12 + i * 0.045;
+      const tongue = mesh(new THREE.SphereGeometry(1, 18, 10), new THREE.MeshStandardMaterial({ color: 0x5a1c24, roughness: 0.6 }), false);
+      tongue.scale.set(0.075, 0.014, 0.22);
+      tongue.position.set(0, -0.075, 0.12).sub(HINGE);
+      jawHinge.add(tongue);
+      [0.06, 0.12, 0.18, 0.28, 0.34].forEach(z => {
+        const [w, top] = keyAt(JK, z);
+        const fang = Math.abs(z - 0.28) < 0.01;
         [-1, 1].forEach(sd => {
-          const up = mesh(toothGeo, steelMat, false);
-          up.position.set(sd * (0.06 - i * 0.006), -0.06, z);
-          up.rotation.x = Math.PI;
-          g.add(up);
-          const lo = mesh(toothGeo, steelMat, false);
-          lo.position.set(sd * (0.06 - i * 0.006), 0.03, z - 0.022);
-          jawHinge.add(lo);
+          const tt = mesh(fang ? fangGeo : toothGeo, steelMat, false);
+          tt.position.set(sd * w * 0.78, top + (fang ? 0.024 : 0.01), z).sub(HINGE);
+          tt.scale.setScalar(fang ? 0.8 : 0.9);
+          jawHinge.add(tt);
         });
-      }
-      [-1, 1].forEach(sd => {
-        const rv = mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.03, 16), nickelMat, false);
-        rv.rotation.z = Math.PI / 2;
-        rv.position.set(sd * 0.175, -0.065, 0.02);
-        g.add(rv);
       });
-      const inner = mesh(wedge(0.15, 0.05, 0.24, 1), new THREE.MeshStandardMaterial({ color: 0x2a1410, roughness: 0.7 }), false);
-      inner.position.set(0, -0.06, 0.2);
-      g.add(inner);
+      [-1, 1].forEach(sd => {
+        const rv = mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.026, 16), nickelMat, false);
+        rv.rotation.z = Math.PI / 2;
+        rv.position.set(sd * 0.155, HINGE.y, HINGE.z);
+        g.add(rv);
+        const cap = mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.03, 6), steelMat, false);
+        cap.rotation.z = Math.PI / 2;
+        cap.position.set(sd * 0.165, HINGE.y, HINGE.z);
+        g.add(cap);
+      });
       const hornArc = arcLine(8);
       const hornGlow = glowSprite();
-      return Object.assign(h, { g, bulbs, horns, jawHinge, hornArc, hornGlow, ph: rnd(), pos: V3(), mouthAt: V3(0, -0.06, 0.4) });
+      return Object.assign(h, { g, bulbs, horns, jawHinge, hornArc, hornGlow, ph: rnd(), pos: V3(), mouthAt: V3(0, -0.075, 0.38) });
     };
     HEADS.forEach(buildHead);
 
