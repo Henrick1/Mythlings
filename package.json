@@ -17,11 +17,11 @@
     "electron": "^33.0.0",
     "electron-builder": "^25.1.8"
   },
-  "productName": "Pets",
+  "productName": "Mythlings",
   "author": "Henrick",
   "build": {
     "appId": "io.github.henrick1.pets",
-    "productName": "Pets",
+    "productName": "Mythlings",
     "directories": {
       "output": "dist"
     },
@@ -50,14 +50,14 @@
         }
       ],
       "icon": "assets/icon.png",
-      "artifactName": "Pets-Windows.exe"
+      "artifactName": "Mythlings-Windows.exe"
     },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "Pets",
+      "shortcutName": "Mythlings",
       "runAfterFinish": true
     },
     "linux": {
@@ -66,7 +66,7 @@
       ],
       "icon": "assets/icon.png",
       "category": "Game",
-      "artifactName": "Pets-Linux.AppImage"
+      "artifactName": "Mythlings-Linux.AppImage"
     }
   }
 }

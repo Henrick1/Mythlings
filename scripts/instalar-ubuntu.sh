@@ -2,7 +2,7 @@
 set -e
 
 REPO="Henrick1/Pets"
-URL="https://github.com/$REPO/releases/download/desktop/Pets-Linux.AppImage"
+URL="https://github.com/$REPO/releases/download/desktop/Mythlings-Linux.AppImage"
 ICON_URL="https://raw.githubusercontent.com/$REPO/main/assets/icon.png"
 DEST="$HOME/.local/share/pets"
 APP="$DEST/Pets.AppImage"
@@ -13,7 +13,7 @@ if [ "$1" = "--remover" ]; then
   rm -rf "$DEST"
   rm -f "$APPS/pets.desktop" "$AUTOSTART/pets.desktop"
   command -v update-desktop-database >/dev/null 2>&1 && update-desktop-database "$APPS" || true
-  echo "Pets removido."
+  echo "Mythlings removido."
   exit 0
 fi
 
@@ -37,7 +37,7 @@ write_entry() {
   cat > "$1" <<ENTRY
 [Desktop Entry]
 Type=Application
-Name=Pets
+Name=Mythlings
 Comment=Bichinhos 3D na area de trabalho
 Exec="$APP" --no-sandbox
 Icon=$DEST/icon.png
@@ -58,5 +58,5 @@ if [ "$1" = "--autostart" ]; then
   echo "Inicio automatico ativado."
 fi
 
-echo "Pronto! Procure por Pets na tela de aplicativos."
+echo "Pronto! Procure por Mythlings na tela de aplicativos."
 echo "Para atualizar depois, rode este mesmo comando de novo."

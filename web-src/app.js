@@ -160,8 +160,8 @@
     const repo = location.pathname.split("/").filter(Boolean)[0];
     if (!host || !repo) return null;
     const base = "https://github.com/" + host[1] + "/" + repo + "/releases/download/desktop/";
-    if (/Windows/i.test(ua)) return { url: base + "Pets-Windows.exe", label: "Baixar para Windows" };
-    if (/Linux/i.test(ua)) return { url: base + "Pets-Linux.AppImage", label: "Baixar para Linux" };
+    if (/Windows/i.test(ua)) return { url: base + "Mythlings-Windows.exe", label: "Baixar para Windows" };
+    if (/Linux/i.test(ua)) return { url: base + "Mythlings-Linux.AppImage", label: "Baixar para Linux" };
     return null;
   }
 

@@ -20,7 +20,8 @@ jobs:
       - env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release view desktop >/dev/null 2>&1 || gh release create desktop --title "Pets para computador" --notes "Baixe o arquivo do seu sistema. Windows: Pets-Windows.exe. Linux: Pets-Linux.AppImage."
+          gh release view desktop >/dev/null 2>&1 || gh release create desktop --title "Mythlings para computador" --notes "Baixe o arquivo do seu sistema. Windows: Mythlings-Windows.exe. Linux: Mythlings-Linux.AppImage."
+          gh release edit desktop --title "Mythlings para computador" --notes "Baixe o arquivo do seu sistema. Windows: Mythlings-Windows.exe. Linux: Mythlings-Linux.AppImage."
 
   build:
     needs: release
@@ -30,10 +31,10 @@ jobs:
         include:
           - os: windows-latest
             target: win
-            file: dist/Pets-Windows.exe
+            file: dist/Mythlings-Windows.exe
           - os: ubuntu-latest
             target: linux
-            file: dist/Pets-Linux.AppImage
+            file: dist/Mythlings-Linux.AppImage
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
