@@ -211,7 +211,7 @@ Pets.register({
     const rowY = i => Y0 + FT + CAB + i * ((DH - CAB * 2) / (ROWS - 1));
     const WR = CR + CAB;
     for (let i = 0; i < ROWS; i++) {
-      const gap = i >= 2 && i <= 5;
+      const gap = false;
       const arc = gap ? TAU - 1.9 : TAU;
       const tor = mesh(new THREE.TorusGeometry(WR + (i % 2) * 0.004, CAB, 10, 64, arc), cableMat);
       tor.rotation.x = Math.PI / 2;
@@ -262,67 +262,68 @@ Pets.register({
       }
     }
 
-    const faceG = new THREE.Group();
-    faceG.position.set(0, rowY(3.5), 0);
-    spinG.add(faceG);
+    const head = new THREE.Group();
+    head.rotation.order = "YXZ";
+    bodyG.add(head);
+    {
+      const skull = mesh(new THREE.SphereGeometry(0.17, 32, 24), cableMat);
+      skull.scale.set(1, 0.92, 1.02);
+      head.add(skull);
+      const ribMat = rubber(0xd96a12);
+      [0, 1].forEach(i => {
+        const r = mesh(new THREE.TorusGeometry(0.075 - i * 0.012, 0.022, 8, 20), ribMat, false);
+        r.position.set(0, -0.06 - i * 0.03, -0.14 - i * 0.04);
+        r.rotation.x = Math.PI / 2 - 0.6;
+        head.add(r);
+      });
+      const snout = new THREE.Group();
+      snout.position.set(0, -0.055, 0.125);
+      head.add(snout);
+      const blk = mesh(new THREE.CylinderGeometry(0.056, 0.068, 0.09, 6), rubber(0x1d1f25));
+      blk.rotation.set(Math.PI / 2, Math.PI / 6, 0);
+      blk.position.z = 0.02;
+      snout.add(blk);
+      const plate = mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.008, 24), rubber(0x3a3d46), false);
+      plate.rotation.x = Math.PI / 2;
+      plate.position.z = 0.067;
+      snout.add(plate);
+      [-0.021, 0.021].forEach(x => {
+        const pin = mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.045, 12), nickelMat, false);
+        pin.rotation.x = Math.PI / 2;
+        pin.position.set(x, 0, 0.095);
+        snout.add(pin);
+        const tp = mesh(new THREE.SphereGeometry(0.011, 10, 8), nickelMat, false);
+        tp.position.set(x, 0, 0.12);
+        snout.add(tp);
+      });
+    }
     const eyes = [-1, 1].map(sd => {
-      const e = eye({ size: 0.5, pupilColor: 0x1c1d26 });
-      e.g.position.set(sd * 0.105, 0.035, CR + 0.01);
-      e.g.rotation.set(0, sd * 0.36, 0);
-      faceG.add(e.g);
+      const e = eye({ size: 0.37, pupilColor: 0x1c1d26 });
+      e.g.position.set(sd * 0.075, 0.06, 0.135);
+      e.g.rotation.set(-0.15, sd * 0.4, 0);
+      head.add(e.g);
       return e;
     });
     const mouthPts = [];
     for (let i = 0; i <= 12; i++) {
       const u = i / 12;
-      const x = lerp(-0.055, 0.055, u);
-      mouthPts.push(V3(x, -0.085 - Math.sin(u * Math.PI) * 0.022, Math.sqrt(Math.max(0, CR * CR - x * x)) + 0.004));
+      const x = lerp(-0.045, 0.045, u);
+      const yy = -0.128 - Math.sin(u * Math.PI) * 0.014;
+      mouthPts.push(V3(x, yy, Math.sqrt(Math.max(0, 0.168 * 0.168 - x * x - (yy / 0.92) * (yy / 0.92))) * 1.02 + 0.004));
     }
-    const mouth = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(mouthPts), 24, 0.009, 6, false), darkMat, false);
-    faceG.add(mouth);
+    const mouth = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(mouthPts), 24, 0.008, 6, false), darkMat, false);
+    head.add(mouth);
     const mouthOpen = mesh(new THREE.SphereGeometry(1, 18, 12), mouthMat, false);
-    mouthOpen.scale.set(0.05, 0.035, 0.02);
-    mouthOpen.position.set(0, -0.09, CR + 0.002);
+    mouthOpen.scale.set(0.04, 0.03, 0.02);
+    mouthOpen.position.set(0, -0.13, 0.11);
     mouthOpen.visible = false;
-    faceG.add(mouthOpen);
-    [-1, 1].forEach(sd => {
-      const ch = mesh(new THREE.SphereGeometry(0.03, 12, 8), new THREE.MeshStandardMaterial({ color: 0xf2a070, roughness: 0.8, transparent: true, opacity: 0.55 }), false);
-      ch.scale.set(1.2, 0.6, 0.3);
-      ch.position.set(sd * 0.17, -0.06, CR - 0.035);
-      ch.rotation.y = sd * 0.6;
-      faceG.add(ch);
-    });
-
-    const tail = flexTube(40, 10, cableMat);
-    bodyG.add(tail.m);
-    const tailPts = [V3(), V3(), V3(), V3(), V3(), V3()];
-    const plug = new THREE.Group();
-    bodyG.add(plug);
-    {
-      const b = mesh(new THREE.CylinderGeometry(0.06, 0.072, 0.11, 6), rubber(0x1d1f25));
-      b.position.y = 0.055;
-      plug.add(b);
-      const f = mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.008, 18), rubber(0x3a3d46), false);
-      f.position.y = 0.112;
-      plug.add(f);
-      [-0.022, 0.022].forEach(x => {
-        const p = mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.07, 10), nickelMat, false);
-        p.position.set(x, 0.15, 0);
-        plug.add(p);
-      });
-      [0, 1].forEach(i => {
-        const r = mesh(new THREE.TorusGeometry(0.045 - i * 0.006, 0.012, 6, 16), rubber(0x1d1f25), false);
-        r.rotation.x = Math.PI / 2;
-        r.position.y = -0.012 - i * 0.022;
-        plug.add(r);
-      });
-    }
-
-    const trail = flexTube(50, 10, cableMat);
-    bodyG.add(trail.m);
-    const trailPts = [V3(), V3(), V3(), V3(), V3(), V3()];
-    const trailEnd = mesh(new THREE.SphereGeometry(CAB * 1.02, 12, 8), copperMat, false);
-    bodyG.add(trailEnd);
+    head.add(mouthOpen);
+    const neck = flexTube(40, 10, cableMat);
+    bodyG.add(neck.m);
+    const neckPts = [V3(), V3(), V3(), V3(), V3(), V3()];
+    const HEAD_REST = V3(0, 0.98, 0.64);
+    const NECK_J = V3(0, -0.09, -0.15);
+    const NECK_D = V3(0, -0.6, -0.8).normalize();
 
     let sparkTex = null;
     if (hasDoc) {
@@ -367,8 +368,8 @@ Pets.register({
     food.visible = false;
     root.add(food);
     const muzzle = new THREE.Group();
-    muzzle.position.set(0, rowY(3.5) - 0.09, CR + 0.05);
-    bodyG.add(muzzle);
+    muzzle.position.set(0, -0.04, 0.27);
+    head.add(muzzle);
     const UP = V3(0, 1, 0);
     let lastT = null;
 
@@ -403,29 +404,46 @@ Pets.register({
         let lid = 0;
         let squint = dying ? 0.5 : 0;
         let mouthO = false;
-        let tailUp = 0;
-        let tailFwd = 0;
-        let out = 0;
         let antZap = 0;
         let crackle = 0.5 * vigor;
         let antDroop = dying ? 1 : 0;
-        let bob = glad ? Math.abs(Math.sin(t * 4)) * 0.06 * motion : 0;
+        const hp = V3(Math.sin(t * 1.2) * 0.04 * motion, Math.sin(t * 1.7) * 0.03 * motion, 0);
+        let hYaw = Math.sin(t * 0.9) * 0.12 * motion;
+        let hPitch = 0;
+        let hRoll = Math.sin(t * 1.1) * 0.06 * motion;
+        let hScale = 1;
+        let reach = 0;
+        let rear = 0;
+        let tuck = 0;
+        let droop = dying ? 1 : 0;
+        let lag = 0;
+        if (glad) {
+          hp.x += Math.sin(t * 4) * 0.06 * motion;
+          hRoll += Math.sin(t * 4) * 0.2 * motion;
+        }
 
         if (jump) {
           const p = jump.p;
-          if (p < 0.22) sy = 1 - 0.16 * Math.sin((p / 0.22) * Math.PI * 0.5);
-          else if (p < 0.8) {
+          if (p < 0.22) {
+            sy = 1 - 0.16 * Math.sin((p / 0.22) * Math.PI * 0.5);
+            lag = -Math.sin((p / 0.22) * Math.PI * 0.5) * 0.12;
+          } else if (p < 0.8) {
             const q = (p - 0.22) / 0.58;
             y = Math.sin(q * Math.PI) * 0.5;
             sy = 1 + 0.1 * Math.cos(q * Math.PI);
             mouthO = q > 0.2 && q < 0.7;
-            tailUp = Math.sin(q * Math.PI) * 0.5;
-          } else sy = 1 - 0.12 * Math.sin(((p - 0.8) / 0.2) * Math.PI);
+            lag = -Math.cos(q * Math.PI) * 0.12;
+          } else {
+            sy = 1 - 0.12 * Math.sin(((p - 0.8) / 0.2) * Math.PI);
+            lag = Math.sin(((p - 0.8) / 0.2) * Math.PI) * 0.1;
+          }
         }
         if (wob) {
           const p = wob.p;
           const damp = Math.pow(1 - p, 1.4);
           tiltZ += Math.sin(p * Math.PI * 6) * 0.25 * damp;
+          hYaw += Math.sin(p * 30) * 0.4 * damp;
+          hp.x += Math.sin(p * 26) * 0.08 * damp;
           squint = p > 0.1 && p < 0.8 ? 0.6 : squint;
         }
         if (spinA) {
@@ -433,71 +451,74 @@ Pets.register({
           spin = smooth(0.05, 0.85, p) * TAU * 2;
           y = Math.sin(Math.PI * p) * 0.12;
           squint = p > 0.1 && p < 0.9 ? 0.7 : squint;
-          tailUp = Math.sin(Math.PI * p) * 0.6;
+          hYaw += Math.sin(p * Math.PI * 4) * 0.5;
+          hRoll += Math.sin(p * Math.PI * 3) * 0.3;
         }
         if (hide) {
           const p = hide.p;
           const k = smooth(0.04, 0.2, p) * (1 - smooth(0.78, 0.96, p));
           spin = -smooth(0.02, 0.25, p) * TAU * 1.5;
+          tuck = k;
           lid = k;
           sy -= k * 0.12;
-          squint = Math.max(squint, k * 0.9);
-          tailUp = -k * 0.5;
+          squint = Math.max(squint, k * 0.95);
           tiltZ += Math.sin(p * 80) * 0.02 * k;
           crackle = 0.1;
         }
         if (unwind) {
           const p = unwind.p;
-          out = smooth(0.05, 0.4, p) * (1 - smooth(0.62, 0.95, p));
-          spin = -out * 0.6;
-          z = smooth(0.1, 0.45, p) * 0.25 * (1 - smooth(0.62, 0.95, p));
-          tiltX = Math.sin(p * Math.PI * 2) * 0.06 * out;
+          reach = smooth(0.05, 0.4, p) * (1 - smooth(0.62, 0.95, p));
+          spin = -reach * 0.8;
+          z = smooth(0.35, 0.6, p) * 0.28 * (1 - smooth(0.7, 0.95, p));
+          tiltX = Math.sin(p * Math.PI * 2) * 0.06 * reach;
+          hYaw += Math.sin(p * 14) * 0.25 * reach;
           squint = p > 0.45 && p < 0.6 ? 0.4 : squint;
         }
         if (zap) {
           const p = zap.p;
           const up = smooth(0.05, 0.4, p) * (1 - smooth(0.75, 0.95, p));
           const shot = smooth(0.5, 0.56, p) * (1 - smooth(0.62, 0.8, p));
-          tailUp = up * 1.6;
-          tailFwd = up;
+          rear = up;
+          hPitch += -up * 0.25 + shot * 0.45;
+          hp.z += shot * 0.15;
           antZap = Math.max(up * 0.6, shot);
           crackle = 0.5 + up * 3 + shot * 8;
           squint = up > 0.4 ? 0.7 : squint;
           mouthO = shot > 0.3;
           sy += -up * 0.06 + shot * 0.06;
-          tiltX = -up * 0.08 + shot * 0.1;
+          tiltX = -up * 0.06 + shot * 0.08;
         }
         if (eat) {
           const p = eat.p;
           const ph = eatPhase(p);
           mouthO = p > 0.15 && p < 0.32;
-          sy += -ph.chew * 0.05 * motion;
+          hPitch += -0.2 * smooth(0.0, 0.15, p) * (1 - smooth(0.3, 0.4, p)) + ph.chew * 0.08;
           squint = p > 0.35 && p < 0.85 ? 0.55 : squint;
           const fall = clamp01(ph.fall);
           food.visible = ph.visible && p < 0.32;
           const mp = muzzle.getWorldPosition(V3());
           root.worldToLocal(mp);
-          food.position.set(mp.x, lerp(mp.y + 2, mp.y, fall * fall), mp.z + 0.04 + 0.3 * (1 - smooth(0.78, 1, fall)));
+          food.position.set(mp.x, lerp(mp.y + 1.8, mp.y, fall * fall), mp.z + 0.02);
           food.scale.setScalar(1 - smooth(0.28, 0.32, p) * 0.9);
           antDroop = -ph.chew * 0.2;
         } else food.visible = false;
         if (atk) {
-          tiltX += -atk.wind * 0.3 + atk.lunge * 0.35;
-          z = atk.lunge * 0.5 - atk.wind * 0.1;
-          y += Math.sin(Math.min(1, atk.lunge * 1.2) * Math.PI) * 0.12;
-          tailUp = atk.lunge * 0.8;
+          tiltX += -atk.wind * 0.15 + atk.lunge * 0.15;
+          hp.z += atk.lunge * 0.55 - atk.wind * 0.18;
+          hp.y += atk.wind * 0.1 - atk.lunge * 0.15;
+          hPitch += -atk.wind * 0.3 + atk.lunge * 0.3;
           squint = atk.lunge > 0.2 ? 0.7 : squint;
           mouthO = atk.lunge > 0.2;
         }
 
         const sx = 1 / Math.sqrt(sy);
         bodyG.scale.set(sx, sy, sx);
-        root.position.set(0, y + bob, z);
+        root.position.set(0, y, z);
         root.rotation.y = lookYaw;
         root.rotation.x = lookPitch;
         bodyG.rotation.set(tiltX, 0, tiltZ);
         spinG.rotation.y = spin;
-        outer.forEach((o, i) => (o.scale.setScalar(1 + Math.sin(t * 3 + i) * 0.01 * motion)));
+        outer.forEach((o, i) => o.scale.setScalar(1 + Math.sin(t * 3 + i) * 0.01 * motion));
 
         topG.rotation.x = lid * 0.32 + Math.sin(t * 1.7) * 0.015 * motion;
         topG.rotation.z = Math.sin(t * 1.1) * 0.02 * motion;
@@ -518,47 +539,40 @@ Pets.register({
         }
 
         {
-          const back = V3(0.18, rowY(1.5), -WR - 0.02);
-          const tf = tailFwd;
-          tailPts[0].set(0.26, rowY(1.5), -0.2);
-          tailPts[1].copy(back);
-          const wag = Math.sin(t * 3) * 0.12 * motion * (1 - tf);
-          const lift = tailUp;
-          tailPts[2].set(0.3 + wag * 0.5, lerp(0.08, 0.6, clamp01(lift)), lerp(-0.62, -0.5, clamp01(lift)));
-          tailPts[3].set(0.38 + wag, lerp(0.07, 1.0, clamp01(lift)), lerp(-0.85, -0.45, clamp01(lift)) + tf * 0.2);
-          tailPts[4].set(0.3 + wag * 1.4, lerp(0.12, 1.25, clamp01(lift)) + (lift < 0 ? lift * 0.1 : 0), lerp(-1.0, -0.15, clamp01(lift)) + tf * 0.45);
-          tailPts[5].set(0.22 + wag * 1.6, lerp(0.28, 1.3, clamp01(lift)), lerp(-1.05, 0.1, clamp01(lift)) + tf * 0.6);
-          if (lift < 0) {
-            const k = -lift * 2;
-            tailPts[3].lerp(V3(0.3, 0.12, -0.5), k);
-            tailPts[4].lerp(V3(0.22, 0.14, -0.55), k);
-            tailPts[5].lerp(V3(0.15, 0.2, -0.56), k);
+          const P = HEAD_REST.clone().add(hp);
+          P.y += lag;
+          if (reach > 0) {
+            P.lerp(V3(0.08, 0.2, 1.25), reach);
+            hPitch += reach * 0.55;
           }
-          if (dying) {
-            tailPts[4].y = 0.07;
-            tailPts[5].y = 0.07;
+          if (rear > 0) P.lerp(V3(0, 1.38, 0.5), rear);
+          if (droop > 0) {
+            P.lerp(V3(0.12, 0.18, 0.86), droop);
+            hPitch += droop * 0.55;
+            hRoll += droop * 0.3;
           }
-          tail.fromPoints(tailPts, () => CAB);
-          plug.position.copy(tail.S[tail.n]);
-          plug.quaternion.setFromUnitVectors(UP, tail.T[tail.n]);
-        }
-
-        {
-          const vis = out > 0.01;
-          trail.m.visible = vis;
-          trailEnd.visible = vis;
-          if (vis) {
-            const L = out * 0.9;
-            const a0 = Math.PI / 2 + 0.6;
-            trailPts[0].set(Math.cos(a0) * WR, rowY(0), Math.sin(a0) * WR);
-            trailPts[1].set(Math.cos(a0 + 0.35) * (WR + 0.01), rowY(0) - 0.01, Math.sin(a0 + 0.35) * (WR + 0.01));
-            trailPts[2].set(0.05, CAB + 0.01, WR + 0.12 + L * 0.2);
-            trailPts[3].set(-0.02, CAB, WR + 0.12 + L * 0.5);
-            trailPts[4].set(0.04 + Math.sin(t * 3) * 0.03, CAB, WR + 0.12 + L * 0.8);
-            trailPts[5].set(0.08, CAB, WR + 0.12 + L);
-            trail.fromPoints(trailPts, () => CAB);
-            trailEnd.position.copy(trail.S[trail.n]);
+          if (tuck > 0) {
+            P.lerp(V3(0.04, rowY(3), WR + 0.18), tuck);
+            hScale = 1 - tuck * 0.25;
+            hPitch += tuck * 0.2;
           }
+          head.position.copy(P);
+          const lx = clamp01(1 - reach - tuck - droop);
+          head.rotation.set(hPitch - pointer.y * 0.25 * lx, hYaw + pointer.x * 0.45 * lx, hRoll);
+          head.scale.setScalar(hScale);
+          head.updateMatrix();
+          const J = NECK_J.clone().multiplyScalar(hScale).applyQuaternion(head.quaternion).add(P);
+          const d = NECK_D.clone().applyQuaternion(head.quaternion);
+          const a0 = Math.PI / 2 - 0.3;
+          neckPts[0].set(Math.cos(a0) * (WR - 0.02), rowY(3), Math.sin(a0) * (WR - 0.02));
+          neckPts[1].set(Math.cos(a0 - 0.12) * (WR + 0.06), rowY(3), Math.sin(a0 - 0.12) * (WR + 0.06));
+          const low = V3(0.08, lerp(0.42, CAB + 0.01, Math.min(1, reach + droop * 0.6)), lerp(0.6, 0.7, reach));
+          low.lerp(V3(0.08, rowY(2.4), WR + 0.12), tuck);
+          neckPts[2].copy(low);
+          neckPts[3].copy(low).lerp(J, 0.5).add(V3(0, 0.04 * (1 - reach), 0.05 + rear * 0.05));
+          neckPts[4].copy(J).addScaledVector(d, 0.14 * hScale);
+          neckPts[5].copy(J);
+          neck.fromPoints(neckPts, () => CAB * 1.05);
         }
 
         mouth.visible = !mouthO;
@@ -571,7 +585,7 @@ Pets.register({
         root.worldToLocal(tipW);
         if (rnd() < crackle * dt * 1.5) spark(tipW.clone(), V3((rnd() - 0.5) * 0.6, 0.4 + rnd() * 0.5, (rnd() - 0.5) * 0.6), 0.06 + antZap * 0.08, 0.18 + rnd() * 0.1);
         if (zap && zap.p > 0.5 && zap.p < 0.62) {
-          const pw = plug.localToWorld(V3(0, 0.2, 0));
+          const pw = muzzle.getWorldPosition(V3());
           root.worldToLocal(pw);
           for (let k = 0; k < 3; k++) spark(pw.clone(), V3((rnd() - 0.5) * 2.5, (rnd() - 0.4) * 2, 1 + rnd() * 3), 0.12, 0.3);
         }
