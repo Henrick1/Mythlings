@@ -4,6 +4,8 @@ Pets.register({
   name: "Turbóa",
   color: "#2f8fe0",
   types: ["water", "electric"],
+  move: "swim",
+  swimDepth: 0.35,
   evolvesTo: "leviatrom",
   evolveLevel: 15,
   description: "Serpente das correntezas que guarda eletricidade nos anéis do corpo. Debaixo d'água, dispara jatos pela turbina da cauda e cruza os rios como um raio azul.",

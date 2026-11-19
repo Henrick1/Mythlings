@@ -4,6 +4,7 @@ Pets.register({
   name: "Abissomente",
   color: "#4a4ab8",
   types: ["psychic", "water"],
+  move: "fly",
   description: "Um polvo colossal vindo das fossas mais escuras do oceano. O manto enorme guarda um cérebro que brilha como uma lanterna, os tentáculos se desfazem em fios de luz nas pontas e o terceiro olho de cristal ergue rochas inteiras ao seu redor.",
   actions: {
     jump: { duration: 1.1 },

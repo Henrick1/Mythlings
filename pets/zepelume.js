@@ -4,6 +4,7 @@ Pets.register({
   name: "Zepelume",
   color: "#7fa8c8",
   types: ["flying", "steel"],
+  move: "fly",
   description: "Quando o Inflapo cresce, vira uma baleia do céu com placas de aço nas costas. Nada entre as nuvens batendo as nadadeiras devagar, e a lanterna da testa guia os bandos perdidos de volta para casa nas noites de tempestade.",
   actions: {
     jump: { duration: 2.0 },

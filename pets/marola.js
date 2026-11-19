@@ -4,6 +4,8 @@ Pets.register({
   name: "Gotíbora",
   color: "#4fb8f0",
   types: ["water"],
+  move: "swim",
+  swimDepth: 0.35,
   description: "Filhote de serpente que vive nas poças e riachos rasos. Adora cuspir jatinhos d'água e nadar em espiral. Dizem que a pintinha amarela na testa um dia vira uma grande carga elétrica.",
   evolvesTo: "turboa",
   evolveLevel: 5,

@@ -4,6 +4,8 @@ Pets.register({
   name: "Gosmilo",
   color: "#c48ae8",
   types: ["poison"],
+  move: "swim",
+  swimDepth: 0.3,
   description: "O filhote do Toxolote. Ainda é uma bolinha, mas já usa uma touca de lodo tóxico e sopra bolhas de veneno quando quer brincar.",
   evolvesTo: "axolote",
   evolveLevel: 5,

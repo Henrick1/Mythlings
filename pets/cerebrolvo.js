@@ -4,6 +4,7 @@ Pets.register({
   name: "Cerebrolvo",
   color: "#9ad8ff",
   types: ["psychic"],
+  move: "fly",
   description: "Um polvinho translúcido das profundezas, com o cérebro à mostra piscando em bioluminescência. Flutua no ar como se ainda estivesse debaixo d'água e já consegue erguer pedrinhas só com a mente.",
   evolvesTo: "abissomente",
   evolveLevel: 12,

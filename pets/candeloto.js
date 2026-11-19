@@ -4,6 +4,8 @@ Pets.register({
   name: "Candeloto",
   color: "#f58fb0",
   types: ["light", "water"],
+  move: "swim",
+  swimDepth: 0.12,
   evolvesTo: "lotocirio",
   evolveLevel: 16,
   description: "Vive dentro de um botão de lótus que nunca abre de todo, com uma velinha acesa no topo. Passa as noites boiando rio abaixo, e dizem que cada pedido feito à beira d'água vira um pouco de cera nova na sua chama. Quando se assusta, se recolhe no botão e a luz quase apaga.",

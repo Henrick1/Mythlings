@@ -4,6 +4,8 @@ Pets.register({
   name: "Lanternaga",
   color: "#d24a86",
   types: ["light", "water"],
+  move: "swim",
+  swimDepth: 0.12,
   description: "Com os anos, a flor do Lotocírio cresce em andares até virar um pequeno templo, e o pescoço se estica como o das serpentes sagradas que guardam os rios. Quase não se move: fica parado na margem com as velas acesas, e as lanternas que sobem do seu telhado levam embora as tristezas de quem passa por perto.",
   actions: {
     jump: { duration: 1.2 },

@@ -4,6 +4,8 @@ Pets.register({
   name: "Lotocírio",
   color: "#f07aa6",
   types: ["light", "water"],
+  move: "swim",
+  swimDepth: 0.15,
   evolvesTo: "lanternaga",
   evolveLevel: 32,
   description: "O botão finalmente se abre e o Candeloto se levanta de dentro da flor, com um círio aceso equilibrado na cabeça. Anda devagar, de mãos juntas, cumprimentando quem encontra pelo caminho, e nunca deixa a chama apagar. O incenso que carrega nas pétalas guia de volta quem se perdeu no rio.",

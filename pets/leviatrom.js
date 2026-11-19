@@ -4,6 +4,8 @@ Pets.register({
   name: "Leviatrom",
   color: "#1f4fb0",
   types: ["water", "electric"],
+  move: "swim",
+  swimDepth: 0.3,
   description: "Serpente colossal dos mares profundos, coroada de chifres e com um capuz que brilha como uma tempestade. Quando se ergue, o céu escurece e raios caem onde ela olhar.",
   actions: {
     jump: { duration: 1.3 },
