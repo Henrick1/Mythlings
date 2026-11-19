@@ -72,7 +72,7 @@ const shared = ["lib/pet-kit.js", "lib/stage.js"].map(f => (fs.existsSync(path.j
 petFiles.forEach(f => {
   const src = fs.readFileSync(path.join(out, f), "utf8");
   const hash = crypto.createHash("sha1").update(src).update(shared).digest("hex").slice(0, 10);
-  const sandbox = { Pets: { register: d => petMeta.push({ id: d.id, dex: d.dex || 999, name: d.name, color: d.color, types: d.types || [], description: d.description || "", evolvesTo: d.evolvesTo || null, evolveBranches: d.evolveBranches || null, evolveLevel: d.evolveLevel || 0, file: f, hash }) } };
+  const sandbox = { Pets: { register: d => petMeta.push({ id: d.id, dex: d.dex || 999, name: d.name, color: d.color, types: d.types || [], description: d.description || "", evolvesTo: d.evolvesTo || null, evolveBranches: d.evolveBranches || null, evolveLevel: d.evolveLevel || 0, stage: d.stage || 0, file: f, hash }) } };
   try {
     vm.runInNewContext(src, sandbox, { filename: f });
   } catch (err) {
