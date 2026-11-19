@@ -401,15 +401,89 @@ Pets.register({
     };
 
     const HEADS = [
-      { key: "power", dir: V3(0, 1, 0.42), H: V3(0, 3.0, 0.72), yaw: 0, pitch: -0.12, s: 1.75, neckR: 0.15, color: C.black, eye: 0.44 },
+      { key: "power", dir: V3(0, 1, 0.42), H: V3(0, 3.0, 0.72), yaw: 0, pitch: -0.12, s: 1.75, neckR: 0.15, color: C.black, eye: 0.4 },
       { key: "phone", dir: V3(-0.62, 0.86, 0.42), H: V3(-1.08, 2.62, 0.74), yaw: -0.22, pitch: -0.04, s: 1.35, neckR: 0.075, color: C.beige, eye: 0.48 },
-      { key: "net", dir: V3(0.62, 0.86, 0.42), H: V3(1.1, 2.68, 0.7), yaw: 0.22, pitch: -0.06, s: 1.4, neckR: 0.11, color: C.blue, eye: 0.46 },
+      { key: "net", dir: V3(0.62, 0.86, 0.42), H: V3(1.1, 2.68, 0.7), yaw: 0.22, pitch: -0.06, s: 1.4, neckR: 0.11, color: C.blue, eye: 0.4 },
       { key: "coax", dir: V3(-1, 0.4, 0.25), H: V3(-1.72, 1.92, 0.56), yaw: -0.4, pitch: 0.2, s: 1.3, neckR: 0.11, color: C.white, eye: 0.46 },
       { key: "ext", dir: V3(1, 0.48, 0.25), H: V3(1.74, 2.14, 0.62), yaw: 0.38, pitch: -0.06, s: 1.25, neckR: 0.105, color: C.orange, eye: 0.5 }
     ];
     const J_LOCAL = V3(0, -0.08, -0.12);
     const J_DIR = V3(0, -0.5, -1).normalize();
-    const J_Q = new THREE.Quaternion().setFromUnitVectors(V3(0, 0, 1), J_DIR);
+
+    const roundShape = (w, h, r) => {
+      const sh = new THREE.Shape();
+      const x0 = -w / 2;
+      const y0 = -h / 2;
+      sh.moveTo(x0 + r, y0);
+      sh.lineTo(x0 + w - r, y0);
+      sh.absarc(x0 + w - r, y0 + r, r, -Math.PI / 2, 0, false);
+      sh.lineTo(x0 + w, y0 + h - r);
+      sh.absarc(x0 + w - r, y0 + h - r, r, 0, Math.PI / 2, false);
+      sh.lineTo(x0 + r, y0 + h);
+      sh.absarc(x0 + r, y0 + h - r, r, Math.PI / 2, Math.PI, false);
+      sh.lineTo(x0, y0 + r);
+      sh.absarc(x0 + r, y0 + r, r, Math.PI, Math.PI * 1.5, false);
+      return sh;
+    };
+    const rbox = (w, h, d, r) => {
+      const b = Math.min(r, d / 2 - 0.002);
+      const geo = new THREE.ExtrudeGeometry(roundShape(w - 2 * b, h - 2 * b, Math.max(0.004, r - b * 0.5)), { depth: d - 2 * b, bevelEnabled: true, bevelThickness: b, bevelSize: b, bevelSegments: 5, curveSegments: 8 });
+      geo.translate(0, 0, -(d - 2 * b) / 2);
+      geo.computeVertexNormals();
+      return geo;
+    };
+    const hexPrism = (R, d, bev) => {
+      const sh = new THREE.Shape();
+      for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * TAU;
+        const p = [Math.cos(a) * R, Math.sin(a) * R];
+        const q = [Math.cos(a + TAU / 6) * R, Math.sin(a + TAU / 6) * R];
+        const k = 0.18;
+        const s0 = [lerp(p[0], q[0], k), lerp(p[1], q[1], k)];
+        const s1 = [lerp(p[0], q[0], 1 - k), lerp(p[1], q[1], 1 - k)];
+        if (i === 0) sh.moveTo(s0[0], s0[1]);
+        else sh.quadraticCurveTo(p[0], p[1], s0[0], s0[1]);
+        sh.lineTo(s1[0], s1[1]);
+        if (i === 5) sh.quadraticCurveTo(q[0], q[1], lerp(q[0], Math.cos(TAU / 6) * R, k), lerp(q[1], Math.sin(TAU / 6) * R, k));
+      }
+      const geo = new THREE.ExtrudeGeometry(sh, { depth: d - 2 * bev, bevelEnabled: true, bevelThickness: bev, bevelSize: bev, bevelSegments: 5, curveSegments: 6 });
+      geo.translate(0, 0, -(d - 2 * bev) / 2);
+      geo.rotateZ(Math.PI / 6);
+      geo.computeVertexNormals();
+      return geo;
+    };
+    const holes3 = (parent, cx, cy, z, r, s = 1) => {
+      [
+        [-0.32, -0.12, 0.2],
+        [0.32, -0.12, 0.2],
+        [0, 0.34, 0.2]
+      ].forEach(([x, y, hr]) => {
+        const hole = mesh(new THREE.CylinderGeometry(hr * r, hr * r, 0.012, 14), darkMat, false);
+        hole.rotation.x = Math.PI / 2;
+        hole.position.set(cx + x * r * s, cy + y * r, z);
+        parent.add(hole);
+      });
+    };
+    const dotsRing = (parent, n, rr, size, mat) => {
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * TAU;
+        const d = mesh(new THREE.CylinderGeometry(size, size, 0.01, 10), mat, false);
+        d.rotation.x = Math.PI / 2;
+        d.position.set(Math.cos(a) * rr, Math.sin(a) * rr, 0);
+        parent.add(d);
+      }
+    };
+    const smile = (parent, w, depth, y, z, bend = 1) => {
+      const pts = [];
+      for (let i = 0; i <= 14; i++) {
+        const u = i / 14;
+        pts.push(V3(lerp(-w, w, u), y - Math.sin(u * Math.PI) * depth * bend, z));
+      }
+      const m = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 28, 0.011, 6, false), darkMat, false);
+      parent.add(m);
+      return m;
+    };
+    const facing = (o, dir) => o.quaternion.setFromUnitVectors(V3(0, 1, 0), dir.clone().normalize());
 
     const buildHead = h => {
       const g = new THREE.Group();
@@ -417,186 +491,372 @@ Pets.register({
       body.add(g);
       const skinMat = rubber(h.color);
       const mats = [skinMat];
-      const skull = mesh(new THREE.SphereGeometry(0.24, 32, 24), skinMat);
-      skull.scale.set(1, 0.86, 1.1);
-      g.add(skull);
-      const neckEnd = (h.key === "phone" ? 0.1 : h.neckR * 0.92) / h.s;
-      const boot = mesh(new THREE.TorusGeometry(neckEnd + 0.012, 0.02, 10, 28), skinMat, false);
-      boot.position.copy(J_LOCAL).addScaledVector(J_DIR, 0.12);
-      boot.quaternion.copy(J_Q);
-      g.add(boot);
-      const jawHinge = new THREE.Group();
-      jawHinge.position.set(0, -0.12, 0.05);
-      g.add(jawHinge);
-      const jawMat = h.key === "power" ? rubber(0x2a2c33) : skinMat;
-      if (jawMat !== skinMat) mats.push(jawMat);
-      const jaw = mesh(new THREE.SphereGeometry(0.15, 24, 14), jawMat);
-      jaw.scale.set(1, 0.4, 1.22);
-      jaw.position.set(0, -0.02, 0.14);
-      jawHinge.add(jaw);
-      const inner = mesh(new THREE.SphereGeometry(0.12, 18, 12), mouthMat, false);
-      inner.scale.set(1, 0.5, 1.1);
-      inner.position.set(0, -0.1, 0.17);
-      g.add(inner);
-      [-1, 1].forEach(sd => {
-        const f = mesh(new THREE.ConeGeometry(0.018, 0.05, 8), fangMat, false);
-        f.position.set(sd * 0.07, 0.03, 0.27);
-        jawHinge.add(f);
-      });
-      const eyes = [-1, 1].map(sd => {
-        const e = eye({ size: h.eye, pupilColor: h.key === "net" ? (sd < 0 ? 0x1f9a4a : 0xe2781c) : 0x1c1d26 });
-        e.g.position.set(sd * 0.112, 0.075, 0.185);
-        e.g.rotation.set(-0.08, sd * 0.36, 0);
-        g.add(e.g);
-        return e;
-      });
+      const eyes = [];
       const brows = [];
       const lids = [];
-      const browMat = h.key === "power" || h.key === "net" ? darkMat : rubber(0x3a3020);
-      if (h.key !== "coax")
-        [-1, 1].forEach(sd => {
-          const b = mesh(new THREE.SphereGeometry(1, 12, 8), h.color === C.black ? rubber(0x0c0d10) : browMat, false);
-          b.scale.set(0.07, 0.017, 0.022);
-          b.position.set(sd * 0.115, 0.185, 0.19);
-          g.add(b);
-          brows.push({ b, sd });
+      const mouthAt = V3(0, -0.1, 0.3);
+      const jawHinge = new THREE.Group();
+      g.add(jawHinge);
+      h.J = J_LOCAL.clone();
+      h.JD = J_DIR.clone();
+      h.lidRest = 0;
+      const neckEnd = (h.key === "phone" ? 0.1 : h.neckR * 0.92) / h.s;
+      const addEyes = (list, pupil) =>
+        list.forEach(([x, y, z, yaw, pitch, size], k) => {
+          const e = eye({ size, pupilColor: Array.isArray(pupil) ? pupil[k] : pupil });
+          e.g.position.set(x, y, z);
+          e.g.rotation.set(pitch, yaw, 0);
+          g.add(e.g);
+          eyes.push(e);
         });
-      else {
-        const lidMat = skinMat;
-        eyes.forEach(({ g: eg }, i) => {
+      const addLids = (mat, size, rest) => {
+        h.lidRest = rest;
+        eyes.forEach(({ g: eg }) => {
           const lid = new THREE.Group();
           eg.add(lid);
-          const m = mesh(new THREE.SphereGeometry(0.22 * h.eye * 1.08, 20, 10, 0, TAU, 0, Math.PI / 2), lidMat, false);
+          const m = mesh(new THREE.SphereGeometry(0.22 * size * 1.1, 20, 10, 0, TAU, 0, Math.PI / 2), mat, false);
           m.scale.set(1, 1.1, 0.62);
           lid.add(m);
           lids.push(lid);
         });
-      }
-      const mouthAt = V3(0, -0.1, 0.34);
-      if (h.key === "power") {
-        const PY = -0.055;
-        const plug = mesh(new THREE.CylinderGeometry(0.1, 0.125, 0.15, 6), skinMat);
-        plug.rotation.set(Math.PI / 2, Math.PI / 6, 0);
-        plug.position.set(0, PY, 0.3);
-        g.add(plug);
-        const face = mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.012, 32), rubber(0x3a3d46), false);
-        face.rotation.x = Math.PI / 2;
-        face.position.set(0, PY, 0.378);
-        g.add(face);
-        mats.push(face.material);
-        [
-          [-0.042, -0.012, 0.1],
-          [0.042, -0.012, 0.1],
-          [0, 0.034, 0.075]
-        ].forEach(([x, y, l]) => {
-          const pin = mesh(new THREE.CylinderGeometry(0.017, 0.017, l, 14), nickelMat, false);
-          pin.rotation.x = Math.PI / 2;
-          pin.position.set(x, PY + y, 0.384 + l / 2);
-          g.add(pin);
-          const tip = mesh(new THREE.SphereGeometry(0.017, 12, 8), nickelMat, false);
-          tip.position.set(x, PY + y, 0.384 + l);
-          g.add(tip);
+      };
+      const addBrows = (list, mat) =>
+        list.forEach(([x, y, z, ang, len], k) => {
+          const b = mesh(new THREE.SphereGeometry(1, 12, 8), mat, false);
+          b.scale.set(len || 0.06, 0.016, 0.02);
+          b.position.set(x, y, z);
+          b.userData = { y0: y, ang };
+          g.add(b);
+          brows.push({ b, sd: k ? 1 : -1 });
         });
+      const grommet = (p0, len, mat, r0 = 1.3, r1 = 1.05) => {
+        const geo = new THREE.CylinderGeometry(neckEnd * r1, neckEnd * r0, len, 24);
+        geo.translate(0, len / 2, 0);
+        const m = mesh(geo, mat, false);
+        m.position.copy(p0);
+        facing(m, h.JD);
+        g.add(m);
+        return m;
+      };
+
+      if (h.key === "power") {
+        const body = mesh(hexPrism(0.215, 0.36, 0.04), skinMat);
+        g.add(body);
+        const ribMat = rubber(0x2b2d34);
+        [-0.135, -0.09, -0.045].forEach(z => {
+          const r = mesh(hexPrism(0.226, 0.022, 0.008), ribMat, false);
+          r.position.z = z;
+          g.add(r);
+        });
+        const plate = mesh(hexPrism(0.17, 0.02, 0.006), rubber(0x3a3d46), false);
+        plate.position.set(0, 0.012, 0.185);
+        g.add(plate);
+        mats.push(plate.material);
+        addEyes(
+          [
+            [-0.078, 0.06, 0.2, -0.22, -0.05, h.eye],
+            [0.078, 0.06, 0.2, 0.22, -0.05, h.eye]
+          ],
+          0x1c1d26
+        );
+        addLids(skinMat, h.eye, 0.32);
+        jawHinge.position.set(0, -0.105, 0.1);
+        const jaw = mesh(rbox(0.25, 0.075, 0.17, 0.03), ribMat);
+        jaw.position.set(0, -0.025, 0.07);
+        jawHinge.add(jaw);
+        mats.push(ribMat);
+        [
+          [-0.07, 0.02, 0.12, 0.022],
+          [0.07, 0.02, 0.12, 0.022],
+          [0, 0.0, 0.085, 0.018]
+        ].forEach(([x, y, l, r]) => {
+          const pin = mesh(new THREE.CylinderGeometry(r, r, l, 14), nickelMat, false);
+          pin.geometry.translate(0, l / 2, 0);
+          pin.position.set(x, y - 0.02, 0.15);
+          facing(pin, V3(0, 0.55, 1));
+          jawHinge.add(pin);
+          const tip = mesh(new THREE.SphereGeometry(r, 12, 8), nickelMat, false);
+          tip.position.copy(pin.position).addScaledVector(V3(0, 0.55, 1).normalize(), l);
+          jawHinge.add(tip);
+        });
+        const inner = mesh(rbox(0.2, 0.05, 0.12, 0.02), mouthMat, false);
+        inner.position.set(0, -0.1, 0.12);
+        g.add(inner);
         [0, 1, 2].forEach(i => {
-          const rib = mesh(new THREE.TorusGeometry(0.1 - i * 0.006, 0.022, 8, 24), skinMat, false);
-          rib.position.copy(J_LOCAL).addScaledVector(J_DIR, 0.19 + i * 0.055);
-          rib.quaternion.copy(J_Q);
+          const rib = mesh(new THREE.TorusGeometry(neckEnd * 1.12 - i * 0.004, 0.02, 8, 24), skinMat, false);
+          rib.position.copy(h.J).addScaledVector(h.JD, 0.15 + i * 0.05);
+          rib.quaternion.setFromUnitVectors(V3(0, 0, 1), h.JD);
           g.add(rib);
         });
+        grommet(h.J.clone().addScaledVector(h.JD, 0.06), 0.1, skinMat, 1.5, 1.15);
         const tagWire = mesh(new THREE.TorusGeometry(0.025, 0.004, 6, 14), nickelMat, false);
-        tagWire.position.set(0.215, -0.07, -0.02);
+        tagWire.position.set(0.222, -0.07, -0.02);
         tagWire.rotation.y = Math.PI / 2;
         g.add(tagWire);
         const tag = new THREE.Group();
-        tag.position.set(0.218, -0.09, -0.02);
+        tag.position.set(0.225, -0.09, -0.02);
         g.add(tag);
         const tg = mesh(new THREE.BoxGeometry(0.012, 0.075, 0.055), rubber(C.yellow), false);
         tg.position.y = -0.045;
         tag.add(tg);
         h.tag = tag;
-        mouthAt.set(0, -0.12, 0.3);
-      } else if (h.key === "phone" || h.key === "net") {
-        const big = h.key === "net";
-        const w = big ? 0.2 : 0.15;
-        const hh = big ? 0.12 : 0.1;
-        const l = big ? 0.22 : 0.19;
-        const cz = 0.25 + l / 2 - 0.04;
-        const block = mesh(new THREE.BoxGeometry(w, hh, l), clearMat, false);
-        block.position.set(0, -0.03, cz);
-        block.renderOrder = 2;
-        g.add(block);
-        const cols = big ? [0xf6b98a, 0xf07a1a, 0x9fd6a4, 0x2f6fd6, 0xa9c4f0, 0x3f9b4c, 0xc7a27c, 0x7a4a2a] : [0x1d1f25, 0xc8323a, 0x3f9b4c, 0xf2c230];
+        mouthAt.set(0, -0.12, 0.27);
+      } else if (h.key === "phone") {
+        const E = V3(0, 0.15, -0.13);
+        const M = V3(0, -0.04, 0.17);
+        const handle = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([E.clone().add(V3(0, -0.01, -0.02)), V3(0, 0.21, -0.01), V3(0, 0.17, 0.11), M.clone().add(V3(0, 0.02, -0.01))], false, "centripetal"), 40, 0.08, 18, false), skinMat);
+        handle.scale.set(1.3, 1, 1);
+        g.add(handle);
+        const cupMat = rubber(0xd6c8a8);
+        mats.push(cupMat);
+        const ear = new THREE.Group();
+        ear.position.copy(E);
+        facing(ear, V3(0, 0.85, -0.55));
+        g.add(ear);
+        const earCup = mesh(new THREE.CylinderGeometry(0.12, 0.095, 0.08, 36), skinMat);
+        ear.add(earCup);
+        const earFace = mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.012, 36), cupMat, false);
+        earFace.position.y = 0.04;
+        ear.add(earFace);
+        const earDots = new THREE.Group();
+        earDots.position.y = 0.047;
+        earDots.rotation.x = -Math.PI / 2;
+        ear.add(earDots);
+        dotsRing(earDots, 8, 0.05, 0.009, darkMat);
+        dotsRing(earDots, 1, 0, 0.01, darkMat);
+        const mouthG = new THREE.Group();
+        mouthG.position.copy(M);
+        facing(mouthG, V3(0, -0.3, 1));
+        g.add(mouthG);
+        const cupTop = mesh(new THREE.CylinderGeometry(0.125, 0.1, 0.09, 36, 1, false, Math.PI / 2, Math.PI), skinMat);
+        mouthG.add(cupTop);
+        const inner = mesh(new THREE.CylinderGeometry(0.105, 0.105, 0.02, 28), mouthMat, false);
+        inner.position.y = 0.02;
+        mouthG.add(inner);
+        jawHinge.position.copy(M);
+        const lower = new THREE.Group();
+        facing(lower, V3(0, -0.3, 1));
+        jawHinge.add(lower);
+        const cupBot = mesh(new THREE.CylinderGeometry(0.125, 0.1, 0.09, 36, 1, false, -Math.PI / 2, Math.PI), skinMat);
+        lower.add(cupBot);
+        const face = mesh(new THREE.CylinderGeometry(0.108, 0.108, 0.012, 36), cupMat, false);
+        face.position.y = 0.046;
+        mouthG.add(face);
+        const faceDots = new THREE.Group();
+        faceDots.position.y = 0.053;
+        faceDots.rotation.x = -Math.PI / 2;
+        mouthG.add(faceDots);
+        dotsRing(faceDots, 7, 0.072, 0.008, darkMat);
+        const sm = smile(faceDots, 0.04, 0.025, 0.0, 0.004);
+        sm.scale.set(1, 1, 1);
+        addEyes(
+          [
+            [-0.078, 0.145, 0.15, -0.28, -0.35, h.eye],
+            [0.078, 0.145, 0.15, 0.28, -0.35, h.eye]
+          ],
+          0x1c1d26
+        );
+        addBrows(
+          [
+            [-0.08, 0.235, 0.12, -0.2, 0.05],
+            [0.08, 0.235, 0.12, -0.2, 0.05]
+          ],
+          rubber(0x6e5a3a)
+        );
+        h.J.set(0, -0.13, 0.14);
+        h.JD.set(0, -1, -0.2).normalize();
+        grommet(V3(0, -0.105, 0.145), 0.06, skinMat, 1.2, 1.05);
+        h.jawAxisX = true;
+        mouthAt.set(0, -0.08, 0.26);
+      } else if (h.key === "net") {
+        const shell = mesh(rbox(0.34, 0.25, 0.36, 0.05), clearMat, false);
+        shell.position.set(0, 0.02, 0.05);
+        shell.renderOrder = 2;
+        g.add(shell);
+        const boot = mesh(rbox(0.3, 0.23, 0.18, 0.07), skinMat);
+        boot.position.set(0, 0.0, -0.18);
+        g.add(boot);
+        const hood = mesh(rbox(0.16, 0.05, 0.2, 0.02), skinMat, false);
+        hood.position.set(0, 0.135, -0.13);
+        hood.rotation.x = -0.15;
+        g.add(hood);
+        const cols = [0xf6b98a, 0xf07a1a, 0x9fd6a4, 0x2f6fd6, 0xa9c4f0, 0x3f9b4c, 0xc7a27c, 0x7a4a2a];
         cols.forEach((c, i) => {
-          const x = (i / (cols.length - 1) - 0.5) * w * 0.8;
-          const wire = mesh(new THREE.CylinderGeometry(0.008, 0.008, l * 0.75, 6), rubber(c), false);
-          wire.rotation.x = Math.PI / 2;
-          wire.position.set(x, -0.03, cz - l * 0.08);
+          const x = (i / 7 - 0.5) * 0.22;
+          const wire = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V3(x * 0.4, -0.01, -0.12), V3(x * 0.8, 0.01, 0.0), V3(x, -0.01, 0.18)]), 12, 0.011, 6, false), rubber(c), false);
           g.add(wire);
-          const pin = mesh(new THREE.BoxGeometry(w * 0.06, 0.035, 0.03), goldMat, false);
-          pin.position.set(x, -0.03 - hh / 2 + 0.012, cz + l / 2 - 0.02);
+          const pin = mesh(new THREE.BoxGeometry(0.019, 0.05, 0.022), goldMat, false);
+          pin.position.set(x, -0.075, 0.215);
           g.add(pin);
         });
-        const clip = mesh(new THREE.BoxGeometry(w * 0.42, 0.012, l * 0.75), clearMat, false);
-        clip.position.set(0, -0.03 + hh / 2 + 0.035, cz - 0.01);
+        const clip = mesh(new THREE.BoxGeometry(0.12, 0.014, 0.3), clearMat, false);
+        clip.geometry.translate(0, 0, -0.15);
+        clip.position.set(0, 0.15, 0.17);
         clip.rotation.x = -0.32;
+        clip.renderOrder = 2;
         g.add(clip);
-        const boot = mesh(new THREE.CylinderGeometry(w * 0.55, w * 0.62, 0.07, 20), skinMat, false);
-        boot.rotation.x = Math.PI / 2;
-        boot.position.set(0, -0.03, cz - l / 2 - 0.005);
-        g.add(boot);
-        mouthAt.set(0, -0.11, cz);
-        if (big) {
-          h.leds = [-1, 1].map(sd => {
-            const led = mesh(new THREE.SphereGeometry(0.014, 10, 8), new THREE.MeshStandardMaterial({ color: sd < 0 ? 0x2fe06a : 0xffa020, emissive: sd < 0 ? 0x2fe06a : 0xffa020, emissiveIntensity: 1 }), false);
-            led.position.set(sd * w * 0.36, -0.03 + hh / 2 + 0.004, cz + l / 2 - 0.03);
-            g.add(led);
-            return led;
-          });
-        }
-      } else if (h.key === "coax") {
-        const nut = mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.07, 6), nickelMat, false);
-        nut.rotation.x = Math.PI / 2;
-        nut.position.set(0, -0.035, 0.235);
-        g.add(nut);
-        const barrel = mesh(new THREE.CylinderGeometry(0.072, 0.072, 0.14, 24), nickelMat, false);
-        barrel.rotation.x = Math.PI / 2;
-        barrel.position.set(0, -0.035, 0.32);
-        g.add(barrel);
-        for (let i = 0; i < 5; i++) {
-          const th = mesh(new THREE.TorusGeometry(0.073, 0.006, 6, 24), nickelMat, false);
-          th.position.set(0, -0.035, 0.27 + i * 0.024);
-          g.add(th);
-        }
-        const diel = mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.01, 20), rubber(0xfafaf4), false);
-        diel.rotation.x = Math.PI / 2;
-        diel.position.set(0, -0.035, 0.392);
-        g.add(diel);
-        const pin = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.11, 10), copperMat, false);
-        pin.rotation.x = Math.PI / 2;
-        pin.position.set(0, -0.035, 0.44);
-        g.add(pin);
-        mouthAt.set(0, -0.13, 0.28);
-      } else {
-        const sock = mesh(new THREE.CylinderGeometry(0.12, 0.13, 0.1, 32), rubber(0xff9a3d), false);
-        sock.rotation.x = Math.PI / 2;
-        sock.position.set(0, -0.035, 0.28);
-        g.add(sock);
-        mats.push(sock.material);
-        const rec = mesh(new THREE.CylinderGeometry(0.098, 0.098, 0.01, 32), rubber(0xf3eadb), false);
-        rec.rotation.x = Math.PI / 2;
-        rec.position.set(0, -0.035, 0.327);
-        g.add(rec);
-        [
-          [-0.038, -0.012],
-          [0.038, -0.012],
-          [0, 0.036]
-        ].forEach(([x, y]) => {
-          const hole = mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.012, 14), darkMat, false);
-          hole.rotation.x = Math.PI / 2;
-          hole.position.set(x, -0.035 + y, 0.331);
-          g.add(hole);
+        addEyes(
+          [
+            [-0.08, 0.065, 0.225, -0.18, -0.05, h.eye],
+            [0.08, 0.065, 0.225, 0.18, -0.05, h.eye]
+          ],
+          [0x1f9a4a, 0xe2781c]
+        );
+        addBrows(
+          [
+            [-0.085, 0.168, 0.22, -0.32, 0.055],
+            [0.085, 0.158, 0.22, 0.04, 0.055]
+          ],
+          darkMat
+        );
+        h.leds = [-1, 1].map(sd => {
+          const led = mesh(new THREE.BoxGeometry(0.03, 0.02, 0.012), new THREE.MeshStandardMaterial({ color: sd < 0 ? 0x2fe06a : 0xffa020, emissive: sd < 0 ? 0x2fe06a : 0xffa020, emissiveIntensity: 1 }), false);
+          led.position.set(sd * 0.12, 0.12, 0.226);
+          g.add(led);
+          return led;
         });
-        mouthAt.set(0, -0.12, 0.27);
+        jawHinge.position.set(0, -0.1, 0.02);
+        const chin = mesh(rbox(0.27, 0.06, 0.2, 0.025), skinMat);
+        chin.position.set(0, -0.03, 0.1);
+        jawHinge.add(chin);
+        const inner = mesh(rbox(0.22, 0.04, 0.12, 0.015), mouthMat, false);
+        inner.position.set(0, -0.11, 0.14);
+        g.add(inner);
+        mouthAt.set(0, -0.12, 0.26);
+      } else if (h.key === "coax") {
+        const tilt = new THREE.Group();
+        tilt.rotation.z = -0.22;
+        g.add(tilt);
+        const K = 1.3;
+        const R = 0.27;
+        const prof = [];
+        for (let i = 0; i <= 16; i++) {
+          const r = (i / 16) * R;
+          prof.push(new THREE.Vector2(r, K * r * r));
+        }
+        const dishMat = new THREE.MeshPhysicalMaterial({ color: 0xf3f3ee, roughness: 0.45, clearcoat: 0.4, side: THREE.DoubleSide });
+        mats.push(dishMat);
+        const dish = mesh(new THREE.LatheGeometry(prof, 48), dishMat);
+        dish.rotation.x = Math.PI / 2;
+        tilt.add(dish);
+        const backProf = prof.map(p => new THREE.Vector2(p.x, p.y - 0.022));
+        const back = mesh(new THREE.LatheGeometry(backProf, 48), skinMat);
+        back.rotation.x = Math.PI / 2;
+        tilt.add(back);
+        const rim = mesh(new THREE.TorusGeometry(R, 0.016, 10, 56), rubber(0xd9d9d2), false);
+        rim.position.z = K * R * R - 0.01;
+        tilt.add(rim);
+        mats.push(rim.material);
+        const zAt = r => K * r * r;
+        const ex = 0.085;
+        const ey = 0.06;
+        addEyes(
+          [
+            [-ex, ey, zAt(Math.hypot(ex, ey)) + 0.035, -0.12, -0.04, h.eye],
+            [ex, ey, zAt(Math.hypot(ex, ey)) + 0.035, 0.12, -0.04, h.eye]
+          ],
+          0x1c1d26
+        );
+        eyes.forEach(e => {
+          g.remove(e.g);
+          tilt.add(e.g);
+        });
+        addLids(dishMat, h.eye, 0.5);
+        const arm = mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([V3(0, -R + 0.01, zAt(R) - 0.01), V3(0, -0.2, 0.17), V3(0, -0.07, 0.26)]), 20, 0.013, 8, false), nickelMat, false);
+        tilt.add(arm);
+        const lnb = new THREE.Group();
+        lnb.position.set(0, -0.055, 0.27);
+        tilt.add(lnb);
+        const horn = mesh(new THREE.CylinderGeometry(0.03, 0.045, 0.07, 18), rubber(0xe9e9e2), false);
+        horn.rotation.x = Math.PI / 2;
+        lnb.add(horn);
+        const hornFace = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.006, 18), darkMat, false);
+        hornFace.rotation.x = Math.PI / 2;
+        hornFace.position.z = -0.036;
+        lnb.add(hornFace);
+        const nose = mesh(new THREE.SphereGeometry(0.035, 16, 10), rubber(0xe9e9e2), false);
+        nose.scale.set(1, 0.85, 0.7);
+        nose.position.z = 0.03;
+        lnb.add(nose);
+        [-1, 1].forEach(sd => {
+          const n = mesh(new THREE.SphereGeometry(0.008, 8, 6), darkMat, false);
+          n.position.set(sd * 0.013, 0.004, 0.053);
+          lnb.add(n);
+        });
+        jawHinge.position.set(0, -0.12, zAt(0.12) + 0.02);
+        tilt.add(jawHinge);
+        const mo = mesh(new THREE.SphereGeometry(1, 16, 10), mouthMat, false);
+        mo.scale.set(0.035, 0.022, 0.01);
+        mo.position.set(0, -0.01, 0.0);
+        jawHinge.add(mo);
+        const bracket = mesh(rbox(0.1, 0.12, 0.06, 0.015), nickelMat);
+        bracket.position.set(0, -0.03, -0.05);
+        g.add(bracket);
+        const nut = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.05, 6), nickelMat, false);
+        nut.position.set(0, -0.08, -0.08);
+        facing(nut, V3(0, -0.4, -1));
+        g.add(nut);
+        h.J.set(0, -0.07, -0.06);
+        h.JD.set(0, -0.4, -1).normalize();
+        mouthAt.set(0, -0.12, 0.12);
+      } else {
+        const block = mesh(rbox(0.34, 0.29, 0.3, 0.07), skinMat);
+        g.add(block);
+        const faceMat = rubber(0xffa556);
+        mats.push(faceMat);
+        const sockFace = (parent, r) => {
+          const f = mesh(new THREE.CylinderGeometry(r, r * 1.05, 0.03, 32), faceMat, false);
+          f.rotation.x = Math.PI / 2;
+          parent.add(f);
+          const rec = mesh(new THREE.CylinderGeometry(r * 0.82, r * 0.82, 0.01, 32), rubber(0xf3eadb), false);
+          rec.rotation.x = Math.PI / 2;
+          rec.position.z = 0.012;
+          parent.add(rec);
+          holes3(parent, 0, 0, 0.018, r * 0.82);
+        };
+        h.ears = [-1, 1].map(sd => {
+          const eg = new THREE.Group();
+          eg.position.set(sd * 0.17, 0.02, -0.01);
+          eg.rotation.y = sd * Math.PI / 2;
+          g.add(eg);
+          const inner = new THREE.Group();
+          eg.add(inner);
+          sockFace(inner, 0.075);
+          return inner;
+        });
+        const snout = new THREE.Group();
+        snout.position.set(0, -0.04, 0.152);
+        g.add(snout);
+        sockFace(snout, 0.078);
+        addEyes(
+          [
+            [-0.085, 0.07, 0.155, -0.15, -0.05, h.eye],
+            [0.085, 0.07, 0.155, 0.15, -0.05, h.eye]
+          ],
+          0x1c1d26
+        );
+        addBrows(
+          [
+            [-0.088, 0.172, 0.15, -0.3, 0.05],
+            [0.088, 0.172, 0.15, -0.3, 0.05]
+          ],
+          rubber(0x7a3a08)
+        );
+        jawHinge.position.set(0, -0.125, 0.08);
+        const lip = mesh(rbox(0.2, 0.045, 0.1, 0.02), rubber(0xd8650f), false);
+        lip.position.set(0, -0.01, 0.05);
+        jawHinge.add(lip);
+        mats.push(lip.material);
+        const tongue = mesh(new THREE.SphereGeometry(1, 16, 10), new THREE.MeshStandardMaterial({ color: 0xe8607a, roughness: 0.5 }), false);
+        tongue.scale.set(0.035, 0.012, 0.05);
+        tongue.position.set(0.015, -0.004, 0.11);
+        tongue.rotation.y = 0.2;
+        jawHinge.add(tongue);
+        const inner = mesh(rbox(0.16, 0.035, 0.08, 0.012), mouthMat, false);
+        inner.position.set(0, -0.12, 0.11);
+        g.add(inner);
+        grommet(V3(0, -0.07, -0.13), 0.1, skinMat, 1.35, 1.1);
+        mouthAt.set(0, -0.14, 0.2);
       }
       return Object.assign(h, { g, jawHinge, eyes, brows, lids, mats, base: mats.map(m => m.color.clone()), mouthAt, pos: V3(), q: new THREE.Quaternion() });
     };
@@ -768,8 +1028,8 @@ Pets.register({
     const placeNeck = (nk, i, droop) => {
       const h = nk.h;
       const A = anchors[i];
-      const J = worldOf(h, J_LOCAL, V3());
-      const d = J_DIR.clone().applyQuaternion(h.g.quaternion);
+      const J = worldOf(h, h.J, V3());
+      const d = h.JD.clone().applyQuaternion(h.g.quaternion);
       const P1 = A.clone().addScaledVector(anchorN[i], 0.26).addScaledVector(UP, 0.12);
       const P3 = J.clone().addScaledVector(d, 0.24 * h.g.scale.x);
       const mid = P1.clone().lerp(P3, 0.5);
@@ -1012,13 +1272,13 @@ Pets.register({
             g.scale.y = Math.max(0.08, sq ? 1 - sq : blink);
           });
           h.lids.forEach(l => {
-            l.rotation.x = lerp(-1.2, 0.35, Math.max(sq, 0.42, 1 - blink));
+            l.rotation.x = lerp(-1.2, 0.35, Math.max(sq, h.lidRest, 1 - blink));
           });
           h.brows.forEach(({ b, sd }) => {
-            const ang = h.key === "power" ? 0.32 : h.key === "ext" ? -0.28 : h.key === "phone" ? -0.18 : 0.05;
-            b.rotation.z = sd * (ang + sq * 0.2);
-            b.position.y = 0.185 + (h.key === "ext" ? 0.015 : 0) - sq * 0.02;
+            b.rotation.z = sd * (b.userData.ang + sq * 0.2);
+            b.position.y = b.userData.y0 - sq * 0.02;
           });
+          if (h.ears) h.ears.forEach((e, k) => (e.rotation.x = Math.sin(t * 7 + k * 2.1) * 0.22 * motion));
           if (h.tag) h.tag.rotation.z = Math.sin(t * 2.4) * 0.25 * motion + rot[i].roll * -1.2;
           if (h.leds) h.leds.forEach((l, k) => (l.material.emissiveIntensity = (Math.sin(t * (k ? 9 : 13)) > 0.2 ? 1.2 : 0.15) * vigor));
           const burnK = i === ic ? burn : 0;
