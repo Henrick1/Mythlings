@@ -2134,7 +2134,8 @@ Pets.register({
         const glad = joy >= 90 && !dying && !action ? 1 : 0;
         if (glad) bloom = Math.max(bloom, 0.1 + 0.06 * Math.sin(t * 0.7) * motion);
         plates.forEach(({ hinge, layer, ph: pp }) => {
-          const flare = layer === 2 ? bloom * 0.6 + glad * (Math.sin(t * 2.4 + pp) * 0.5 + 0.5) * 0.22 * motion : bloom * 1.05;
+          const fan = frost ? Math.max(0, bloom) : 0;
+          const flare = layer === 2 ? fan * 0.6 + glad * (Math.sin(t * 2.4 + pp) * 0.5 + 0.5) * 0.22 * motion : fan * 1.05;
           hinge.rotation.x = lerp(hinge.rotation.x, Math.max(0, flare) + charge * Math.sin(t * 40) * 0.01, 0.25);
         });
         const doorT = Math.max(0, bloom) * 1.45 + charge * Math.abs(Math.sin(t * 30)) * 0.05;
