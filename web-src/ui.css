@@ -2756,3 +2756,85 @@ a:focus-visible {
   font-weight: 700;
   opacity: 0.65;
 }
+
+.egg-offers {
+  display: grid;
+  gap: 10px;
+}
+
+.egg-offer {
+  flex-wrap: wrap;
+}
+
+.egg-offer > div {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.egg-offer.tier-rare {
+  background: #2c4a6e;
+}
+
+.egg-offer.tier-rare .hint {
+  color: #d3e2f6;
+}
+
+.egg-offer.tier-legendary {
+  background: #6a4a10;
+}
+
+.egg-offer.tier-legendary .hint {
+  color: #f6e3b4;
+}
+
+.egg-buy {
+  flex: none;
+  min-width: 96px;
+  min-height: 48px;
+  margin-left: auto;
+  background: var(--sun);
+  color: #0f3a28;
+  font-size: 18px;
+  gap: 6px;
+  box-shadow: none;
+}
+
+.egg-buy:disabled {
+  background: var(--track);
+  color: #8aa096;
+  opacity: 1;
+}
+
+.egg-buy .coin,
+.egg-dupe .coin {
+  width: 16px;
+  height: 16px;
+}
+
+.egg-dupe {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px 16px;
+  background: var(--paper);
+  clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)), calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut));
+}
+
+.egg-dupe[hidden] {
+  display: none;
+}
+
+.egg-dupe p {
+  margin: 0;
+  font-weight: 700;
+}
+
+.egg-dupe .btn-row {
+  flex-wrap: wrap;
+}
+
+.egg-dupe .btn {
+  flex: 1 1 120px;
+  min-height: 44px;
+  font-size: 15px;
+  gap: 6px;
+}

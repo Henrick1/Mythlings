@@ -172,7 +172,7 @@ function placeCamera() {
   camera.updateProjectionMatrix();
 }
 
-function setPet(id) {
+function setPet(id, variant) {
   if (!id) {
     if (current) {
       scene.remove(current.pet.root);
@@ -183,14 +183,15 @@ function setPet(id) {
     return;
   }
   const def = Pets.find(id) || Pets.list[0];
-  if (!def || (current && current.def.id === def.id)) return;
+  if (!def || (current && current.def.id === def.id && !!current.variant === !!variant)) return;
   const pet = def.create({ THREE, kit: PetKit, reduceMotion, motion });
+  if (variant && PetKit.variant) PetKit.variant(pet.root, def.id);
   if (current) {
     pivot.remove(current.pet.root);
     disposeTree(current.pet.root);
   }
   pivot.add(pet.root);
-  current = { def, pet };
+  current = { def, pet, variant: !!variant };
   fitK = 1;
   needFit = true;
   activeAction = null;
@@ -248,7 +249,7 @@ function applyState(s) {
   level = s.level;
   xp = s.xp;
   xpNext = s.xpNext;
-  if (ready) setPet(s.species);
+  if (ready) setPet(s.species, s.variant);
   renderStats();
 }
 

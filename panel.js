@@ -403,12 +403,12 @@ function showBagNew() {
   bagNewEl.hidden = bagNew <= 0;
 }
 
-async function buy(op, id, row) {
+async function buy(op, id, row, tier) {
   if (bought[id] && bought[id] > Date.now()) return;
   const before = lastState ? lastState.coins : null;
   const icoRect = row.querySelector(".it-ico").getBoundingClientRect();
   const html = row.querySelector(".it-ico").innerHTML;
-  const msg = await window.pet.eco(op === "egg" ? { op: "egg" } : { op: "buy", item: id });
+  const msg = await window.pet.eco(op === "egg" ? { op: "egg", tier } : { op: "buy", item: id });
   if (!msg) return;
   bought[id] = Date.now() + (op === "egg" ? 1600 : 900);
   setTimeout(() => lastState && bagMode === "shop" && renderBag(lastState), op === "egg" ? 1650 : 950);
@@ -508,13 +508,22 @@ let eggTicker = 0;
 function eggNow(s, e) {
   if (e.slot === null) return { left: e.left, care: e.care };
   const min = Math.max(0, (Date.now() - (s.now || Date.now())) / 60000);
-  const active = Math.min(min, e.care / s.careDecay);
-  return { left: Math.max(0, e.left - active * 60000), care: Math.max(0, e.care - min * s.careDecay) };
+  return { left: Math.max(0, e.left - min * 60000), care: Math.max(0, e.care - min * (e.decay || s.careDecay)) };
 }
 
-function eggSvg(color, size) {
+const eggProg = (e, n) => Math.max(0, Math.min(1, 1 - n.left / (e.total || 600000)));
+const TIER_BAND = { rare: "#dfe6f2", legendary: "#ffd75e" };
+const TIER_NOTE = { common: "Choca em 10 minutos", rare: "Choca em 1 hora · só criaturas raras", legendary: "Prêmio do 7º dia seguido da recompensa diária" };
+
+function tierName(t) {
+  const tiers = lastState && lastState.eggTiers;
+  return tiers && tiers[t || "common"] ? tiers[t || "common"].name : "Ovo";
+}
+
+function eggSvg(color, size, tier) {
   const w = size || 34;
-  return '<svg viewBox="0 0 24 28" width="' + w + '" height="' + Math.round(w * 28 / 24) + '" aria-hidden="true"><path d="M12 1.5C7 1.5 3 9.5 3 16.5a9 9 0 0 0 18 0C21 9.5 17 1.5 12 1.5z" fill="' + color + '" stroke="rgba(0,0,0,0.25)" stroke-width="1"/><circle cx="8.5" cy="15" r="1.9" fill="#ffffff" opacity="0.75"/><circle cx="15" cy="10" r="1.4" fill="#ffffff" opacity="0.7"/><circle cx="14.5" cy="20" r="2.3" fill="#ffffff" opacity="0.65"/><ellipse cx="8" cy="8.5" rx="1.6" ry="2.6" fill="#ffffff" opacity="0.55" transform="rotate(25 8 8.5)"/></svg>';
+  const band = TIER_BAND[tier] ? '<rect x="2.6" y="14.2" width="18.8" height="3" fill="' + TIER_BAND[tier] + '" stroke="rgba(0,0,0,0.25)" stroke-width="0.6"/>' : "";
+  return '<svg viewBox="0 0 24 28" width="' + w + '" height="' + Math.round(w * 28 / 24) + '" aria-hidden="true"><defs><clipPath id="eggclip"><path d="M12 1.5C7 1.5 3 9.5 3 16.5a9 9 0 0 0 18 0C21 9.5 17 1.5 12 1.5z"/></clipPath></defs><path d="M12 1.5C7 1.5 3 9.5 3 16.5a9 9 0 0 0 18 0C21 9.5 17 1.5 12 1.5z" fill="' + color + '" stroke="rgba(0,0,0,0.25)" stroke-width="1"/><g clip-path="url(#eggclip)">' + band + '</g><circle cx="8.5" cy="20" r="1.9" fill="#ffffff" opacity="0.6"/><circle cx="15" cy="10" r="1.4" fill="#ffffff" opacity="0.7"/><ellipse cx="8" cy="8.5" rx="1.6" ry="2.6" fill="#ffffff" opacity="0.55" transform="rotate(25 8 8.5)"/></svg>';
 }
 
 function slotOf(s, i) {
@@ -534,7 +543,7 @@ function renderEggsPart(s) {
     b.setAttribute("aria-pressed", String(i === eggSel));
     if (e) {
       const ico = el("span", "egg-ico");
-      ico.innerHTML = eggSvg(e.color, 30);
+      ico.innerHTML = eggSvg(e.color, 30, e.tier);
       const n = eggNow(s, e);
       if (n.left <= 0) ico.classList.add("ready");
       else if (n.care <= 0) ico.classList.add("cold");
@@ -579,7 +588,7 @@ function renderEggsPart(s) {
       row.appendChild(track);
       row.appendChild(el("span", "care-val", Math.round(n.care) + "%"));
       card.appendChild(row);
-      card.appendChild(el("p", "egg-msg", n.care <= 0 ? "Sem cuidado o ovo para de chocar. Limpe e brinque com ele." : "Mantenha o cuidado alto para o tempo continuar correndo."));
+      card.appendChild(el("p", "egg-msg", tierName(e.tier) + " · choca em " + fmtTime(n.left)));
       const acts = el("div", "row-buttons");
       [["clean", "Limpar"], ["play", "Brincar"]].forEach(([k, t]) => {
         acts.appendChild(
@@ -611,10 +620,10 @@ function renderEggsPart(s) {
   inv.forEach(x => {
     const row = el("div", "it");
     const ico = el("span", "it-ico");
-    ico.innerHTML = eggSvg(x.color, 20);
+    ico.innerHTML = eggSvg(x.color, 20, x.tier);
     row.appendChild(ico);
     const info = el("span", "info");
-    info.append(el("span", "name-line", "Ovo misterioso"), el("span", "eff", full ? "A chocadeira está cheia" : "Leve para a chocadeira"));
+    info.append(el("span", "name-line", tierName(x.tier)), el("span", "eff", full ? "A chocadeira está cheia" : "Leve para a chocadeira"));
     row.appendChild(info);
     const box = el("span", "it-btns");
     box.appendChild(
@@ -735,10 +744,11 @@ function syncEgg3d(s) {
   const n = eggNow(s, e);
   if (shownEgg !== e.id) {
     eggStage.setPet(null);
-    eggStage.setEgg({ color: e.color, nest: true, care: n.care });
+    eggStage.setEgg(e.type ? { type: e.type, tier: e.tier, nest: true, care: n.care, species: e.species, progress: eggProg(e, n) } : { color: e.color, nest: true, care: n.care });
     shownEgg = e.id;
   }
   eggStage.setEggCare(n.care);
+  if (eggStage.setEggProgress) eggStage.setEggProgress(eggProg(e, n));
   if (n.left <= 0) {
     if (eggStage.eggCracks() === 0) eggSay("Toque no ovo 3 vezes!");
   } else eggSay("");
@@ -755,26 +765,44 @@ async function tapEgg3d() {
   if (level < 3) return;
   hatching = true;
   await loadPets();
+  const r = await window.pet.eco({ op: "hatch", id: e.id });
   setTimeout(() => {
     eggSay("Vai nascer!", "again");
     eggWrap.classList.add("shaking");
     eggStage.hatch(
       e.species,
-      async () => {
-        const r = await window.pet.eco({ op: "hatch", id: e.id });
+      () => {
         shownEgg = undefined;
         const card = bagScroll.querySelector(".egg-card");
-        if (card) {
-          card.textContent = "";
-          if (r && r.hatched) card.appendChild(el("p", "hatch-name", r.name + " foi para " + r.where + "!"));
-          card.appendChild(
-            btn("Legal!", "solid", () => {
-              hatching = false;
-              eggSay("");
-              if (lastState) renderBag(lastState);
+        if (!card) return;
+        card.textContent = "";
+        const done = () => {
+          hatching = false;
+          eggSay("");
+          if (lastState) renderBag(lastState);
+        };
+        if (r && r.hatched) card.appendChild(el("p", "hatch-name", r.name + " foi para " + r.where + "!"));
+        if (r && r.hatched && r.dupe) {
+          card.appendChild(el("p", "egg-msg", "Você já tinha " + r.name + ". O que fazer com o novo?"));
+          const acts = el("div", "row-buttons");
+          acts.appendChild(btn("Ficar com ele", "solid", done));
+          acts.appendChild(
+            btn("Trocar por " + r.dupeCoins + " moedas", "ghost", async () => {
+              const m = await window.pet.eco({ op: "dupe", uid: r.uid, mode: "coins" });
+              if (m) bagSay(m);
+              done();
             })
           );
-        }
+          if (r.mate)
+            acts.appendChild(
+              btn(r.dupeXp + " XP para " + r.mate.name, "ghost", async () => {
+                const m = await window.pet.eco({ op: "dupe", uid: r.uid, mode: "xp", target: r.mate.uid });
+                if (m) bagSay(m);
+                done();
+              })
+            );
+          card.appendChild(acts);
+        } else card.appendChild(btn("Legal!", "solid", done));
       },
       () => {
         eggWrap.classList.remove("shaking");
@@ -782,7 +810,9 @@ async function tapEgg3d() {
         setTimeout(() => eggWrap && eggWrap.classList.remove("burst"), 900);
         const sp = window.Pets && window.Pets.find(e.species);
         eggSay("Nasceu " + (sp ? sp.name : "") + "!", "reveal");
-      }
+        if (r && r.variant) setTimeout(() => eggSay("Uma cor rara!", "reveal"), 1100);
+      },
+      !!(r && r.variant)
     );
   }, 600);
 }
@@ -829,7 +859,7 @@ async function hatch(e, card) {
   card.textContent = "";
   const stage = el("div", "hatch-stage");
   const big = el("span", "hatch-egg");
-  big.innerHTML = eggSvg(e.color, 64);
+  big.innerHTML = eggSvg(e.color, 64, e.tier);
   stage.appendChild(big);
   card.appendChild(stage);
   if (ico) ico.style.visibility = "hidden";
@@ -854,15 +884,25 @@ async function hatch(e, card) {
 
 function renderShopPart(s) {
   bagScroll.appendChild(el("p", "", "O que você compra vai para a mochila. O grupo rende moedas toda hora enquanto está alimentado e feliz."));
-  const egg = itemLine({ id: "ovo", name: "Ovo misterioso" }, "");
-  egg.querySelector(".eff").textContent = "Nasce uma criatura aleatória";
-  const eggBox = el("span", "it-btns");
-  const eggDone = bought.ovo && bought.ovo > Date.now();
-  const eggBtn = btn(eggDone ? "" : String(s.eggPrice), "price" + (eggDone ? " done" : ""), () => buy("egg", "ovo", egg), !eggDone && (s.coins < s.eggPrice || !s.eggPool));
-  eggBox.appendChild(eggBtn);
-  egg.dataset.item = "ovo";
-  egg.appendChild(eggBox);
-  bagScroll.appendChild(egg);
+  Object.keys(s.eggTiers || {}).forEach(k => {
+    const t = s.eggTiers[k];
+    const id = "ovo-" + k;
+    const egg = el("div", "it");
+    const ico = el("span", "it-ico");
+    ico.innerHTML = eggSvg({ common: "#fff3df", rare: "#c9d6ea", legendary: "#f2cf6b" }[k] || "#fff3df", 20, k);
+    egg.appendChild(ico);
+    const info = el("span", "info");
+    info.append(el("span", "name-line", t.name), el("span", "eff", TIER_NOTE[k] || ""));
+    egg.appendChild(info);
+    egg.dataset.item = id;
+    if (t.price) {
+      const eggBox = el("span", "it-btns");
+      const eggDone = bought[id] && bought[id] > Date.now();
+      eggBox.appendChild(btn(eggDone ? "" : String(t.price), "price" + (eggDone ? " done" : ""), () => buy("egg", id, egg, k), !eggDone && (s.coins < t.price || !(s.eggPools || {})[k])));
+      egg.appendChild(eggBox);
+    }
+    bagScroll.appendChild(egg);
+  });
   s.items.filter(it => it.price).forEach(it => {
     const row = itemLine(it, it.count ? "tem " + it.count : "");
     const box = el("span", "it-btns");

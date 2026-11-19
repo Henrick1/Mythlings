@@ -91,6 +91,7 @@
   let shownEggId = null;
   let revealing = false;
   let eggTicker = 0;
+  let dupeFor = null;
   let firstSyncDone = false;
   let evolvingNow = false;
   let syncing = false;
@@ -627,14 +628,17 @@
 
   const TAP_TEXT = ["Toque no ovo 3 vezes!", "Rachou!", "Está brilhando!", "Lá vem!"];
 
-  function tapEgg(st, wrap, species, onDone) {
+  function tapEgg(st, wrap, species, onDone, prep) {
     if (!st || !st.hasEgg() || st.eggCracks() >= 3) return;
     const level = st.eggTap();
     hatchLabel(wrap, TAP_TEXT[level], level % 2 ? "again" : "");
     wrap.classList.remove("knock");
     void wrap.offsetWidth;
     wrap.classList.add("knock");
-    if (level >= 3) setTimeout(() => runHatch(st, wrap, species, onDone), 600);
+    if (level >= 3) {
+      const r = prep ? prep() : null;
+      setTimeout(() => runHatch(st, wrap, species, () => onDone && onDone(r), r), 600);
+    }
   }
 
   function baseIds() {
@@ -708,8 +712,9 @@
     starterStage.setPet(id);
   }
 
-  function runHatch(st, wrap, species, onDone) {
+  function runHatch(st, wrap, species, onDone, r) {
     const name = meta[species] ? meta[species].name : species;
+    const rare = !!(r && r.variant);
     hatchLabel(wrap, "Vai nascer!", "again");
     wrap.classList.remove("burst", "knock");
     wrap.classList.add("hatching", "shake-3");
@@ -727,7 +732,12 @@
         void wrap.offsetWidth;
         wrap.classList.add("burst");
         hatchLabel(wrap, name + "!", "reveal");
-      }
+        if (rare) {
+          sparkle(wrap, wrap, "#fff1a8");
+          setTimeout(() => hatchLabel(wrap, "Uma cor rara!", "reveal"), 1100);
+        }
+      },
+      rare
     );
   }
 
@@ -742,7 +752,7 @@
     saveState();
     scheduleSync();
     $("starter-pick").hidden = true;
-    starterStage.setEgg({ color: meta[id].color });
+    starterStage.setEgg(meta[id].types && meta[id].types[0] ? { type: meta[id].types[0] } : { color: meta[id].color });
     starterEgg = id;
     hatchLabel($("starter-wrap"), TAP_TEXT[0]);
   }
@@ -757,11 +767,19 @@
     return state.eggs.find(e => e.slot === i) || null;
   }
 
-  function eggArt(node, color) {
-    if (node.dataset.c === color && node.querySelector("img")) return;
-    const url = window.PetStage && window.THREE && PetStage.eggThumbnail ? PetStage.eggThumbnail(window.THREE, color, 160) : null;
+  const TIER_LOOK = { common: { type: "mystery", tier: "common", tint: "#9c8cc4" }, rare: { type: "mystery", tier: "rare", tint: "#6f8fc8" }, legendary: { type: "mystery", tier: "legendary", tint: "#c08a2a" } };
+
+  function eggLook(e) {
+    const m = e && meta[e.species];
+    return m && m.types && m.types[0] ? { type: m.types[0], tier: e.tier || "common" } : { color: "#999999" };
+  }
+
+  function eggArt(node, look) {
+    const key = typeof look === "string" ? look : look.type ? look.type + ":" + look.tier + ":" + (look.tint || "") : look.color;
+    if (node.dataset.c === key && node.querySelector("img")) return;
+    const url = window.PetStage && window.THREE && PetStage.eggThumbnail ? PetStage.eggThumbnail(window.THREE, look, 160) : null;
     if (!url) return;
-    node.dataset.c = color;
+    node.dataset.c = key;
     node.replaceChildren();
     const img = document.createElement("img");
     img.src = url;
@@ -770,11 +788,11 @@
     node.classList.add("egg3d");
   }
 
-  function miniEgg(color) {
+  function miniEgg(look) {
     const egg = document.createElement("span");
     egg.className = "mini-egg";
-    egg.style.setProperty("--c", color);
-    eggArt(egg, color);
+    egg.style.setProperty("--c", typeof look === "string" ? look : look.color || "#c48ae8");
+    eggArt(egg, look);
     return egg;
   }
 
@@ -784,6 +802,8 @@
     eggSlot = first === undefined ? 0 : first;
     shownEggId = undefined;
     revealing = false;
+    dupeFor = null;
+    $("egg-dupe").hidden = true;
     if (!eggStage) eggStage = makeStage("egg-canvas");
     renderEggs();
     $("egg-sheet").showModal();
@@ -810,12 +830,12 @@
       b.className = "egg-slot" + (e ? "" : " empty");
       b.setAttribute("aria-pressed", String(i === eggSlot));
       if (e) {
-        b.append(miniEgg(meta[e.species] ? meta[e.species].color : "#999999"));
+        b.append(miniEgg(eggLook(e)));
         const sb = document.createElement("span");
         sb.className = "sbar";
         const si = document.createElement("i");
         si.id = "slot-bar-" + i;
-        si.style.width = Math.max(0, Math.min(100, (1 - e.left / Game.C.HATCH_MS) * 100)) + "%";
+        si.style.width = Math.max(0, Math.min(100, eggProgressOf(e) * 100)) + "%";
         sb.append(si);
         const tm = document.createElement("span");
         tm.className = "slot-time";
@@ -861,9 +881,9 @@
       info.className = "info";
       const name = document.createElement("span");
       name.className = "name-line";
-      name.textContent = "Ovo misterioso";
+      name.textContent = Game.C.EGG_TIERS[e.tier || "common"].name;
       info.append(name);
-      b.append(miniEgg(meta[e.species] ? meta[e.species].color : "#999999"), info);
+      b.append(miniEgg(eggLook(e)), info);
       b.addEventListener("click", () => {
         const r = Game.incubate(state, e.id);
         if (!r.changed) {
@@ -882,6 +902,11 @@
     });
   }
 
+  function eggProgressOf(e) {
+    const total = (Game.C.EGG_TIERS[e.tier || "common"] || Game.C.EGG_TIERS.common).ms;
+    return Math.max(0, Math.min(1, 1 - e.left / total));
+  }
+
   function syncEggStage() {
     if (!eggStage || revealing) return;
     const e = slotEgg(eggSlot);
@@ -896,7 +921,7 @@
     }
     if (shownEggId !== e.id) {
       eggStage.setPet(null);
-      eggStage.setEgg({ color: meta[e.species] ? meta[e.species].color : "#999999", nest: true, care: e.care });
+      eggStage.setEgg(Object.assign(eggLook(e), { nest: true, care: e.care, species: e.species, progress: eggProgressOf(e) }));
       shownEggId = e.id;
     }
   }
@@ -909,19 +934,21 @@
       const el = $("slot-time-" + i);
       if (e && el) el.textContent = e.left <= 0 ? "Pronto!" : fmtTime(e.left);
       const sb = $("slot-bar-" + i);
-      if (e && sb) sb.style.width = Math.max(0, Math.min(100, (1 - e.left / Game.C.HATCH_MS) * 100)) + "%";
+      if (e && sb) sb.style.width = Math.max(0, Math.min(100, eggProgressOf(e) * 100)) + "%";
     }
     const e = slotEgg(eggSlot);
     const has = !!e && !revealing;
-    $("egg-controls").hidden = !has && !revealing;
+    $("egg-controls").hidden = (!has && !revealing) || !!dupeFor;
     if (revealing) return;
     if (!e) return;
     setBar($("care-bar"), $("care-val"), e.care);
     $("care-bar").dataset.level = barLevel(e.care);
-    if (eggStage) eggStage.setEggCare(e.care);
+    if (eggStage) {
+      eggStage.setEggCare(e.care);
+      eggStage.setEggProgress(eggProgressOf(e));
+    }
     $("egg-timer").textContent = e.left <= 0 ? "" : "Choca em " + fmtTime(e.left);
-    $("egg-hint").textContent =
-      e.left <= 0 ? "" : e.care <= 0 ? "O ovo está sem cuidado e parou de chocar. Limpe e brinque com ele." : "";
+    $("egg-hint").textContent = "";
     $("egg-clean").disabled = e.left <= 0 || e.care >= 99.5;
     $("egg-play").disabled = e.left <= 0 || e.care >= 99.5;
     if (e.left <= 0 && eggStage && eggStage.hasEgg() && shownEggId === e.id && eggStage.eggCracks() === 0) {
@@ -939,20 +966,80 @@
       $("egg-play").disabled = true;
       $("egg-hint").textContent = "";
     }
-    tapEgg(eggStage, $("egg-wrap"), e.species, () => finishHatch(e.id, e.species));
+    tapEgg(
+      eggStage,
+      $("egg-wrap"),
+      e.species,
+      r => finishHatch(r, e.species),
+      () => {
+        const r = Game.hatchEgg(state, e.id);
+        if (r.changed) {
+          saveState();
+          scheduleSync();
+        }
+        return r;
+      }
+    );
   }
 
-  function finishHatch(id, species) {
-    const r = Game.hatchEgg(state, id);
-    if (r.changed) {
+  function lineOf(species) {
+    const out = [species];
+    for (let i = 0; i < out.length; i++) nextForms(out[i]).forEach(x => !out.includes(x) && out.push(x));
+    return out;
+  }
+
+  function showDupe(r) {
+    const box = $("egg-dupe");
+    const name = meta[r.species] ? meta[r.species].name : r.species;
+    const t = Game.C.EGG_TIERS[r.tier] || Game.C.EGG_TIERS.common;
+    const line = lineOf(r.species);
+    const mates = state.owned.filter(u => u !== r.uid && line.includes(Game.speciesOf(state, u)));
+    const mate = mates.sort((a, b) => Game.levelOf(state, b) - Game.levelOf(state, a))[0];
+    box.replaceChildren();
+    const p = document.createElement("p");
+    p.textContent = "Você já tinha " + name + ". O que fazer com o novo?";
+    const row = document.createElement("div");
+    row.className = "btn-row";
+    const mk = (label, fn) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "btn primary";
+      b.innerHTML = label;
+      b.addEventListener("click", fn);
+      row.append(b);
+    };
+    const close = () => {
+      dupeFor = null;
+      box.hidden = true;
+      renderEggs();
+    };
+    const convert = (mode, target) => {
+      const res = Game.convertDupe(state, r.uid, mode, target, line);
+      if (!res.changed) return sfx("deny");
       saveState();
       scheduleSync();
+      sfx(mode === "coins" ? "coins" : "levelup");
+      showToast(mode === "coins" ? "+" + res.coins + " moedas" : meta[Game.speciesOf(state, target)].name + " ganhou " + res.xp + " de XP" + (res.levels ? " e subiu para o nível " + res.level : "") + "!");
       render();
-    }
+      close();
+    };
+    mk("Ficar com ele", close);
+    mk('<i class="coin" aria-hidden="true"></i><span>Trocar por ' + t.dupCoins + "</span>", () => convert("coins"));
+    if (mate) mk("<span>" + t.dupXp + " XP para " + (meta[Game.speciesOf(state, mate)] || {}).name + "</span>", () => convert("xp", mate));
+    box.append(p, row);
+    dupeFor = r.uid;
+    box.hidden = false;
+    $("egg-controls").hidden = true;
+  }
+
+  function finishHatch(r, species) {
+    r = r || { changed: false };
+    if (r.changed) render();
     shownEggId = null;
     const name = meta[species] ? meta[species].name : species;
     $("egg-timer").textContent = "";
     showToast(name + " nasceu e foi para " + (r.uid && state.party.includes(r.uid) ? "o seu grupo" : "a caixa") + "!");
+    if (r.changed && r.dupe && state.owned.includes(r.uid)) showDupe(r);
     const slots = $("egg-slots");
     const btn = slots.children[eggSlot];
     if (btn) {
@@ -997,7 +1084,7 @@
       habitat.select(null);
       habitat.hide(id, true);
     }
-    stage.setPet(Game.speciesOf(state));
+    stage.setPet(Game.speciesOf(state), isVariant(state.pet));
     wrap.classList.add("evolving");
     stage.resize();
     stage.start();
@@ -1220,28 +1307,89 @@
     $("bag-sheet").showModal();
   }
 
+  const TIER_TEXT = { common: "Choca em 10 minutos.", rare: "Choca em 1 hora. Só nascem criaturas raras.", legendary: "Choca em 4 horas. Prêmio do 7º dia seguido da recompensa diária." };
+
+  function renderEggOffers() {
+    const box = $("egg-offers");
+    const tiers = Object.keys(Game.C.EGG_TIERS);
+    if (box.children.length !== tiers.length) {
+      box.replaceChildren();
+      tiers.forEach(k => {
+        const t = Game.C.EGG_TIERS[k];
+        const card = document.createElement("div");
+        card.className = "shop-card egg-offer tier-" + k;
+        card.dataset.tier = k;
+        const art = document.createElement("span");
+        art.className = "mini-egg big";
+        art.style.setProperty("--c", TIER_LOOK[k].tint);
+        eggArt(art, TIER_LOOK[k]);
+        const txt = document.createElement("div");
+        const h = document.createElement("h3");
+        h.textContent = t.name;
+        const p = document.createElement("p");
+        p.className = "hint";
+        p.textContent = TIER_TEXT[k];
+        txt.append(h, p);
+        card.append(art, txt);
+        if (t.price) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.className = "btn primary egg-buy";
+          b.addEventListener("click", () => buyEggTier(k, art));
+          card.append(b);
+        }
+        box.append(card);
+      });
+    }
+    box.querySelectorAll(".egg-offer").forEach(card => {
+      const k = card.dataset.tier;
+      const t = Game.C.EGG_TIERS[k];
+      const b = card.querySelector(".egg-buy");
+      if (!b) return;
+      const done = bought["egg-" + k] && bought["egg-" + k] > Date.now();
+      b.disabled = !done && (state.coins < t.price || !Game.eggPool(state, baseIds(), k).length);
+      if (done) b.textContent = "Comprado!";
+      else b.innerHTML = '<i class="coin" aria-hidden="true"></i><span>' + t.price + "</span>";
+      b.classList.toggle("bought", !!done);
+    });
+  }
+
+  function buyEggTier(k, art) {
+    if (bought["egg-" + k] && bought["egg-" + k] > Date.now()) return;
+    const before = state.coins;
+    const r = Game.buyEgg(state, baseIds(), Date.now(), Math.random, k);
+    if (!r.changed) return sfx("deny");
+    ensurePets(neededPets());
+    saveState();
+    scheduleSync();
+    sfx("buy");
+    buzz([15, 40, 25]);
+    shownCoins = before;
+    setBagCoins(state.coins, true);
+    bought["egg-" + k] = Date.now() + 1100;
+    setTimeout(() => $("shop-sheet").open && renderShop(), 1150);
+    art.classList.remove("hatch-hop");
+    void art.offsetWidth;
+    art.classList.add("hatch-hop");
+    sparkle($("shop-sheet"), art, k === "rare" ? "#bcd2ff" : "#ffe7a8");
+    const mini = miniEgg(TIER_LOOK[k]);
+    setTimeout(() => flyTo(mini, art, $("egg-owned")), 260);
+    renderShop();
+    render();
+  }
+
   function renderShop() {
     Game.catchUp(state);
-    eggArt($("shop-egg"), "#b9a7d6");
     if (!coinAnim || shownCoins === state.coins) setBagCoins(state.coins, false);
     $("tab-store").setAttribute("aria-selected", String(shopTab === "items"));
     $("tab-eggstore").setAttribute("aria-selected", String(shopTab === "eggs"));
     $("store-list").hidden = shopTab !== "items";
     $("store-hint").hidden = shopTab !== "items";
     $("egg-store").hidden = shopTab !== "eggs";
-    const pool = Game.eggPool(state, baseIds());
-    const eggDone = bought.egg && bought.egg > Date.now();
-    $("buy-egg").disabled = !eggDone && (state.coins < Game.C.EGG_PRICE || !pool.length);
-    if (eggDone) $("buy-egg").textContent = "Comprado!";
-    else $("buy-egg").innerHTML = '<span>Comprar por</span><i class="coin" aria-hidden="true"></i><span>' + Game.C.EGG_PRICE + "</span>";
-    $("buy-egg").classList.toggle("bought", !!eggDone);
+    renderEggOffers();
     const waiting = state.eggs.filter(e => e.slot === null).length;
     $("egg-owned").textContent = waiting ? (waiting === 1 ? "1 ovo esperando no inventário" : waiting + " ovos esperando no inventário") : "";
-    $("shop-hint").textContent = !pool.length
-      ? "Nenhuma criatura disponível nos ovos."
-      : state.coins < Game.C.EGG_PRICE
-        ? "Moedas insuficientes."
-        : "";
+    $("shop-hint").textContent = "";
     $("store-hint").textContent = "";
     const store = $("store-list");
     store.replaceChildren();
@@ -1443,7 +1591,7 @@
     d.className = "exp-chip-art";
     d.style.setProperty("--c", p.color);
     const sp = Game.speciesOf(state, p.id);
-    const url = window.PetStage && window.THREE ? PetStage.thumbnail(window.THREE, window.PetKit, window.Pets, sp, 256, true) : null;
+    const url = window.PetStage && window.THREE ? PetStage.thumbnail(window.THREE, window.PetKit, window.Pets, sp, 256, true, isVariant(p.id)) : null;
     if (url) {
       const img = document.createElement("img");
       img.src = url;
@@ -1654,7 +1802,7 @@
     });
     $("daily-hint").textContent =
       d.streak > 1
-        ? d.streak + " dias seguidos! Hoje: " + d.coins + " moedas" + (d.item ? " e uma " + Game.ITEMS[d.item].name : "") + "."
+        ? d.streak + " dias seguidos! Hoje: " + d.coins + " moedas" + (d.item ? " e uma " + Game.ITEMS[d.item].name : "") + (d.egg ? " e um " + Game.C.EGG_TIERS[d.egg].name.toLowerCase() : "") + "."
         : "Volte todo dia para ganhar mais. Se faltar um dia, recomeça do dia 1.";
     $("daily-claim").textContent = "Pegar " + d.coins + " moedas";
     $("daily-sheet").showModal();
@@ -1717,10 +1865,11 @@
   function pumpArt() {
     const job = artQueue.shift();
     if (!job) return;
-    const [art, sp] = job;
-    const url = art.isConnected && window.PetStage && window.THREE ? PetStage.thumbnail(window.THREE, window.PetKit, window.Pets, sp, 256, true) : null;
+    const [art, key] = job;
+    const sp = key.replace("*", "");
+    const url = art.isConnected && window.PetStage && window.THREE ? PetStage.thumbnail(window.THREE, window.PetKit, window.Pets, sp, 256, true, key.endsWith("*")) : null;
     if (url) {
-      artUrls[sp] = url;
+      artUrls[key] = url;
       const img = document.createElement("img");
       img.src = url;
       img.alt = "";
@@ -1729,11 +1878,15 @@
     requestAnimationFrame(pumpArt);
   }
 
+  function isVariant(uid) {
+    return !!(state && state.variant && state.variant[uid] === 1);
+  }
+
   function petArt(p, cls) {
     const dot = document.createElement("span");
     dot.className = cls || "pick-art";
     dot.style.setProperty("--c", p.color);
-    const sp = Game.speciesOf(state, p.id);
+    const sp = Game.speciesOf(state, p.id) + (isVariant(p.id) ? "*" : "");
     if (artUrls[sp]) {
       const img = document.createElement("img");
       img.src = artUrls[sp];
@@ -1793,10 +1946,11 @@
     $("party-hero-name").textContent = p.name;
     $("party-hero-types").replaceChildren(...typeTags(p.types).childNodes);
     const sp = Game.speciesOf(state, p.id);
-    if (art.dataset.sp === sp) return;
-    art.dataset.sp = sp;
+    const key = sp + (isVariant(p.id) ? "*" : "");
+    if (art.dataset.sp === key) return;
+    art.dataset.sp = key;
     art.replaceChildren();
-    const url = window.PetStage && window.THREE && hasPet(sp) ? PetStage.thumbnail(window.THREE, window.PetKit, window.Pets, sp, 256, true) : null;
+    const url = window.PetStage && window.THREE && hasPet(sp) ? PetStage.thumbnail(window.THREE, window.PetKit, window.Pets, sp, 256, true, isVariant(p.id)) : null;
     if (url) {
       const img = document.createElement("img");
       img.src = url;
@@ -1994,7 +2148,7 @@
 
   function render() {
     if (!state || !stage || Game.needsStarter(state) || !state.pet) return;
-    $("egg-alert").hidden = !state.eggs.some(e => e.slot !== null && (e.left <= 0 || e.care <= 0));
+    $("egg-alert").hidden = !state.eggs.some(e => e.slot !== null && e.left <= 0);
     const v = view();
     const info = meta[v.species] || { name: v.species, color: "#999999" };
     $("pet-name").textContent = info.name;
@@ -2068,7 +2222,7 @@
   }
 
   function habitatRows(v) {
-    return v.party.filter(p => !p.away && hasPet(p.species)).map(p => ({ uid: p.id, species: p.species, name: (meta[p.species] && meta[p.species].name) || p.name, hunger: p.hunger, life: p.life, joy: p.joy, dying: p.dying }));
+    return v.party.filter(p => !p.away && hasPet(p.species)).map(p => ({ uid: p.id, species: p.species, variant: !!p.variant, name: (meta[p.species] && meta[p.species].name) || p.name, hunger: p.hunger, life: p.life, joy: p.joy, dying: p.dying }));
   }
 
   function renderHabitat(v, info) {
@@ -2237,7 +2391,7 @@
     };
     return {
       meta: sp => meta[sp] || null,
-      thumb: sp => (hasPet(sp) && window.PetStage && window.THREE ? PetStage.thumbnail(window.THREE, window.PetKit, window.Pets, sp, 256, true) : null),
+      thumb: (sp, v) => (hasPet(sp) && window.PetStage && window.THREE ? PetStage.thumbnail(window.THREE, window.PetKit, window.Pets, sp, 256, true, !!v) : null),
       ensure: ids => ensurePets(ids),
       lobby: async () => {
         Game.catchUp(state);
@@ -2479,42 +2633,19 @@
       shopTab = "eggs";
       renderShop();
     });
-    $("buy-egg").addEventListener("click", () => {
-      if (bought.egg && bought.egg > Date.now()) return;
-      const before = state.coins;
-      const r = Game.buyEgg(state, baseIds());
-      if (!r.changed) return sfx("deny");
-      ensurePets(neededPets());
-      saveState();
-      scheduleSync();
-      sfx("buy");
-      buzz([15, 40, 25]);
-      shownCoins = before;
-      setBagCoins(state.coins, true);
-      bought.egg = Date.now() + 1100;
-      setTimeout(() => $("shop-sheet").open && renderShop(), 1150);
-      const egg = $("shop-egg");
-      egg.classList.remove("hatch-hop");
-      void egg.offsetWidth;
-      egg.classList.add("hatch-hop");
-      sparkle($("shop-sheet"), egg, "#c9a8ff");
-      const mini = miniEgg("#b9a7d6");
-      setTimeout(() => flyTo(mini, egg, $("egg-owned")), 260);
-      renderShop();
-      render();
-    });
     $("tab-store").addEventListener("click", () => {
       shopTab = "items";
       renderShop();
     });
     $("daily-claim").addEventListener("click", () => {
-      const r = Game.claimDaily(state);
+      const r = Game.claimDaily(state, Date.now(), baseIds());
       $("daily-sheet").close();
       if (!r.changed) return;
       sfx("reward");
+      if (r.egg) ensurePets(neededPets());
       saveState();
       scheduleSync();
-      showToast("+" + r.coins + " moedas" + (r.item ? " e " + Game.ITEMS[r.item].name : ""));
+      showToast("+" + r.coins + " moedas" + (r.item ? " e " + Game.ITEMS[r.item].name : "") + (r.egg ? " e um " + Game.C.EGG_TIERS[r.egg].name.toLowerCase() : ""));
       render();
     });
     $("tab-box").addEventListener("click", () => {
