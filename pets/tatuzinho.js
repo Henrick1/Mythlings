@@ -2,29 +2,30 @@ Pets.register({
   id: "tatuzinho",
   dex: 40,
   name: "Tatuzinho",
-  color: "#c9a26a",
+  color: "#e0a42a",
   types: ["ground", "steel"],
-  description: "Um tatuzinho medroso de casco cheio de plaquinhas. Ao menor susto se fecha numa bola perfeita, encaixando a cabeça e o rabo como peças de quebra-cabeça, e sai rolando até se sentir seguro.",
+  description: "Um tatuzinho operário que nunca tira o capacete. O rabo é uma caçamba de escavadeira que ele usa para cavar túneis. Ao menor susto se fecha numa bola perfeita, com o capacete e a caçamba tampando as pontas.",
   actions: {
     jump: { duration: 0.95 },
     eat: { duration: 2.4 },
     curl: { duration: 2.8 },
     roll: { duration: 2.3 },
-    dig: { duration: 2.2 },
+    dig: { duration: 2.6 },
     sniff: { duration: 1.9 },
     spin: { duration: 2.2 }
   },
-  battle: { attack: { action: "roll", hit: 0.48, speed: 1.0 }, special: { action: "spin", hit: 0.68, speed: 1.0 } },
+  battle: { attack: { action: "roll", hit: 0.48, speed: 1.0 }, special: { action: "dig", hit: 0.62, speed: 1.0 } },
   idle: [
     { action: "sniff", min: 12, max: 30 },
     { action: "curl", min: 30, max: 60 },
-    { action: "dig", min: 40, max: 80 }
+    { action: "dig", min: 30, max: 70 }
   ],
-  clickAction: n => ["curl", "sniff", "jump", "roll"][(n - 1) % 4],
+  clickAction: n => ["curl", "dig", "sniff", "roll", "spin"][(n - 1) % 5],
 
   create({ THREE, kit }) {
     const { mat, mesh, lerp, smooth, eye, followPupils, eatPhase, berry } = kit;
     const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+    const V2 = (x, y) => new THREE.Vector2(x, y);
     const TAU = Math.PI * 2;
 
     const root = new THREE.Group();
@@ -32,53 +33,52 @@ Pets.register({
     root.add(bodyG);
 
     const R = 0.62;
-    const BANDS = [-0.12, 0.03, 0.18, 0.33];
+    const BANDS = [-0.14, 0.02, 0.18, 0.34];
 
     const shellTex = (() => {
       if (typeof document === "undefined") return null;
-      const W = 512;
-      const H = 256;
+      const W = 1024;
+      const H = 512;
       const c = document.createElement("canvas");
       c.width = W;
       c.height = H;
       const g = c.getContext("2d");
-      g.fillStyle = "#d3ac70";
+      g.fillStyle = "#b98a4e";
       g.fillRect(0, 0, W, H);
       const ux = u => ((u + 1) / 2) * W;
-      const hex = (cx, cy, r, fill, edge) => {
-        g.beginPath();
-        for (let i = 0; i < 6; i++) {
-          const a = (i / 6) * TAU + Math.PI / 6;
-          const x = cx + Math.cos(a) * r;
-          const y = cy + Math.sin(a) * r;
-          i ? g.lineTo(x, y) : g.moveTo(x, y);
-        }
-        g.closePath();
-        g.fillStyle = fill;
-        g.fill();
-        g.lineWidth = 2.4;
-        g.strokeStyle = edge;
-        g.stroke();
-      };
       const shield = (x0, x1) => {
         g.save();
         g.beginPath();
         g.rect(x0, 0, x1 - x0, H);
         g.clip();
-        const r = 13;
+        g.fillStyle = "#6b4a24";
+        g.fillRect(x0, 0, x1 - x0, H);
+        const r = 25;
         for (let row = -1; row * r * 1.5 < H + r; row++) {
           for (let col = -1; col * r * 1.732 < W + r; col++) {
             const cx = col * r * 1.732 + (row % 2 ? r * 0.866 : 0);
             const cy = row * r * 1.5;
-            hex(cx, cy, r - 1.2, "#dcb57a", "#8d6a3a");
             g.beginPath();
-            g.arc(cx, cy, r * 0.42, 0, TAU);
-            g.fillStyle = "#e9c58c";
+            for (let i = 0; i < 6; i++) {
+              const a = (i / 6) * TAU + Math.PI / 6;
+              const x = cx + Math.cos(a) * (r - 3.5);
+              const y = cy + Math.sin(a) * (r - 3.5);
+              i ? g.lineTo(x, y) : g.moveTo(x, y);
+            }
+            g.closePath();
+            const gr = g.createRadialGradient(cx - 5, cy - 6, 2, cx, cy, r);
+            gr.addColorStop(0, "#f2cf8e");
+            gr.addColorStop(0.6, "#d9a961");
+            gr.addColorStop(1, "#b58142");
+            g.fillStyle = gr;
             g.fill();
-            g.beginPath();
-            g.arc(cx - 2, cy - 2, r * 0.16, 0, TAU);
-            g.fillStyle = "#f6dcae";
-            g.fill();
+            for (let k = 0; k < 5; k++) {
+              const a = (k / 5) * TAU + row;
+              g.beginPath();
+              g.arc(cx + Math.cos(a) * r * 0.42, cy + Math.sin(a) * r * 0.42, 2.2, 0, TAU);
+              g.fillStyle = "#9c6c34";
+              g.fill();
+            }
           }
         }
         g.restore();
@@ -89,34 +89,50 @@ Pets.register({
         const x0 = ux(BANDS[b]);
         const x1 = ux(BANDS[b + 1]);
         const gr = g.createLinearGradient(x0, 0, x1, 0);
-        gr.addColorStop(0, "#7c6d5c");
-        gr.addColorStop(0.75, "#a99680");
-        gr.addColorStop(1, "#bca88f");
+        gr.addColorStop(0, "#565d66");
+        gr.addColorStop(0.55, "#9aa3ad");
+        gr.addColorStop(1, "#c3cad1");
         g.fillStyle = gr;
         g.fillRect(x0, 0, x1 - x0, H);
-        for (let y = 0; y < H; y += 14) {
-          g.fillStyle = "#6a5c4c";
-          g.fillRect(x0, y, x1 - x0, 2);
+        if (b === 1) {
+          g.save();
           g.beginPath();
-          g.moveTo(x0, y + 2);
-          g.lineTo(x0 + (x1 - x0) * 0.35, y + 7);
-          g.lineTo(x0, y + 12);
-          g.closePath();
-          g.fillStyle = "#5d5042";
-          g.fill();
-          g.beginPath();
-          g.arc(x1 - 6, y + 7, 2.2, 0, TAU);
-          g.fillStyle = "#e4d6c0";
-          g.fill();
+          g.rect(x0 + 10, 0, x1 - x0 - 20, H);
+          g.clip();
+          g.fillStyle = "#f2b705";
+          g.fillRect(x0, 0, x1 - x0, H);
+          g.fillStyle = "#1d1d1f";
+          for (let y = -60; y < H + 60; y += 44) {
+            g.beginPath();
+            g.moveTo(x0, y);
+            g.lineTo(x0, y + 22);
+            g.lineTo(x1, y + 22 + 50);
+            g.lineTo(x1, y + 50);
+            g.closePath();
+            g.fill();
+          }
+          g.restore();
         }
-        g.fillStyle = "#4d4136";
-        g.fillRect(x0, 0, 3, H);
+        for (let y = 14; y < H; y += 36) {
+          [x0 + 6, x1 - 7].forEach(x => {
+            g.beginPath();
+            g.arc(x, y, 4.2, 0, TAU);
+            g.fillStyle = "#3c4148";
+            g.fill();
+            g.beginPath();
+            g.arc(x - 1.2, y - 1.2, 1.8, 0, TAU);
+            g.fillStyle = "#eef2f5";
+            g.fill();
+          });
+        }
+        g.fillStyle = "#2c3036";
+        g.fillRect(x0, 0, 4, H);
       }
       const side = g.createLinearGradient(0, 0, 0, H);
-      side.addColorStop(0, "rgba(70,45,20,0.35)");
-      side.addColorStop(0.12, "rgba(70,45,20,0)");
-      side.addColorStop(0.88, "rgba(70,45,20,0)");
-      side.addColorStop(1, "rgba(70,45,20,0.35)");
+      side.addColorStop(0, "rgba(40,25,10,0.45)");
+      side.addColorStop(0.08, "rgba(40,25,10,0)");
+      side.addColorStop(0.92, "rgba(40,25,10,0)");
+      side.addColorStop(1, "rgba(40,25,10,0.45)");
       g.fillStyle = side;
       g.fillRect(0, 0, W, H);
       const t = new THREE.CanvasTexture(c);
@@ -124,14 +140,19 @@ Pets.register({
       return t;
     })();
 
-    const shellMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: shellTex, roughness: 0.55, metalness: 0.18, side: THREE.DoubleSide });
-    const skinMat = mat(0xeccbaa, 0.75);
-    const pinkMat = mat(0xe39a9a, 0.6);
-    const clawMat = mat(0x5a4632, 0.5);
+    const shellMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: shellTex, roughness: 0.5, metalness: 0.22 });
+    const innerMat = new THREE.MeshStandardMaterial({ color: 0x4a3420, roughness: 0.9, side: THREE.BackSide });
+    const skinMat = mat(0xd9a07a, 0.7);
+    const bellyMat = mat(0xedc7a2, 0.8);
+    const pinkMat = mat(0xd9777a, 0.55);
+    const steelMat = new THREE.MeshStandardMaterial({ color: 0x9aa4ae, roughness: 0.32, metalness: 0.75 });
+    const darkSteel = new THREE.MeshStandardMaterial({ color: 0x3a3f46, roughness: 0.45, metalness: 0.6 });
+    const chromeMat = new THREE.MeshStandardMaterial({ color: 0xe8edf2, roughness: 0.12, metalness: 0.95 });
+    const paintMat = new THREE.MeshStandardMaterial({ color: 0xf2b705, roughness: 0.38, metalness: 0.15 });
     const darkMat = mat(0x2a201a, 0.5);
 
-    const NU = 72;
-    const NV = 44;
+    const NU = 80;
+    const NV = 48;
     const shellGeo = new THREE.BufferGeometry();
     const sPos = new Float32Array((NU + 1) * (NV + 1) * 3);
     const sUv = new Float32Array((NU + 1) * (NV + 1) * 2);
@@ -153,19 +174,17 @@ Pets.register({
     const ridge = u => {
       let r = 0;
       BANDS.forEach((b, i) => {
-        if (i === 0) return;
         const d = u - b;
-        r += 0.045 * Math.exp(-((d + 0.012) * (d + 0.012)) / 0.0003) - 0.02 * Math.exp(-((d - 0.02) * (d - 0.02)) / 0.0004);
+        if (i > 0) r += 0.05 * Math.exp(-((d + 0.014) * (d + 0.014)) / 0.0003) - 0.022 * Math.exp(-((d - 0.02) * (d - 0.02)) / 0.0004);
+        else r -= 0.025 * Math.exp(-(d * d) / 0.0004);
       });
-      const d0 = u - BANDS[0];
-      r -= 0.025 * Math.exp(-(d0 * d0) / 0.0004);
       return r;
     };
     const shellShape = c => {
-      const la0 = lerp(1.12, Math.PI * 0.49, c);
-      const az0 = lerp(1.62, Math.PI * 0.99, c);
-      const zs = lerp(1.26, 1, c);
-      const ys = lerp(0.94, 1, c);
+      const la0 = lerp(1.14, Math.PI * 0.49, c);
+      const az0 = lerp(1.95, Math.PI * 0.99, c);
+      const zs = lerp(1.22, 1, c);
+      const ys = lerp(0.98, 1, c);
       for (let i = 0; i <= NU; i++) {
         const u = (i / NU) * 2 - 1;
         const la = u * la0;
@@ -173,11 +192,11 @@ Pets.register({
         for (let j = 0; j <= NV; j++) {
           const v = (j / NV) * 2 - 1;
           const az = v * az0;
-          const edge = 1 - 0.035 * Math.pow(Math.abs(v), 10) - 0.03 * Math.pow(Math.abs(u), 12);
+          const flare = 1 + 0.06 * Math.pow(Math.abs(v), 6) * (1 - c);
           const k = (i * (NV + 1) + j) * 3;
-          sPos[k] = rr * Math.cos(la) * Math.sin(az) * edge;
-          sPos[k + 1] = rr * Math.cos(la) * Math.cos(az) * ys * edge;
-          sPos[k + 2] = rr * Math.sin(la) * zs * edge;
+          sPos[k] = rr * Math.cos(la) * Math.sin(az) * flare;
+          sPos[k + 1] = rr * Math.cos(la) * Math.cos(az) * ys;
+          sPos[k + 2] = rr * Math.sin(la) * zs * (1 + 0.04 * Math.pow(Math.abs(u), 6) * (1 - c));
         }
       }
       shellGeo.attributes.position.needsUpdate = true;
@@ -191,61 +210,100 @@ Pets.register({
     const shell = mesh(shellGeo, shellMat);
     shell.frustumCulled = false;
     ballG.add(shell);
+    const shellIn = new THREE.Mesh(shellGeo, innerMat);
+    shellIn.frustumCulled = false;
+    shellIn.scale.setScalar(0.975);
+    ballG.add(shellIn);
 
-    const belly = mesh(new THREE.SphereGeometry(0.5, 32, 20), skinMat);
-    belly.scale.set(0.92, 0.66, 1.2);
-    belly.position.y = -0.1;
+    const belly = mesh(new THREE.SphereGeometry(0.5, 32, 20), bellyMat);
+    belly.scale.set(0.98, 0.5, 1.12);
+    belly.position.y = -0.16;
     ballG.add(belly);
-    const hairMat = mat(0xd9b48c, 0.9);
-    for (let k = 0; k < 14; k++) {
-      const a = (k / 14) * TAU;
-      const h = mesh(new THREE.CylinderGeometry(0.004, 0.006, 0.07, 4), hairMat, false);
-      h.position.set(Math.cos(a) * 0.42, -0.08 + Math.sin(k * 1.7) * 0.03, Math.sin(a) * 0.52);
-      h.rotation.set(Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9);
-      belly.add(h);
-    }
 
     const headPivot = new THREE.Group();
     ballG.add(headPivot);
     const head = new THREE.Group();
     headPivot.add(head);
-    const skull = mesh(new THREE.SphereGeometry(0.34, 36, 26), skinMat);
-    skull.scale.set(1, 0.9, 0.98);
+    const skull = mesh(new THREE.SphereGeometry(0.31, 36, 26), skinMat);
+    skull.scale.set(1.05, 0.9, 1);
     head.add(skull);
-    const snoutGeo = new THREE.LatheGeometry(
-      [V3(0.0001, 0.36, 0), V3(0.075, 0.34, 0), V3(0.11, 0.28, 0), V3(0.15, 0.16, 0), V3(0.2, 0.02, 0), V3(0.22, -0.04, 0)],
-      28
-    );
+    const snoutGeo = new THREE.LatheGeometry([V2(0.0001, 0.34), V2(0.06, 0.33), V2(0.09, 0.28), V2(0.13, 0.16), V2(0.18, 0.04), V2(0.2, -0.04)], 28);
     snoutGeo.rotateX(Math.PI / 2);
     const snout = mesh(snoutGeo, skinMat);
-    snout.scale.set(1, 0.82, 1);
-    snout.position.set(0, -0.08, 0.18);
-    snout.rotation.x = 0.16;
+    snout.scale.set(1, 0.8, 1);
+    snout.position.set(0, -0.09, 0.17);
+    snout.rotation.x = 0.2;
     head.add(snout);
-    const nose = mesh(new THREE.SphereGeometry(0.07, 20, 14), pinkMat, false);
-    nose.scale.set(1.15, 0.85, 0.6);
-    nose.position.set(0, 0.0, 0.36);
+    const nose = mesh(new THREE.SphereGeometry(0.068, 20, 14), pinkMat, false);
+    nose.scale.set(1.2, 0.85, 0.6);
+    nose.position.set(0, 0, 0.34);
     snout.add(nose);
     [-1, 1].forEach(s => {
       const n = mesh(new THREE.SphereGeometry(0.016, 10, 8), darkMat, false);
-      n.position.set(0.028 * s, 0.0, 0.04);
+      n.position.set(0.028 * s, 0, 0.04);
       nose.add(n);
     });
-    const helmet = mesh(new THREE.SphereGeometry(0.352, 36, 18, 0, TAU, 0, 0.82), new THREE.MeshStandardMaterial({ color: 0xffffff, map: shellTex, roughness: 0.55, metalness: 0.18 }));
-    helmet.scale.set(0.86, 0.92, 1.04);
-    helmet.rotation.x = -0.32;
-    helmet.position.set(0, 0.015, -0.02);
-    head.add(helmet);
+
+    const hat = new THREE.Group();
+    hat.position.set(0, 0.07, -0.02);
+    hat.rotation.x = -0.14;
+    head.add(hat);
+    const dome = mesh(new THREE.SphereGeometry(0.33, 40, 18, 0, TAU, 0, Math.PI * 0.5), paintMat);
+    dome.scale.set(1.02, 0.86, 1.06);
+    hat.add(dome);
+    const brimShape = new THREE.Shape();
+    brimShape.absarc(0, 0, 0.44, 0, TAU, false);
+    const hole = new THREE.Path();
+    hole.absarc(0, -0.02, 0.32, 0, TAU, true);
+    brimShape.holes.push(hole);
+    const brimGeo = new THREE.ExtrudeGeometry(brimShape, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2, curveSegments: 40 });
+    brimGeo.rotateX(-Math.PI / 2);
+    const brim = mesh(brimGeo, paintMat);
+    brim.scale.set(0.92, 1, 0.9);
+    brim.position.set(0, -0.01, 0.02);
+    hat.add(brim);
+    [-0.1, 0, 0.1].forEach(x => {
+      const rib = mesh(new THREE.TorusGeometry(0.29, 0.016, 6, 28, Math.PI), paintMat, false);
+      rib.rotation.y = Math.PI / 2;
+      rib.scale.set(1, 0.98, 1.06);
+      rib.position.x = x;
+      rib.scale.y = x ? 0.86 : 1;
+      hat.add(rib);
+    });
+    const lampG = new THREE.Group();
+    lampG.position.set(0, 0.17, 0.27);
+    lampG.rotation.x = 0.35;
+    hat.add(lampG);
+    const lampBody = mesh(new THREE.CylinderGeometry(0.06, 0.065, 0.07, 20), darkSteel, false);
+    lampBody.rotation.x = Math.PI / 2;
+    lampG.add(lampBody);
+    const lensMat = new THREE.MeshStandardMaterial({ color: 0xfff6cc, emissive: 0xffd970, emissiveIntensity: 0.5, roughness: 0.2 });
+    const lens = mesh(new THREE.CircleGeometry(0.05, 20), lensMat, false);
+    lens.position.z = 0.036;
+    lampG.add(lens);
+    const beamMat = new THREE.MeshBasicMaterial({ color: 0xfff1b8, transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+    const beamGeo = new THREE.ConeGeometry(0.18, 0.6, 20, 1, true);
+    beamGeo.translate(0, -0.3, 0);
+    beamGeo.rotateX(-Math.PI / 2);
+    const beam = new THREE.Mesh(beamGeo, beamMat);
+    beam.position.z = 0.04;
+    lampG.add(beam);
+    const strap = mesh(new THREE.TorusGeometry(0.33, 0.014, 6, 36), darkSteel, false);
+    strap.rotation.x = Math.PI / 2;
+    strap.scale.set(1.02, 1.06, 1);
+    strap.position.y = 0.02;
+    hat.add(strap);
+
     const ears = [-1, 1].map(s => {
       const eg = new THREE.Group();
-      eg.position.set(0.19 * s, 0.2, -0.13);
-      eg.rotation.set(-0.2, 0.5 * s, -0.55 * s);
+      eg.position.set(0.27 * s, 0.06, -0.08);
+      eg.rotation.set(-0.1, 0.4 * s, -1.1 * s);
       head.add(eg);
-      const outer = mesh(new THREE.SphereGeometry(0.085, 18, 12, 0, TAU, 0, Math.PI * 0.55), skinMat);
+      const outer = mesh(new THREE.SphereGeometry(0.08, 18, 12, 0, TAU, 0, Math.PI * 0.55), skinMat);
       outer.scale.set(1, 1.35, 0.5);
       outer.rotation.x = -Math.PI / 2;
       eg.add(outer);
-      const inner = mesh(new THREE.SphereGeometry(0.06, 16, 10, 0, TAU, 0, Math.PI * 0.5), pinkMat, false);
+      const inner = mesh(new THREE.SphereGeometry(0.056, 16, 10, 0, TAU, 0, Math.PI * 0.5), pinkMat, false);
       inner.scale.set(1, 1.3, 0.35);
       inner.rotation.x = -Math.PI / 2;
       inner.position.z = 0.012;
@@ -253,59 +311,145 @@ Pets.register({
       return eg;
     });
     const eyes = [-1, 1].map(s => {
-      const e = eye({ size: 0.58, whiteColor: 0xfffaf2, pupilColor: 0x221a16 });
-      e.g.position.set(0.155 * s, 0.04, 0.24);
-      e.g.rotation.y = 0.42 * s;
+      const e = eye({ size: 0.54, whiteColor: 0xfffaf2, pupilColor: 0x221a16 });
+      e.g.position.set(0.145 * s, 0.0, 0.235);
+      e.g.rotation.y = 0.4 * s;
       head.add(e.g);
       return e;
     });
     const lids = [-1, 1].map(s => {
-      const l = mesh(new THREE.SphereGeometry(0.142, 20, 10, 0, TAU, 0, Math.PI * 0.5), skinMat, false);
+      const l = mesh(new THREE.SphereGeometry(0.132, 20, 10, 0, TAU, 0, Math.PI * 0.5), skinMat, false);
       l.scale.set(1, 1.08, 0.6);
-      l.position.set(0.155 * s, 0.04, 0.237);
-      l.rotation.set(-1.3, 0.42 * s, 0);
+      l.position.set(0.145 * s, 0.0, 0.232);
+      l.rotation.set(-1.0, 0.4 * s, 0);
       head.add(l);
       return l;
     });
-    const blushes = [];
-    [-1, 1].forEach(s => {
-      const blush = mesh(new THREE.CircleGeometry(0.045, 18), new THREE.MeshStandardMaterial({ color: 0xf0a4a0, roughness: 0.8, transparent: true, opacity: 0.7 }), false);
-      blush.position.set(0.23 * s, -0.09, 0.2);
-      blush.lookAt(V3(0.23 * s, -0.09, 0.2).multiply(V3(2.2, 1, 2.4)));
-      head.add(blush);
-      blushes.push(blush);
+    const blushes = [-1, 1].map(s => {
+      const b = mesh(new THREE.CircleGeometry(0.042, 18), new THREE.MeshStandardMaterial({ color: 0xe58a84, roughness: 0.8, transparent: true, opacity: 0.75 }), false);
+      b.position.set(0.22 * s, -0.11, 0.19);
+      b.lookAt(V3(0.22 * s, -0.11, 0.19).multiply(V3(2.2, 1, 2.4)));
+      head.add(b);
+      return b;
     });
-    const mouth = mesh(new THREE.TorusGeometry(0.035, 0.009, 6, 14, Math.PI), darkMat, false);
+    const mouth = mesh(new THREE.TorusGeometry(0.034, 0.009, 6, 14, Math.PI), darkMat, false);
     mouth.rotation.z = Math.PI;
-    mouth.position.set(0, -0.2, 0.25);
+    mouth.position.set(0, -0.215, 0.23);
     head.add(mouth);
 
     const tailPivot = new THREE.Group();
     ballG.add(tailPivot);
-    const tail = new THREE.Group();
-    tailPivot.add(tail);
-    const tailGeo = new THREE.CylinderGeometry(0.035, 0.085, 0.26, 18, 6);
-    tailGeo.translate(0, -0.13, 0);
-    const tailTex = shellTex ? shellTex.clone() : null;
-    if (tailTex) {
-      tailTex.needsUpdate = true;
-      tailTex.repeat.set(0.5, 1);
-      tailTex.wrapS = THREE.RepeatWrapping;
+    const mount = mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.2, 18), darkSteel);
+    mount.rotation.z = Math.PI / 2;
+    tailPivot.add(mount);
+    [-1, 1].forEach(s => {
+      const cap = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.02, 14), chromeMat, false);
+      cap.rotation.z = Math.PI / 2;
+      cap.position.x = 0.105 * s;
+      tailPivot.add(cap);
+    });
+    const beamShape = (len, w0, w1) => {
+      const sh = new THREE.Shape();
+      sh.moveTo(0, -w0);
+      sh.lineTo(len, -w1);
+      sh.absarc(len, 0, w1, -Math.PI / 2, Math.PI / 2, false);
+      sh.lineTo(0, w0);
+      sh.absarc(0, 0, w0, Math.PI / 2, Math.PI * 1.5, false);
+      const geo = new THREE.ExtrudeGeometry(sh, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2, curveSegments: 12 });
+      geo.translate(0, 0, -0.05);
+      geo.rotateY(Math.PI / 2);
+      return geo;
+    };
+    const boom = new THREE.Group();
+    tailPivot.add(boom);
+    boom.add(mesh(beamShape(0.44, 0.07, 0.05), paintMat));
+    const pin = r => {
+      const g = new THREE.Group();
+      const p = mesh(new THREE.CylinderGeometry(r, r, 0.15, 14), chromeMat, false);
+      p.rotation.z = Math.PI / 2;
+      g.add(p);
+      return g;
+    };
+    const elbow = new THREE.Group();
+    elbow.position.z = -0.44;
+    boom.add(elbow);
+    elbow.add(pin(0.032));
+    const cylA = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.22, 14), darkSteel, false);
+    const rodA = mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.2, 10), chromeMat, false);
+    boom.add(cylA, rodA);
+    const stick = new THREE.Group();
+    elbow.add(stick);
+    stick.add(mesh(beamShape(0.32, 0.05, 0.04), paintMat));
+    const wrist = new THREE.Group();
+    wrist.position.z = -0.32;
+    stick.add(wrist);
+    wrist.add(pin(0.026));
+    const cylB = mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.16, 12), darkSteel, false);
+    const rodB = mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.16, 10), chromeMat, false);
+    stick.add(cylB, rodB);
+    const bucket = new THREE.Group();
+    wrist.add(bucket);
+    const bucketShape = new THREE.Shape();
+    bucketShape.moveTo(0, 0.03);
+    bucketShape.lineTo(0.02, -0.03);
+    bucketShape.quadraticCurveTo(0.03, -0.2, -0.12, -0.24);
+    bucketShape.lineTo(-0.2, -0.22);
+    bucketShape.lineTo(-0.19, -0.19);
+    bucketShape.lineTo(-0.115, -0.205);
+    bucketShape.quadraticCurveTo(-0.01, -0.17, -0.02, -0.03);
+    bucketShape.lineTo(-0.03, 0.03);
+    bucketShape.closePath();
+    const shellB = new THREE.ExtrudeGeometry(bucketShape, { depth: 0.24, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 1, curveSegments: 16 });
+    shellB.translate(0, 0, -0.12);
+    shellB.rotateY(-Math.PI / 2);
+    bucket.add(mesh(shellB, paintMat));
+    const sideShape = new THREE.Shape();
+    sideShape.moveTo(0, 0.03);
+    sideShape.lineTo(0.02, -0.03);
+    sideShape.quadraticCurveTo(0.03, -0.2, -0.12, -0.24);
+    sideShape.lineTo(-0.2, -0.22);
+    sideShape.quadraticCurveTo(-0.1, -0.06, -0.03, 0.03);
+    sideShape.closePath();
+    [-1, 1].forEach(s => {
+      const sg = new THREE.ExtrudeGeometry(sideShape, { depth: 0.014, bevelEnabled: false, curveSegments: 12 });
+      sg.rotateY(-Math.PI / 2);
+      const sp = mesh(sg, paintMat, false);
+      sp.position.x = 0.125 * s + (s < 0 ? 0.014 : 0);
+      bucket.add(sp);
+    });
+    for (let k = 0; k < 4; k++) {
+      const tooth = mesh(new THREE.ConeGeometry(0.022, 0.08, 4), steelMat, false);
+      tooth.rotation.set(-1.75, 0, 0);
+      tooth.scale.set(1, 1, 0.55);
+      tooth.position.set(-0.09 + k * 0.06, -0.225, -0.225);
+      bucket.add(tooth);
     }
-    const tailM = mesh(tailGeo, new THREE.MeshStandardMaterial({ color: 0xffffff, map: tailTex, roughness: 0.6, metalness: 0.12 }));
-    tail.add(tailM);
-    const tailRings = [];
-    for (let k = 0; k < 3; k++) {
-      const ring = mesh(new THREE.TorusGeometry(0.075 - k * 0.016, 0.007, 6, 18), new THREE.MeshStandardMaterial({ color: 0xa7814c, roughness: 0.6, metalness: 0.2 }), false);
-      ring.rotation.x = Math.PI / 2;
-      ring.position.y = -0.05 - k * 0.07;
-      tail.add(ring);
-      tailRings.push(ring);
+    const lip = mesh(new THREE.BoxGeometry(0.26, 0.018, 0.04), steelMat, false);
+    lip.position.set(0, -0.215, -0.19);
+    lip.rotation.x = 0.25;
+    bucket.add(lip);
+    const scoop = new THREE.Group();
+    scoop.position.set(0, -0.14, -0.08);
+    bucket.add(scoop);
+    const scoopDirt = [];
+    for (let k = 0; k < 6; k++) {
+      const m = mesh(new THREE.DodecahedronGeometry(0.03 + (k % 3) * 0.012), mat(0x8a6440, 1), false);
+      m.position.set(-0.07 + (k % 3) * 0.07, (k > 2 ? 0.03 : 0), -0.02 * (k % 2));
+      m.visible = false;
+      scoop.add(m);
+      scoopDirt.push(m);
     }
-    const tailCap = mesh(new THREE.SphereGeometry(0.11, 20, 12, 0, TAU, 0, Math.PI * 0.5), shellMat);
-    tailCap.scale.set(1.3, 0.5, 1.3);
-    tailCap.rotation.x = Math.PI;
-    tail.add(tailCap);
+
+    const capBucket = bucket.clone();
+    capBucket.rotation.set(0.25, Math.PI, 0);
+    capBucket.scale.setScalar(1.45);
+    capBucket.position.set(0, 0.2, -R * 1.12);
+    capBucket.visible = false;
+    capBucket.traverse(o => o.isMesh && o.material === paintMat && (o.castShadow = true));
+    ballG.add(capBucket);
+    const capDirt = [];
+    capBucket.traverse(o => o.isMesh && o.geometry.type === "DodecahedronGeometry" && capDirt.push(o));
+    capDirt.forEach(o => (o.visible = false));
 
     const legs = [];
     [
@@ -315,21 +459,22 @@ Pets.register({
       [1, -1]
     ].forEach(([sx, sz]) => {
       const lg = new THREE.Group();
-      lg.position.set(0.3 * sx, 0.28, sz > 0 ? 0.33 : -0.36);
+      lg.position.set(0.33 * sx, 0.24, sz > 0 ? 0.3 : -0.34);
       bodyG.add(lg);
-      const thigh = mesh(new THREE.CylinderGeometry(0.085, 0.07, 0.24, 14), skinMat);
-      thigh.position.y = -0.1;
+      const thigh = mesh(new THREE.SphereGeometry(0.12, 18, 14), skinMat);
+      thigh.scale.set(0.9, 1.15, 1);
+      thigh.position.y = -0.04;
       lg.add(thigh);
-      const foot = mesh(new THREE.SphereGeometry(0.085, 16, 10), skinMat);
-      foot.scale.set(1, 0.6, sz > 0 ? 1.05 : 1.35);
-      foot.position.set(0, -0.23, sz > 0 ? 0.03 : 0.04);
+      const foot = mesh(new THREE.SphereGeometry(0.095, 18, 12), skinMat);
+      foot.scale.set(1, 0.55, sz > 0 ? 1.15 : 1.4);
+      foot.position.set(0, -0.18, 0.04);
       lg.add(foot);
       const n = sz > 0 ? 3 : 4;
       for (let c = 0; c < n; c++) {
         const big = sz > 0 && c === 1;
-        const cl = mesh(new THREE.ConeGeometry(big ? 0.026 : 0.018, big ? 0.13 : 0.08, 8), clawMat, false);
-        cl.rotation.x = Math.PI / 2 + 0.5;
-        cl.position.set((c - (n - 1) / 2) * 0.045, -0.255, 0.1 + (big ? 0.03 : 0));
+        const cl = mesh(new THREE.ConeGeometry(big ? 0.034 : 0.022, big ? 0.16 : 0.09, 4), steelMat, false);
+        cl.rotation.set(Math.PI / 2 + 0.55, Math.PI / 4, 0);
+        cl.position.set((c - (n - 1) / 2) * 0.05, -0.2, 0.13 + (big ? 0.03 : 0));
         lg.add(cl);
       }
       legs.push({ lg, sx, sz });
@@ -337,11 +482,11 @@ Pets.register({
 
     const dirtMat = new THREE.MeshStandardMaterial({ color: 0x8a6440, roughness: 1 });
     const dirt = [];
-    for (let k = 0; k < 14; k++) {
+    for (let k = 0; k < 16; k++) {
       const m = mesh(new THREE.DodecahedronGeometry(0.035 + (k % 3) * 0.015), dirtMat, false);
       m.visible = false;
       root.add(m);
-      dirt.push({ m, k, a: (k / 14) * 1.6 - 0.8, sp: 0.7 + (k % 4) * 0.22 });
+      dirt.push({ m, k, a: (k / 16) * 1.6 - 0.8, sp: 0.7 + (k % 4) * 0.22 });
     }
     const dustMat = new THREE.MeshBasicMaterial({ color: 0xd9c8a8, transparent: true, opacity: 0.4, depthWrite: false });
     const dust = [];
@@ -364,8 +509,28 @@ Pets.register({
     food.visible = false;
     root.add(food);
 
+    const tmpA = V3();
+    const tmpB = V3();
+    const UP = V3(0, 1, 0);
+    const placeCyl = (cyl, rod, a, b, k) => {
+      tmpA.copy(a);
+      tmpB.copy(b);
+      const dir = tmpB.clone().sub(tmpA);
+      const len = dir.length();
+      dir.normalize();
+      const q = new THREE.Quaternion().setFromUnitVectors(UP, dir);
+      const cl = cyl.geometry.parameters.height;
+      cyl.quaternion.copy(q);
+      cyl.position.copy(tmpA).addScaledVector(dir, cl / 2);
+      rod.quaternion.copy(q);
+      const rl = Math.max(0.01, len - cl * k);
+      rod.scale.y = rl / rod.geometry.parameters.height;
+      rod.position.copy(tmpB).addScaledVector(dir, -rl / 2);
+    };
+    const toLocal = (obj, frame, v) => frame.worldToLocal(obj.localToWorld(v.clone()));
+
     let lastCurl = 0;
-    const C0 = 0.55;
+    const C0 = 0.52;
 
     return {
       root,
@@ -383,13 +548,19 @@ Pets.register({
         let sy = 1 + Math.sin(t * 1.6) * 0.012 * motion;
         let headPitch = 0;
         let headYaw = 0;
-        let headRoll = 0;
         let earK = 0;
         let impact = 0;
-        let digK = 0;
+        let pawDig = 0;
         let sparkK = 0;
         let airborne = false;
         let peek = 0;
+        let lamp = 0;
+        let boomA = 0.75 + Math.sin(t * 1.1) * 0.05 * motion;
+        let stickA = -1.85 + Math.sin(t * 1.4 + 1) * 0.06 * motion;
+        let bucketA = -0.5 + Math.sin(t * 1.7 + 2) * 0.08 * motion;
+        let tailYaw = Math.sin(t * 0.9) * 0.12 * motion;
+        let load = 0;
+        let fling = -1;
 
         if (nm === "jump") {
           if (p < 0.2) sy = 1 - 0.14 * Math.sin((p / 0.2) * Math.PI / 2);
@@ -398,8 +569,9 @@ Pets.register({
             y = Math.sin(q * Math.PI) * 0.7;
             sy = 1 + 0.06 * Math.cos(q * Math.PI);
             airborne = true;
-            curl = Math.sin(q * Math.PI) * 0.25;
             earK = 1;
+            boomA += Math.sin(q * Math.PI) * 0.5;
+            stickA += Math.sin(q * Math.PI) * 0.6;
           } else {
             const q = (p - 0.78) / 0.22;
             sy = 1 - 0.12 * Math.sin(q * Math.PI);
@@ -411,14 +583,14 @@ Pets.register({
           rollA = Math.sin(t * 9) * 0.12 * w;
           peek = smooth(0.48, 0.56, p) * (1 - smooth(0.68, 0.76, p));
           curl -= peek * 0.28;
-          y = Math.abs(Math.sin(p * Math.PI * 3)) * 0.04 * smooth(0.2, 0.3, p) * (1 - smooth(0.4, 0.45, p));
         } else if (nm === "roll" || nm === "spin") {
           curl = smooth(0, 0.14, p) * (1 - smooth(0.86, 0.98, p));
           if (nm === "roll") {
             const q = smooth(0.12, 0.88, p);
             z = Math.sin(q * TAU) * 0.9;
-            rollA = (z / R) * 1.0 + q * TAU;
+            rollA = z / R + q * TAU;
             y = Math.abs(Math.sin(q * TAU * 2)) * 0.03;
+            if (p > 0.86) impact = Math.sin(((p - 0.86) / 0.14) * Math.PI) * 0.5;
           } else {
             const q = smooth(0.12, 0.62, p);
             spinA = q * q * TAU * 5;
@@ -429,16 +601,28 @@ Pets.register({
             y = sparkK * 0.06 * Math.abs(Math.sin(t * 30));
             if (p > 0.62 && p < 0.8) impact = Math.sin(((p - 0.62) / 0.18) * Math.PI);
           }
-          if (nm === "roll" && p > 0.86) impact = Math.sin(((p - 0.86) / 0.14) * Math.PI) * 0.5;
         } else if (nm === "dig") {
-          digK = smooth(0.05, 0.15, p) * (1 - smooth(0.85, 0.97, p));
-          headPitch = 0.45 * digK;
-          sy -= 0.05 * digK;
+          const k = smooth(0.0, 0.1, p) * (1 - smooth(0.9, 1, p));
+          lamp = k;
+          headPitch = 0.3 * k;
+          sy -= 0.04 * k;
+          if (p < 0.5) {
+            pawDig = smooth(0.05, 0.12, p) * (1 - smooth(0.42, 0.5, p));
+          }
+          const reach = smooth(0.4, 0.55, p) * (1 - smooth(0.62, 0.72, p));
+          const lift = smooth(0.62, 0.76, p) * (1 - smooth(0.86, 0.96, p));
+          boomA = lerp(boomA, -0.15, reach) + lift * 1.1;
+          stickA = lerp(stickA, -1.0, reach) + lift * -0.5;
+          bucketA = lerp(bucketA, 0.9, reach) + lift * -1.6;
+          load = p > 0.6 && p < 0.88 ? 1 : 0;
+          if (p > 0.84 && p < 0.97) fling = (p - 0.84) / 0.13;
+          if (p > 0.58 && p < 0.66) impact = Math.sin(((p - 0.58) / 0.08) * Math.PI) * 0.6;
         } else if (nm === "sniff") {
           const k = smooth(0, 0.12, p) * (1 - smooth(0.85, 1, p));
           headYaw = Math.sin(p * Math.PI * 4) * 0.45 * k;
           headPitch = -0.12 * k + Math.sin(t * 22) * 0.025 * k;
           earK = k * Math.abs(Math.sin(p * Math.PI * 6));
+          bucketA += Math.sin(p * Math.PI * 4) * 0.3 * k;
         } else if (nm === "eat") {
           headPitch = 0.15 * smooth(0.25, 0.35, p) * (1 - smooth(0.85, 0.95, p));
         }
@@ -449,8 +633,7 @@ Pets.register({
           lastCurl = curl;
         }
 
-        const zs = lerp(1.24, 1, curl);
-        const ys = lerp(0.92, 1, curl);
+        const zs = lerp(1.22, 1, curl);
         const cy = lerp(C0, R + 0.01, curl);
         bodyG.position.set(0, y, z);
         bodyG.rotation.y = spinA;
@@ -461,48 +644,63 @@ Pets.register({
         ballG.position.set(0, cy, 0);
         ballG.rotation.x = rollA + (1 - curl) * Math.sin(t * 1.3) * 0.015 * motion;
 
-        headPivot.position.set(0, lerp(-0.02, 0.0, curl), lerp(0.7, R * 0.66, curl));
-        headPivot.rotation.set(-1.45 * smooth(0.35, 1, curl), 0, 0);
-        head.scale.setScalar(lerp(1, 0.64, curl));
+        headPivot.position.set(0, lerp(-0.04, 0, curl), lerp(0.68, R * 0.76, curl));
+        headPivot.rotation.set(1.5 * smooth(0.35, 1, curl), 0, 0);
+        head.scale.setScalar(lerp(1, 0.7, curl));
         const tucked = curl < 0.82;
         [skull, snout, mouth, ...ears, ...eyes.map(e => e.g), ...lids, ...blushes].forEach(o => (o.visible = tucked));
-        head.rotation.set(headPitch + (airborne ? -0.15 : 0) + digK * Math.sin(t * 14) * 0.08, headYaw, headRoll);
-        head.position.set(0, digK * -0.06, 0);
+        head.rotation.set(headPitch + (airborne ? -0.15 : 0) + pawDig * Math.sin(t * 14) * 0.06, headYaw, 0);
 
-        tailPivot.position.set(0, lerp(-0.12, 0, curl), lerp(-0.66, -R * 0.95, curl));
-        tailPivot.rotation.set(lerp(0.62, Math.PI / 2, curl), 0, 0);
-        tailCap.visible = curl > 0.6;
-        tail.rotation.set(Math.sin(t * 2.2) * 0.06 * motion * (1 - curl), 0, Math.sin(t * 1.7) * 0.15 * motion * (1 - curl));
-        tail.scale.setScalar(lerp(1, 0.75, curl));
-        tailM.visible = tucked;
-        tailRings.forEach(r => (r.visible = tucked));
+        tailPivot.position.set(0, lerp(-0.12, 0, curl), lerp(-0.66 * zs, -R * 0.9, curl));
+        const cK = smooth(0, 0.7, curl);
+        boom.rotation.set(lerp(boomA, 2.2, cK), lerp(tailYaw, 0, cK), 0);
+        stick.rotation.set(lerp(stickA, -2.9, cK), 0, 0);
+        bucket.rotation.set(lerp(bucketA, -1.1, cK), 0, 0);
+        const armK = lerp(1, 0.4, cK);
+        tailPivot.scale.setScalar(armK);
+        tailPivot.visible = curl < 0.78;
+        capBucket.visible = curl >= 0.78;
 
-        belly.scale.set(0.92 * lerp(1, 0.8, curl), 0.66 * lerp(1, 0.9, curl), 1.2 * lerp(1, 0.75, curl));
+        tailPivot.updateWorldMatrix(true, true);
+        const aBase = toLocal(boom, boom, V3(0, -0.07, -0.08));
+        const aEnd = toLocal(stick, boom, V3(0, 0.05, 0.08));
+        placeCyl(cylA, rodA, aBase, aEnd, 0.95);
+        const bBase = toLocal(stick, stick, V3(0, 0.05, -0.08));
+        const bEnd = toLocal(bucket, stick, V3(0, 0.02, 0.03));
+        placeCyl(cylB, rodB, bBase, bEnd, 0.95);
 
-        legs.forEach(({ lg, sx: lx, sz }, i) => {
+        scoopDirt.forEach(m => (m.visible = load > 0));
+
+        belly.scale.set(0.98 * lerp(1, 0.8, curl), 0.5 * lerp(1, 0.9, curl), 1.12 * lerp(1, 0.75, curl));
+
+        legs.forEach(({ lg, sx: lx, sz }) => {
           const tuck = 1 - curl;
           lg.scale.set(1, Math.max(0.001, tuck), 1);
-          lg.position.y = lerp(0.42, 0.28, tuck);
+          lg.position.y = lerp(0.4, 0.24, tuck);
           let swing = 0;
-          if (digK > 0 && sz > 0) swing = Math.sin(t * 16 + (lx > 0 ? Math.PI : 0)) * 0.7 * digK;
+          if (pawDig > 0 && sz > 0) swing = Math.sin(t * 16 + (lx > 0 ? Math.PI : 0)) * 0.7 * pawDig;
           if (airborne) swing = -0.4 * sz;
-          lg.rotation.x = swing + (digK > 0 && sz > 0 ? -0.3 * digK : 0);
+          lg.rotation.x = swing + (pawDig > 0 && sz > 0 ? -0.3 * pawDig : 0);
           lg.visible = tuck > 0.02;
         });
 
         ears.forEach((e, i) => {
-          const s = i ? 1 : -1;
-          e.rotation.z = -0.55 * s + Math.sin(t * 9 + i) * 0.18 * earK - (airborne ? 0.3 * s : 0);
+          const s2 = i ? 1 : -1;
+          e.rotation.z = -1.1 * s2 + Math.sin(t * 9 + i) * 0.18 * earK - (airborne ? 0.3 * s2 : 0);
         });
-        const shut = Math.max(curl > 0.5 ? 1 : 0, nm === "eat" && p > 0.35 && p < 0.85 ? 0.65 : 0, digK * 0.4);
+        const shut = Math.max(curl > 0.5 ? 1 : 0, nm === "eat" && p > 0.35 && p < 0.85 ? 0.65 : 0, pawDig * 0.4);
         eyes.forEach(({ g }) => {
           g.scale.y = lerp(blink, 0.08, shut);
         });
         lids.forEach(l => {
-          l.rotation.x = lerp(-1.35, -0.25, Math.max(shut, 1 - blink) * 0.95);
+          l.rotation.x = lerp(-1.0, -0.2, Math.max(shut, 1 - blink) * 0.95);
         });
         followPupils(eyes, peek > 0.2 ? { x: Math.sin(t * 3), y: -0.3 } : pointer, 0.7);
         mouth.scale.set(1, nm === "eat" && ph && ph.chew ? 0.4 + ph.chew * 0.8 : 1, 1);
+
+        lensMat.emissiveIntensity = 0.45 + lamp * 1.6 + (curl > 0.8 ? 0.3 : 0);
+        beamMat.opacity = lamp * 0.16 * (0.85 + Math.sin(t * 20) * 0.15);
+        beam.visible = lamp > 0.02;
 
         const fx = impact > 0.05;
         dust.forEach(d => {
@@ -510,15 +708,22 @@ Pets.register({
           if (!fx) return;
           const u = 1 - impact;
           const r = 0.7 + u * 0.5;
-          d.m.position.set(Math.cos(d.a) * r, 0.1 + u * 0.15, z + Math.sin(d.a) * r);
+          d.m.position.set(Math.cos(d.a) * r, 0.1 + u * 0.15, z + Math.sin(d.a) * r - (nm === "dig" ? 0.9 : 0));
           d.m.scale.setScalar(0.6 + u * 0.8);
           dustMat.opacity = 0.45 * impact;
         });
         dirt.forEach(d => {
-          d.m.visible = digK > 0.2;
+          const front = pawDig > 0.2;
+          const thrown = fling >= 0;
+          d.m.visible = front || thrown;
           if (!d.m.visible) return;
-          const q = (t * d.sp * 1.6 + d.k * 0.37) % 1;
-          d.m.position.set(d.a * 0.6, 0.1 + Math.sin(q * Math.PI) * 0.7, 0.6 - q * 1.8);
+          if (thrown) {
+            const q = Math.min(1, fling * (0.8 + (d.k % 4) * 0.1));
+            d.m.position.set(d.a * 0.5 * q, 1.2 + Math.sin(q * Math.PI) * 0.6 - q * 0.9, -1.0 - q * 0.9);
+          } else {
+            const q = (t * d.sp * 1.6 + d.k * 0.37) % 1;
+            d.m.position.set(d.a * 0.6, 0.1 + Math.sin(q * Math.PI) * 0.7, 0.6 - q * 1.8);
+          }
           d.m.rotation.set(t * 5 + d.k, t * 4, 0);
         });
         sparks.forEach((sp, i) => {
@@ -532,7 +737,7 @@ Pets.register({
 
         if (nm === "eat" && ph) {
           food.visible = ph.visible;
-          food.position.set(0, lerp(3.0, 0.3, ph.fall * ph.fall), 1.24);
+          food.position.set(0, lerp(3.0, 0.28, ph.fall * ph.fall), 1.2);
           food.scale.setScalar((1 - 0.85 * ph.bite) * 0.75);
         } else food.visible = false;
       }
