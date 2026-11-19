@@ -509,41 +509,70 @@ Pets.register({
     muzzle.position.copy(face(0, -0.3, 1.2));
     lid.add(muzzle);
 
+    const crown = new THREE.Group();
+    crown.position.set(0, HC + 0.02, -0.05);
+    crown.rotation.x = -0.26;
+    lid.add(crown);
     const shards = [];
-    [-1, 1].forEach(s => {
-      const tuft = new THREE.Group();
-      tuft.position.copy(face(1.0 * s, 0.55, 0.92));
-      tuft.rotation.set(0, 0, -s * 0.55);
-      lid.add(tuft);
-      [
-        [0, 0.24, 0.04, 0],
-        [-0.055, 0.16, 0.03, 0.42],
-        [0.05, 0.14, 0.028, -0.4]
-      ].forEach(([x, len, r, lean], k) => {
-        const g = new THREE.CylinderGeometry(0, r, len, 6);
-        g.translate(0, len / 2, 0);
-        const c = mesh(g, crystalMat, false);
-        const piv = new THREE.Group();
-        piv.position.set(x * s, 0, (k === 0 ? 0 : -0.02) + 0.0);
-        piv.rotation.set(k === 0 ? -0.1 : 0.15, 0, lean * s);
-        piv.add(c);
-        const base = mesh(new THREE.CylinderGeometry(r, r * 0.9, 0.05, 6), crystalMat, false);
-        base.position.y = -0.02;
-        piv.add(base);
-        tuft.add(piv);
-        shards.push({ sh: c, mid: k === 0 ? 1 : 0.5, ph: k + s });
-      });
-    });
     {
-      const len = 0.12;
-      const g = new THREE.CylinderGeometry(0, 0.03, len, 6);
-      g.translate(0, len / 2, 0);
-      const c = mesh(g, crystalMat, false);
-      c.position.set(0, H - 0.03, -0.02);
-      c.rotation.x = -0.15;
-      lid.add(c);
-      shards.push({ sh: c, mid: 0.7, ph: 2.2 });
+      const RO = 0.43;
+      const RI = 0.31;
+      const A = 1.32;
+      const sh = new THREE.Shape();
+      const N = 64;
+      for (let i = 0; i <= N; i++) {
+        const a = lerp(-A, A, i / N);
+        const r = RO + 0.022 * Math.cos(a * 11) * smooth(0, 0.25, A - Math.abs(a)) + 0.05 * (1 - Math.abs(a) / A);
+        const px = Math.sin(a) * r;
+        const py = Math.cos(a) * r;
+        if (i === 0) sh.moveTo(px, py);
+        else sh.lineTo(px, py);
+      }
+      for (let i = N; i >= 0; i--) {
+        const a = lerp(-A, A, i / N);
+        sh.lineTo(Math.sin(a) * RI, Math.cos(a) * RI);
+      }
+      const g = new THREE.ExtrudeGeometry(sh, { depth: 0.035, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.01, bevelSegments: 2, curveSegments: 4 });
+      g.translate(0, 0, -0.0175);
+      crown.add(mesh(g, crystalMat, false));
+      const band = mesh(new THREE.TorusGeometry(0.335, 0.014, 8, 48, A * 2), cobaltMat, false);
+      band.rotation.z = Math.PI / 2 - A;
+      band.position.z = 0.03;
+      crown.add(band);
+      const beadGeo = new THREE.SphereGeometry(0.014, 10, 8);
+      for (let i = 0; i <= 16; i++) {
+        const a = lerp(-A + 0.08, A - 0.08, i / 16);
+        const r = RO - 0.035 + 0.05 * (1 - Math.abs(a) / A);
+        const b = mesh(beadGeo, i % 2 ? whiteMat : cobaltMat, false);
+        b.position.set(Math.sin(a) * r, Math.cos(a) * r, 0.032);
+        crown.add(b);
+      }
+      [-0.9, -0.45, 0, 0.45, 0.9].forEach((a, i) => {
+        const mid = 1 - Math.abs(a);
+        const len = 0.05 + mid * 0.05;
+        const cg = new THREE.CylinderGeometry(0, 0.022, len, 6);
+        cg.translate(0, len / 2, 0);
+        const spike = mesh(cg, crystalMat, false);
+        const piv = new THREE.Group();
+        const r = RO + 0.05 * (1 - Math.abs(a) / A) - 0.005;
+        piv.position.set(Math.sin(a) * r, Math.cos(a) * r, 0);
+        piv.rotation.z = -a;
+        piv.add(spike);
+        crown.add(piv);
+        shards.push({ sh: spike, mid, ph: i * 0.9 });
+      });
+      const gem = new THREE.Group();
+      gem.position.set(0, 0.395, 0.045);
+      crown.add(gem);
+      for (let k = 0; k < 6; k++) {
+        const arm = mesh(new THREE.BoxGeometry(0.011, 0.07, 0.011), whiteMat, false);
+        arm.position.set(Math.sin((k / 6) * TAU) * 0.034, Math.cos((k / 6) * TAU) * 0.034, 0);
+        arm.rotation.z = -(k / 6) * TAU;
+        gem.add(arm);
+      }
+      gem.add(mesh(new THREE.OctahedronGeometry(0.022, 0), cobaltMat, false));
     }
+
 
     const arms = [-1, 1].map(s => {
       const sh = new THREE.Group();

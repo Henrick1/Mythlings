@@ -4,7 +4,7 @@ Pets.register({
   name: "Matrióscea",
   color: "#2a52b8",
   types: ["ice"],
-  description: "Vestiu a casca de guerreiro: elmo pontudo, cota de malha de geada, escudo pintado e uma maça de cristal. Guarda o Matrinho na barriga de gelo transparente e não deixa ninguém chegar perto dele. Quando a briga aperta, abre o elmo e o pequeno sopra a nevasca lá de dentro.",
+  description: "Cresceu uma casca nova de gelo transparente e levou o Matrinho guardado na barriga, onde ele ainda espia e cochila. A pintura azul virou vitral por fora. Quando briga, abre a cabeça e é o pequeno lá de dentro que sopra a nevasca.",
   actions: {
     jump: { duration: 1.0 },
     eat: { duration: 2.6 },
@@ -483,9 +483,8 @@ Pets.register({
       const eyes = [-1, 1].map(s => {
         const e = eye({ size: o.eye, pupilColor: 0x1c3d9e });
         const yaw = o.eyeYaw * s;
-        const ep = o.eyePitch === undefined ? 0.02 : o.eyePitch;
-        e.g.position.copy(face(yaw, ep, 0.972));
-        orient(e.g, yaw, ep);
+        e.g.position.copy(face(yaw, 0.02, 0.972));
+        orient(e.g, yaw, 0.02);
         lid.add(e.g);
         return e;
       });
@@ -494,9 +493,7 @@ Pets.register({
         for (let i = 0; i <= 24; i++) {
           const u = i / 24;
           const w = Math.abs(Math.sin(u * Math.PI * 2));
-          const c = 2 * u - 1;
-          const pitch = o.grin ? -0.33 + 0.1 * c * c : -0.27 - w * 0.045;
-          p.push(face(lerp(-o.mouthW, o.mouthW, u), pitch, 1.004));
+          p.push(face(lerp(-o.mouthW, o.mouthW, u), -0.27 - w * 0.045, 1.004));
         }
         return mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(p), 40, 0.009 * o.k, 6, false), mouthMat, false);
       })();
@@ -509,7 +506,7 @@ Pets.register({
       lid.add(mouthOpen);
       (o.fangs || [0.045]).forEach(x => {
         const f = mesh(new THREE.ConeGeometry(0.012 * o.k, 0.026 * o.k, 6), whiteMat, false);
-        f.position.copy(face(x, o.grin ? -0.33 + 0.1 * Math.pow(x / o.mouthW, 2) - 0.014 : -0.305, 1.006));
+        f.position.copy(face(x, -0.305, 1.006));
         f.rotation.set(Math.PI, 0, 0);
         lid.add(f);
       });
@@ -568,10 +565,8 @@ Pets.register({
       seg: 80,
       eye: 0.5,
       eyeYaw: 0.29,
-      eyePitch: -0.05,
-      mouthW: 0.2,
-      fangs: [-0.09, 0.09],
-      grin: true,
+      mouthW: 0.14,
+      fangs: [-0.06, 0.06],
       seed: 11
     });
     squash.add(big.group);
@@ -625,246 +620,116 @@ Pets.register({
     });
     mini.group.scale.setScalar(MS);
     miniSway.add(mini.group);
-    [-1, 1].forEach(s => {
-      const tuft = new THREE.Group();
-      tuft.position.copy(mini.face(1.0 * s, 0.55, 0.92));
-      tuft.rotation.set(0, 0, -s * 0.55);
-      mini.lid.add(tuft);
-      [
-        [0, 0.24, 0.04, 0],
-        [-0.055, 0.16, 0.03, 0.42],
-        [0.05, 0.14, 0.028, -0.4]
-      ].forEach(([x, len, r, lean]) => {
-        const c = crystal(len, r);
-        c.position.x = x * s;
-        c.rotation.z = lean * s;
-        tuft.add(c);
+    const crown = new THREE.Group();
+    crown.position.set(0, 1.02, -0.05);
+    crown.rotation.x = -0.26;
+    mini.lid.add(crown);
+    const miniShards = [];
+    {
+      const RO = 0.43;
+      const RI = 0.31;
+      const A = 1.32;
+      const sh = new THREE.Shape();
+      const N = 64;
+      for (let i = 0; i <= N; i++) {
+        const a = lerp(-A, A, i / N);
+        const r = RO + 0.022 * Math.cos(a * 11) * smooth(0, 0.25, A - Math.abs(a)) + 0.05 * (1 - Math.abs(a) / A);
+        const px = Math.sin(a) * r;
+        const py = Math.cos(a) * r;
+        if (i === 0) sh.moveTo(px, py);
+        else sh.lineTo(px, py);
+      }
+      for (let i = N; i >= 0; i--) {
+        const a = lerp(-A, A, i / N);
+        sh.lineTo(Math.sin(a) * RI, Math.cos(a) * RI);
+      }
+      const g = new THREE.ExtrudeGeometry(sh, { depth: 0.035, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.01, bevelSegments: 2, curveSegments: 4 });
+      g.translate(0, 0, -0.0175);
+      crown.add(mesh(g, crystalMat, false));
+      const band = mesh(new THREE.TorusGeometry(0.335, 0.014, 8, 48, A * 2), cobaltMat, false);
+      band.rotation.z = Math.PI / 2 - A;
+      band.position.z = 0.03;
+      crown.add(band);
+      const beadGeo = new THREE.SphereGeometry(0.014, 10, 8);
+      for (let i = 0; i <= 16; i++) {
+        const a = lerp(-A + 0.08, A - 0.08, i / 16);
+        const r = RO - 0.035 + 0.05 * (1 - Math.abs(a) / A);
+        const b = mesh(beadGeo, i % 2 ? whiteMat : cobaltMat, false);
+        b.position.set(Math.sin(a) * r, Math.cos(a) * r, 0.032);
+        crown.add(b);
+      }
+      [-0.9, -0.45, 0, 0.45, 0.9].forEach((a, i) => {
+        const mid = 1 - Math.abs(a);
+        const len = 0.05 + mid * 0.05;
+        const cg = new THREE.CylinderGeometry(0, 0.022, len, 6);
+        cg.translate(0, len / 2, 0);
+        const spike = mesh(cg, crystalMat, false);
+        const piv = new THREE.Group();
+        const r = RO + 0.05 * (1 - Math.abs(a) / A) - 0.005;
+        piv.position.set(Math.sin(a) * r, Math.cos(a) * r, 0);
+        piv.rotation.z = -a;
+        piv.add(spike);
+        crown.add(piv);
+        miniShards.push(spike);
       });
-    });
+      const gem = new THREE.Group();
+      gem.position.set(0, 0.395, 0.045);
+      crown.add(gem);
+      for (let k = 0; k < 6; k++) {
+        const arm = mesh(new THREE.BoxGeometry(0.011, 0.07, 0.011), whiteMat, false);
+        arm.position.set(Math.sin((k / 6) * TAU) * 0.034, Math.cos((k / 6) * TAU) * 0.034, 0);
+        arm.rotation.z = -(k / 6) * TAU;
+        gem.add(arm);
+      }
+      gem.add(mesh(new THREE.OctahedronGeometry(0.022, 0), cobaltMat, false));
+    }
+
 
     const shards = [];
-    const helm = new THREE.Group();
-    big.lid.add(helm);
-    {
-      const RIM = 1.47;
-      const r0 = big.radiusAt(RIM) + 0.04;
-      const prof = [
-        [r0, RIM],
-        [r0 - 0.005, RIM + 0.08],
-        [r0 - 0.035, RIM + 0.19],
-        [r0 - 0.095, RIM + 0.31],
-        [r0 - 0.185, RIM + 0.43],
-        [r0 - 0.3, RIM + 0.55],
-        [r0 - 0.4, RIM + 0.65],
-        [r0 - 0.465, RIM + 0.72],
-        [0.0, RIM + 0.76]
-      ];
-      const hc = new THREE.CatmullRomCurve3(prof.map(([r, y]) => new THREE.Vector3(r, y, 0)), false, "centripetal");
-      const hp = hc.getPoints(60).map(p => new THREE.Vector2(Math.max(0, p.x), p.y));
-      hp[hp.length - 1].set(0, RIM + 0.76);
-      let helmTex = null;
-      if (hasDoc) {
-        const c = document.createElement("canvas");
-        c.width = 1024;
-        c.height = 512;
-        const x = c.getContext("2d");
-        const gr = x.createLinearGradient(0, 512, 0, 0);
-        gr.addColorStop(0, "#17388f");
-        gr.addColorStop(1, "#2a55c2");
-        x.fillStyle = gr;
-        x.fillRect(0, 0, 1024, 512);
-        x.strokeStyle = "#ffffff";
-        x.lineCap = "round";
-        for (let i = 0; i < 8; i++) {
-          const u = (i / 8) * 1024;
-          x.lineWidth = 7;
-          x.beginPath();
-          x.moveTo(u, 512);
-          x.lineTo(u, 30);
-          x.stroke();
-          const m = u + 64;
-          x.lineWidth = 5;
-          x.beginPath();
-          x.moveTo(m, 470);
-          x.bezierCurveTo(m + 30, 400, m - 30, 330, m, 260);
-          x.bezierCurveTo(m + 22, 210, m - 18, 170, m, 120);
-          x.stroke();
-          [430, 330, 220].forEach((y, k) => {
-            x.beginPath();
-            x.ellipse(m + (k % 2 ? -18 : 18), y, 14, 8, k % 2 ? 0.6 : -0.6, 0, Math.PI * 2);
-            x.fillStyle = "#ffffff";
-            x.fill();
-          });
-        }
-        x.fillStyle = "#ffffff";
-        for (let i = 0; i < 48; i++) {
-          x.beginPath();
-          x.arc((i + 0.5) * (1024 / 48), 490, 6, 0, Math.PI * 2);
-          x.fill();
-        }
-        helmTex = new THREE.CanvasTexture(c);
-      }
-      const helmMat = new THREE.MeshPhysicalMaterial({ map: helmTex, color: 0xffffff, roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.08 });
-      helm.add(mesh(new THREE.LatheGeometry(hp, 64, Math.PI, TAU), helmMat));
-      const rim = mesh(new THREE.TorusGeometry(r0, 0.034, 10, 64), whiteMat, false);
-      rim.rotation.x = Math.PI / 2;
-      rim.position.y = RIM + 0.005;
-      helm.add(rim);
-      const beadGeo = new THREE.SphereGeometry(0.018, 10, 8);
-      for (let i = 0; i < 28; i++) {
-        const a = (i / 28) * TAU;
-        const b = mesh(beadGeo, cobaltMat, false);
-        b.position.set(Math.sin(a) * (r0 + 0.03), RIM + 0.005, Math.cos(a) * (r0 + 0.03));
-        helm.add(b);
-      }
-      const nas = new THREE.Shape();
-      nas.moveTo(-0.032, 0);
-      nas.lineTo(0.032, 0);
-      nas.lineTo(0.026, -0.15);
-      nas.lineTo(0, -0.2);
-      nas.lineTo(-0.026, -0.15);
-      nas.closePath();
-      const ng = new THREE.ExtrudeGeometry(nas, { depth: 0.02, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2 });
-      const nasal = mesh(ng, cobaltMat, false);
-      nasal.position.set(0, RIM + 0.02, big.radiusAt(RIM - 0.08) + 0.012);
-      nasal.rotation.x = -0.12;
-      helm.add(nasal);
-      const tip = crystal(0.3, 0.055);
-      tip.position.set(0, RIM + 0.73, 0);
-      helm.add(tip);
-      shards.push({ sh: tip, mid: 1, ph: 0 });
-      const tipBall = mesh(new THREE.OctahedronGeometry(0.06, 0), crystalMat, false);
-      tipBall.position.set(0, RIM + 0.74, 0);
-      helm.add(tipBall);
-      [-1, 1].forEach(s => {
-        const w = new THREE.Group();
-        w.position.set(s * (r0 - 0.06), RIM + 0.2, -0.05);
-        w.rotation.z = -s * 0.85;
-        helm.add(w);
-        [0, 1].forEach(k => {
-          const c = crystal(0.2 - k * 0.07, 0.04 - k * 0.01);
-          c.position.set(0, 0, -0.06 * k);
-          c.rotation.x = -0.25 - k * 0.3;
-          w.add(c);
-          shards.push({ sh: c, mid: 0.6, ph: s + k });
-        });
+    [-1, 1].forEach(s => {
+      const tuft = new THREE.Group();
+      tuft.position.copy(big.face(1.0 * s, 0.5, 0.93));
+      tuft.rotation.set(-0.05, 0, -s * 0.6);
+      big.lid.add(tuft);
+      [
+        [0, 0.42, 0.06, 0, 1],
+        [-0.08, 0.3, 0.05, 0.38, 0.7],
+        [0.075, 0.27, 0.045, -0.36, 0.7],
+        [-0.14, 0.18, 0.038, 0.75, 0.45],
+        [0.13, 0.16, 0.035, -0.72, 0.45]
+      ].forEach(([x, len, r, lean, mid], i) => {
+        const c = crystal(len, r);
+        const piv = new THREE.Group();
+        piv.position.set(x * s, 0, i % 2 ? -0.025 : 0.01);
+        piv.rotation.set(i ? 0.12 : -0.08, 0, lean * s);
+        piv.add(c);
+        const base = mesh(new THREE.CylinderGeometry(r, r * 0.9, 0.06, 6), crystalMat, false);
+        base.position.y = -0.025;
+        piv.add(base);
+        tuft.add(piv);
+        shards.push({ sh: c, mid, ph: i + s * 1.3 });
       });
-
-      let mailTex = null;
-      if (hasDoc) {
-        const c = document.createElement("canvas");
-        c.width = 128;
-        c.height = 64;
-        const x = c.getContext("2d");
-        x.fillStyle = "#3d5683";
-        x.fillRect(0, 0, 128, 64);
-        for (let row = 0; row < 5; row++) {
-          for (let col = 0; col < 9; col++) {
-            const cx = col * 16 + (row % 2) * 8;
-            const cy = row * 14 + 6;
-            x.lineWidth = 4.2;
-            x.strokeStyle = "#f2f8ff";
-            x.beginPath();
-            x.arc(cx, cy, 6, 0, Math.PI * 2);
-            x.stroke();
-          }
-        }
-        mailTex = new THREE.CanvasTexture(c);
-        mailTex.wrapS = mailTex.wrapT = THREE.RepeatWrapping;
-        mailTex.repeat.set(9, 2);
-      }
-      const mailMat = new THREE.MeshPhysicalMaterial({ map: mailTex, color: 0xffffff, metalness: 0.05, roughness: 0.3, clearcoat: 0.8, side: THREE.DoubleSide });
-      const mp = [];
-      for (let i = 0; i <= 12; i++) {
-        const q = i / 12;
-        const y = lerp(RIM + 0.01, RIM - 0.36, q);
-        mp.push(new THREE.Vector2(big.radiusAt(y) + 0.03 + q * q * 0.06, y));
-      }
-      const mailGeo = new THREE.LatheGeometry(mp.reverse(), 56, 0.9, TAU - 1.8);
-      const mail = mesh(mailGeo, mailMat);
-      helm.add(mail);
-      const hemPts = [];
-      for (let i = 0; i <= 40; i++) {
-        const a = 0.9 + (i / 40) * (TAU - 1.8);
-        const y = RIM - 0.36;
-        const r = big.radiusAt(y) + 0.09;
-        hemPts.push(new THREE.Vector3(Math.sin(a) * r, y, Math.cos(a) * r));
-      }
-      helm.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hemPts), 60, 0.018, 6, false), cobaltMat, false));
-    }
-
-    const brows = [-1, 1].map(s => {
-      const b = mesh(new THREE.BoxGeometry(0.17, 0.045, 0.05), cobaltMat, false);
-      const yaw = 0.29 * s;
-      b.position.copy(big.face(yaw, 0.085, 1.014));
-      b.rotation.order = "YXZ";
-      b.rotation.set(-0.2, yaw, s * 0.32);
-      big.lid.add(b);
-      return { b, s, base: b.position.y };
+    });
+    [-0.1, 0, 0.1].forEach((x, i) => {
+      const len = i === 1 ? 0.2 : 0.13;
+      const c = crystal(len, 0.04);
+      c.position.set(x, OH - 0.05 - Math.abs(x) * 0.3, -0.03);
+      c.rotation.set(-0.2, 0, -x * 2.2);
+      big.lid.add(c);
+      shards.push({ sh: c, mid: i === 1 ? 0.8 : 0.5, ph: 3 + i });
     });
 
-    let shieldTex = null;
-    if (hasDoc) {
-      const c = document.createElement("canvas");
-      c.width = c.height = 512;
-      const x = c.getContext("2d");
-      x.translate(256, 256);
-      x.fillStyle = "#f6faff";
-      x.beginPath();
-      x.arc(0, 0, 256, 0, TAU);
-      x.fill();
-      x.fillStyle = COBALT;
-      x.beginPath();
-      x.arc(0, 0, 256, 0, TAU);
-      x.arc(0, 0, 214, 0, TAU, true);
-      x.fill();
-      x.fillStyle = "#ffffff";
-      for (let i = 0; i < 24; i++) {
-        const a = (i / 24) * TAU;
-        x.beginPath();
-        x.arc(Math.cos(a) * 235, Math.sin(a) * 235, 8, 0, TAU);
-        x.fill();
-      }
-      const petalS = (ang, dist, len, wid) => {
-        x.save();
-        x.rotate(ang);
-        x.translate(0, dist);
-        x.beginPath();
-        x.moveTo(0, 0);
-        x.bezierCurveTo(wid * 1.1, len * 0.25, wid * 0.9, len * 0.8, 0, len);
-        x.bezierCurveTo(-wid * 0.35, len * 0.7, -wid * 0.45, len * 0.3, 0, 0);
-        const gr = x.createLinearGradient(-wid * 0.4, 0, wid, 0);
-        gr.addColorStop(0, COBALT_D);
-        gr.addColorStop(0.45, COBALT);
-        gr.addColorStop(1, COBALT_L);
-        x.fillStyle = gr;
-        x.fill();
-        x.restore();
-      };
-      for (let i = 0; i < 8; i++) petalS((i / 8) * TAU + 0.4, 150, 55, 30);
-      for (let i = 0; i < 10; i++) petalS((i / 10) * TAU, 52, 80, 46);
-      for (let i = 0; i < 7; i++) petalS((i / 7) * TAU + 0.3, 20, 50, 30);
-      shieldTex = new THREE.CanvasTexture(c);
-    }
     const arms = [-1, 1].map(s => {
       const sh = new THREE.Group();
       const y = 1.06;
       sh.position.set(s * (big.radiusAt(y) - 0.03), y, 0.05);
       big.lid.add(sh);
-      const pad = mesh(new THREE.SphereGeometry(1, 24, 16, 0, TAU, 0, Math.PI * 0.55), cobaltMat);
-      pad.scale.set(0.15, 0.11, 0.15);
-      pad.position.set(s * 0.03, 0.02, 0);
-      pad.rotation.z = -s * 0.35;
-      sh.add(pad);
-      const padRim = mesh(new THREE.TorusGeometry(0.14, 0.016, 8, 28), whiteMat, false);
-      padRim.rotation.set(Math.PI / 2, 0, 0);
-      padRim.rotation.y = -s * 0.35;
-      padRim.position.set(s * 0.03, 0.005, 0);
-      sh.add(padRim);
-      const pc = crystal(0.12, 0.03);
-      pc.position.set(s * 0.06, 0.1, 0);
-      pc.rotation.z = -s * 0.5;
-      sh.add(pc);
+      [0, 1, 2].forEach(i => {
+        const c = crystal(0.1 + (i === 1 ? 0.06 : 0), 0.03);
+        c.position.set(s * 0.02, 0.03, -0.04 + i * 0.045);
+        c.rotation.set(-0.3 + i * 0.3, 0, -s * (0.55 + i * 0.1));
+        sh.add(c);
+      });
       const piv = new THREE.Group();
       sh.add(piv);
       const arm = mesh(new THREE.SphereGeometry(1, 22, 16), whiteMat);
@@ -880,52 +745,10 @@ Pets.register({
       const hand = mesh(new THREE.SphereGeometry(0.064, 18, 14), whiteMat, false);
       hand.position.set(s * 0.085, -0.27, 0.03);
       piv.add(hand);
-      if (s < 0) {
-        const shield = new THREE.Group();
-        shield.position.set(s * 0.17, -0.2, 0.1);
-        shield.rotation.set(0, s * 0.95, 0);
-        piv.add(shield);
-        const face2 = new THREE.Group();
-        face2.rotation.x = Math.PI / 2;
-        shield.add(face2);
-        const disc = mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.035, 48), [whiteMat, new THREE.MeshPhysicalMaterial({ map: shieldTex, color: 0xffffff, roughness: 0.25, clearcoat: 1 }), cobaltMat]);
-        face2.add(disc);
-        const edge = mesh(new THREE.TorusGeometry(0.26, 0.022, 8, 48), cobaltMat, false);
-        edge.rotation.x = Math.PI / 2;
-        face2.add(edge);
-        const boss = mesh(new THREE.OctahedronGeometry(0.06, 0), crystalMat, false);
-        boss.position.y = 0.035;
-        boss.scale.set(1, 0.6, 1);
-        face2.add(boss);
-      } else {
-        const mace = new THREE.Group();
-        mace.position.set(s * 0.09, -0.3, 0.06);
-        mace.rotation.set(0.35, 0, -0.15);
-        piv.add(mace);
-        const handle = mesh(new THREE.CylinderGeometry(0.02, 0.024, 0.46, 10), cobaltMat);
-        handle.position.y = 0.1;
-        mace.add(handle);
-        [0, 0.08, 0.16].forEach(yy => {
-          const band = mesh(new THREE.TorusGeometry(0.025, 0.007, 6, 14), whiteMat, false);
-          band.rotation.x = Math.PI / 2;
-          band.position.y = yy;
-          mace.add(band);
-        });
-        const head = mesh(new THREE.IcosahedronGeometry(0.085, 0), crystalMat, false);
-        head.position.y = 0.36;
-        mace.add(head);
-        for (let k = 0; k < 6; k++) {
-          const a = (k / 6) * TAU;
-          const sp = crystal(0.07, 0.02);
-          sp.position.set(Math.cos(a) * 0.06, 0.36, Math.sin(a) * 0.06);
-          sp.rotation.set(Math.sin(a) * 1.3, 0, -Math.cos(a) * 1.3);
-          mace.add(sp);
-        }
-        const top = crystal(0.09, 0.022);
-        top.position.y = 0.42;
-        mace.add(top);
-        shards.push({ sh: top, mid: 0.5, ph: 5 });
-      }
+      const spike = crystal(0.08, 0.022);
+      spike.position.set(s * 0.12, -0.12, 0.0);
+      spike.rotation.z = -s * 1.25;
+      piv.add(spike);
       return { piv };
     });
 
@@ -1085,9 +908,6 @@ Pets.register({
         let miniSquint = 0;
         let miniLook = 0;
         let miniMouth = false;
-        let swingX = 0;
-        let guardX = 0;
-        let browK = 0;
 
         if (dying) {
           tiltZ = 0.1 + Math.sin(t * 0.8) * 0.02 * motion;
@@ -1163,8 +983,6 @@ Pets.register({
           armUp = charge * 0.9 + open * 0.7;
           squint = charge > 0.3 ? 0.8 : 0;
           mouthO = open > 0.3;
-          guardX = -charge * 0.9;
-          browK = charge;
         }
         if (eat) {
           const p = eat.p;
@@ -1194,9 +1012,6 @@ Pets.register({
           armUp = atk.wind * 0.6;
           squint = atk.lunge > 0.25 ? 0.75 : 0;
           miniTilt += atk.lunge * -0.4;
-          swingX = -atk.wind * 2.4 + atk.lunge * 1.4;
-          guardX = -atk.wind * 0.6;
-          browK = 1;
           burst = Math.max(burst, atk.impact * 0.6);
           mouthO = atk.lunge > 0.2;
         }
@@ -1223,12 +1038,8 @@ Pets.register({
 
         arms.forEach(({ piv }, i) => {
           const sd = i ? 1 : -1;
-          const swing = sd > 0 ? swingX : guardX;
           piv.rotation.z = lerp(piv.rotation.z, sd * (0.12 + armUp * 1.4 + armWave * sd), 0.25);
-          piv.rotation.x = lerp(piv.rotation.x, -armUp * 0.3 + swing, sd > 0 && atk ? 0.6 : 0.25);
-        });
-        brows.forEach(({ b, s: sd }) => {
-          b.rotation.z = sd * (0.32 + browK * 0.2);
+          piv.rotation.x = lerp(piv.rotation.x, -armUp * 0.3, 0.25);
         });
         boots.forEach(({ b, s: sd }, i) => {
           const step = wob ? Math.max(0, Math.sin(wob.p * Math.PI * 5 + i * Math.PI)) * 0.07 : 0;
@@ -1316,7 +1127,7 @@ Pets.register({
 
         const lid0 = squint ? 1 - squint : blink;
         allEyes.forEach(({ g }) => {
-          g.scale.y = Math.max(0.08, lid0) * (airborne ? 1.0 : 0.84);
+          g.scale.y = Math.max(0.08, lid0) * (airborne ? 1.08 : 1);
         });
         const lidM = miniSquint ? 1 - miniSquint : blink;
         mini.eyes.forEach(({ g }) => {
