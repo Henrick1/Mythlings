@@ -1,6 +1,6 @@
 Pets.register({
   id: "fiacarca",
-  dex: 37,
+  dex: 39,
   name: "Fiaçarca",
   color: "#c8743a",
   types: ["electric", "dragon"],
