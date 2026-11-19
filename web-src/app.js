@@ -350,7 +350,7 @@
         node.disabled = !known || sp === id;
         const circle = document.createElement("span");
         circle.className = "evo-circle";
-        const url = PetStage.thumbnail(window.THREE, window.PetKit, window.Pets, sp);
+        const url = PetStage.thumbnail(window.THREE, window.PetKit, window.Pets, sp, 256, true);
         if (url) {
           const img = document.createElement("img");
           img.src = url;

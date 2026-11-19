@@ -371,6 +371,7 @@ Pets.register({
     muzzle.position.set(0, -0.04, 0.27);
     head.add(muzzle);
     const UP = V3(0, 1, 0);
+    const SIZE = 1.4;
     let lastT = null;
 
     return {
@@ -512,7 +513,7 @@ Pets.register({
         }
 
         const sx = 1 / Math.sqrt(sy);
-        bodyG.scale.set(sx, sy, sx);
+        bodyG.scale.set(sx * SIZE, sy * SIZE, sx * SIZE);
         root.position.set(0, y, z);
         root.rotation.y = lookYaw;
         root.rotation.x = lookPitch;
