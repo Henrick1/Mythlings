@@ -187,6 +187,7 @@ Pets.register({
       const g = new THREE.DodecahedronGeometry(0.07 + (k % 2) * 0.03, 1);
       const p = mesh(g, pebbleMat, false);
       p.scale.set(1, 0.7, 1.1);
+      p.visible = false;
       root.add(p);
       const glowR = new THREE.Mesh(new THREE.SphereGeometry(0.13 + (k % 2) * 0.03, 14, 10), new THREE.MeshBasicMaterial({ color: 0x8ffcff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending }));
       p.add(glowR);
@@ -330,6 +331,9 @@ Pets.register({
           const a = pb.a + t * 0.9 * k;
           const orbit = V3(Math.cos(a) * 0.85, HOVER + 0.35 + Math.sin(t * 2 + pb.k) * 0.12 + y, Math.sin(a) * 0.85);
           pb.p.position.copy(pb.home).lerp(orbit, k);
+          const show = Math.min(1, k * 4);
+          pb.p.visible = show > 0.01;
+          pb.p.scale.set(show, 0.7 * show, 1.1 * show);
           pb.p.rotation.set(t * k * 1.5 + pb.k, t * k, 0);
           pb.glowR.material.opacity = k * 0.35 * mind;
         });
