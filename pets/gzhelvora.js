@@ -1236,7 +1236,7 @@ Pets.register({
       g.add(mesh(geo, petalInMat, false));
       return g;
     };
-    const bodyMat = new THREE.MeshPhysicalMaterial({ color: 0xf2f7ff, roughness: 0.3, clearcoat: 0.8, clearcoatRoughness: 0.15 });
+    const bodyMat = new THREE.MeshPhysicalMaterial({ color: 0xcfe6ff, roughness: 0.08, clearcoat: 1, clearcoatRoughness: 0.05, emissive: 0x2a6fc0, emissiveIntensity: 0.18 });
     const cavMat = new THREE.MeshStandardMaterial({ color: 0x8fb4ee, roughness: 0.4, emissive: 0x2a6fc0, emissiveIntensity: 0.25, side: THREE.BackSide });
 
     const root = new THREE.Group();
@@ -2134,7 +2134,7 @@ Pets.register({
         const glad = joy >= 90 && !dying && !action ? 1 : 0;
         if (glad) bloom = Math.max(bloom, 0.1 + 0.06 * Math.sin(t * 0.7) * motion);
         plates.forEach(({ hinge, layer, ph: pp }) => {
-          const flare = layer === 2 ? bloom * 0.35 + glad * (Math.sin(t * 2.4 + pp) * 0.5 + 0.5) * 0.22 * motion : bloom * 0.14;
+          const flare = layer === 2 ? bloom * 0.6 + glad * (Math.sin(t * 2.4 + pp) * 0.5 + 0.5) * 0.22 * motion : bloom * 1.05;
           hinge.rotation.x = lerp(hinge.rotation.x, Math.max(0, flare) + charge * Math.sin(t * 40) * 0.01, 0.25);
         });
         const doorT = Math.max(0, bloom) * 1.45 + charge * Math.abs(Math.sin(t * 30)) * 0.05;
