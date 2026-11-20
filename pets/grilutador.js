@@ -5,6 +5,8 @@ Pets.register({
   color: "#b8742c",
   types: ["bug", "fighting"],
   stage: 2,
+  evolvesTo: "grilendario",
+  evolveLevel: 36,
   description: "Cresceu tanto que a cabaça rachou ao meio: a metade de baixo virou o peitoral laqueado e a de cima virou o capacete, com a tampa furada no topo. Treina chutes o dia inteiro com as pernas de saltador e luta de punhos enrolados em seda vermelha. Quando esfrega as asas, solta um trinado tão alto que faz o adversário tremer.",
   actions: {
     jump: { duration: 1.3 },
