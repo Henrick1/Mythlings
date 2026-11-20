@@ -424,6 +424,87 @@ Pets.register({
       g.computeVertexNormals();
       return g;
     };
+    const SEG_R = 0.13;
+    const SEG_L = 0.46;
+    const SEG_TW = Math.PI * 1.6;
+    const segMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.35 });
+    const cHorn = new THREE.Color(0x5a3a1c);
+    const cSteel = new THREE.Color(0xd2d9e0);
+    const cDark = new THREE.Color(0x3a2412);
+    const segGeo = (fc, hp) => {
+      const NT = 28;
+      const NP = 14;
+      const NS = 4;
+      const W = (Math.PI * 2) / 3;
+      const f0 = fc - W / 2;
+      const pos = [];
+      const col = [];
+      const idx = [];
+      const add = (r, f, t, c) => {
+        pos.push(r * Math.sin(f) - hp.x, -SEG_L * t, r * Math.cos(f) - hp.z);
+        col.push(c.r, c.g, c.b);
+        return pos.length / 3 - 1;
+      };
+      const rOut = (t, jf) => SEG_R * Math.pow(1 - t, 0.85) * (0.8 + 0.2 * Math.sin(Math.PI * jf)) * (1 - 0.12 * Math.exp(-((jf - 0.5) * (jf - 0.5)) / 0.004));
+      const tmp = new THREE.Color();
+      const outer = [];
+      for (let i = 0; i <= NT; i++) {
+        const t = i / NT;
+        const row = [];
+        for (let j = 0; j <= NP; j++) {
+          const jf = j / NP;
+          const e = Math.min(jf, 1 - jf) * 2;
+          const st = Math.max(1 - smooth(0.1, 0.26, e), Math.exp(-((jf - 0.5) * (jf - 0.5)) / 0.003), smooth(0.72, 0.86, t));
+          tmp.copy(cHorn).lerp(cSteel, st);
+          row.push(add(i === NT ? 0 : rOut(t, jf), f0 + W * jf + t * SEG_TW, t, tmp));
+        }
+        outer.push(row);
+      }
+      for (let i = 0; i < NT; i++)
+        for (let j = 0; j < NP; j++) {
+          idx.push([outer[i][j], outer[i + 1][j], outer[i][j + 1]], [outer[i][j + 1], outer[i + 1][j], outer[i + 1][j + 1]]);
+        }
+      [0, NP].forEach(j => {
+        const jf = j / NP;
+        const wall = [];
+        for (let i = 0; i <= NT; i++) {
+          const t = i / NT;
+          const row = [];
+          for (let k = 0; k <= NS; k++) row.push(add((k / NS) * (i === NT ? 0 : rOut(t, jf)), f0 + W * jf + t * SEG_TW, t, cDark));
+          wall.push(row);
+        }
+        for (let i = 0; i < NT; i++)
+          for (let k = 0; k < NS; k++) idx.push([wall[i][k], wall[i + 1][k], wall[i][k + 1]], [wall[i][k + 1], wall[i + 1][k], wall[i + 1][k + 1]]);
+      });
+      const cc = add(0, 0, 0, cDark);
+      const cap = [];
+      for (let j = 0; j <= NP; j++) cap.push(add(rOut(0, j / NP), f0 + (W * j) / NP, 0, cDark));
+      for (let j = 0; j < NP; j++) idx.push([cc, cap[j], cap[j + 1]]);
+      const P = (i, v) => v.set(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
+      const a = V3(0, 0, 0);
+      const b = V3(0, 0, 0);
+      const c = V3(0, 0, 0);
+      const flat = [];
+      idx.forEach(tri => {
+        P(tri[0], a);
+        P(tri[1], b);
+        P(tri[2], c);
+        const n = new THREE.Vector3().subVectors(b, a).cross(new THREE.Vector3().subVectors(c, a));
+        const m = a.clone().add(b).add(c).multiplyScalar(1 / 3);
+        const t = Math.min(0.98, Math.max(0, -m.y / SEG_L));
+        const rc = SEG_R * 0.45 * Math.pow(1 - t, 0.85);
+        const fr = fc + t * SEG_TW;
+        const ref = V3(rc * Math.sin(fr) - hp.x, -SEG_L * Math.max(t, 0.06), rc * Math.cos(fr) - hp.z);
+        if (n.dot(m.sub(ref)) < 0) flat.push(tri[0], tri[2], tri[1]);
+        else flat.push(tri[0], tri[1], tri[2]);
+      });
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3));
+      g.setIndex(flat);
+      g.computeVertexNormals();
+      return g;
+    };
     const ringBand = (r0, y0, y1, n) => {
       const pts = [V2(0.0001, y0 - 0.001), V2(r0 * 0.9, y0)];
       const h = (y1 - y0) / n;
@@ -471,16 +552,14 @@ Pets.register({
       palm.scale.set(1, 0.75, 0.9);
       palm.position.y = -0.05;
       hand.add(palm);
-      const claws = [-1, 0, 1].map(c => {
+      const claws = [Math.PI / 3, -Math.PI / 3, Math.PI].map(fc => {
+        const hp = V3(SEG_R * Math.sin(fc), -0.08, SEG_R * Math.cos(fc));
         const cg = new THREE.Group();
-        cg.position.set(c * 0.095, -0.1, 0.05 + (c ? 0 : 0.02));
-        cg.rotation.z = c * 0.16;
+        cg.position.copy(hp);
         hand.add(cg);
-        const len = c ? 0.27 : 0.36;
-        const base = mesh(new THREE.SphereGeometry(c ? 0.05 : 0.062, 14, 10), keratin, false);
-        cg.add(base);
-        cg.add(mesh(clawGeo(len, c ? 0.05 : 0.062, 0.32), keratin));
-        return { cg, c, len };
+        cg.add(new THREE.Mesh(segGeo(fc, hp), segMat));
+        cg.children[0].castShadow = true;
+        return { cg, axis: V3(Math.cos(fc), 0, -Math.sin(fc)) };
       });
       return { sh, el, wrist, hand, claws, sx, palm, pg };
     });
@@ -701,8 +780,8 @@ Pets.register({
           lean = lerp(0.16, 0.45, k);
           drop += 0.18 * k;
           headPitch = 0.1 * k;
-          converge = smooth(0.08, 0.22, p) * (1 - smooth(0.82, 0.94, p));
-          spin = converge;
+          converge = smooth(0.06, 0.2, p) * (1 - smooth(0.88, 0.97, p));
+          spin = smooth(0.2, 0.3, p) * (1 - smooth(0.8, 0.88, p));
           digK = smooth(0.25, 0.4, p) * (1 - smooth(0.78, 0.9, p));
           shut = digK * 0.55;
           baseA = lerp(baseA, -0.62, k);
@@ -779,10 +858,12 @@ Pets.register({
           pose(a, { sx: ps.sx, sz: (ps.sz || 0) * a.sx, ex: ps.ex, wx: ps.wx });
           a.pg.rotation.set(a.sh.rotation.x * 0.3, 0, a.sh.rotation.z * 0.45);
           a.hand.rotation.y += spin * 0.55 * a.sx;
-          if (!spin) a.hand.rotation.y = lerp(a.hand.rotation.y % TAU, 0, 0.2);
-          a.claws.forEach(({ cg, c }) => {
-            cg.rotation.z = c * lerp(0.16, -0.36, converge);
-            cg.rotation.x = c ? lerp(0, -0.05, converge) : lerp(0, 0.12, converge);
+          if (spin < 0.02) {
+            const q = TAU / 3;
+            a.hand.rotation.y = lerp(a.hand.rotation.y, Math.round(a.hand.rotation.y / q) * q, 0.25);
+          }
+          a.claws.forEach(({ cg, axis }) => {
+            cg.quaternion.setFromAxisAngle(axis, -lerp(0.42, 0, converge));
           });
         });
 
