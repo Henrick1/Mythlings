@@ -243,13 +243,44 @@ Pets.register({
     const shell = mesh(shellGeo, shellMat);
     shell.frustumCulled = false;
     ballG.add(shell);
+    const rimMatE = new THREE.MeshStandardMaterial({ color: 0x8a6234, roughness: 0.55, metalness: 0.1 });
+    const rims = [0, NU].map(i => {
+      const m = new THREE.Mesh(new THREE.BufferGeometry(), rimMatE);
+      m.castShadow = true;
+      m.frustumCulled = false;
+      m.userData.row = i;
+      return m;
+    });
+    const buildRims = () => {
+      rims.forEach(m => {
+        const i = m.userData.row;
+        const pts = [];
+        for (let j = 0; j <= NV; j += 2) {
+          const k = (i * (NV + 1) + j) * 3;
+          pts.push(V3(sPos[k], sPos[k + 1], sPos[k + 2]));
+        }
+        m.geometry.dispose();
+        m.geometry = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 48, 0.032, 8, false);
+      });
+    };
     const shellIn = new THREE.Mesh(shellGeo, innerMat);
     shellIn.frustumCulled = false;
     shellIn.scale.setScalar(0.975);
     ballG.add(shellIn);
+    rims.forEach(m => ballG.add(m));
+    buildRims();
 
-    const belly = mesh(new THREE.SphereGeometry(1, 40, 28), bellyMat);
-    belly.scale.set(0.57, 0.44, 0.82);
+    const bellyGeo = new THREE.SphereGeometry(1, 48, 32);
+    const bp = bellyGeo.attributes.position;
+    for (let i = 0; i < bp.count; i++) {
+      const x = bp.getX(i);
+      const y = bp.getY(i);
+      const z = bp.getZ(i);
+      const back = Math.max(0, -z);
+      bp.setXYZ(i, x * (0.55 - 0.03 * back), y * (y > 0 ? 0.44 + 0.2 * back * back : 0.44), z * 0.82);
+    }
+    bellyGeo.computeVertexNormals();
+    const belly = mesh(bellyGeo, bellyMat);
     belly.position.y = -0.07;
     ballG.add(belly);
 
@@ -339,10 +370,10 @@ Pets.register({
         const k = i * (NC + 1) + j;
         tUv[k * 2] = (j / NC) * 3;
         tUv[k * 2 + 1] = (i / NS) * 4;
-        if (i < NS && j < NC) tIdx.push(k, k + 1, k + NC + 1, k + 1, k + NC + 2, k + NC + 1);
+        if (i < NS && j < NC) tIdx.push(k, k + NC + 1, k + 1, k + 1, k + NC + 1, k + NC + 2);
       }
     const capI = (NS + 1) * (NC + 1);
-    for (let j = 0; j < NC; j++) tIdx.push(NS * (NC + 1) + j, NS * (NC + 1) + j + 1, capI);
+    for (let j = 0; j < NC; j++) tIdx.push(NS * (NC + 1) + j + 1, NS * (NC + 1) + j, capI);
     tailGeo.setAttribute("position", new THREE.BufferAttribute(tPos, 3));
     tailGeo.setAttribute("uv", new THREE.BufferAttribute(tUv, 2));
     tailGeo.setIndex(tIdx);
@@ -581,6 +612,8 @@ Pets.register({
         if (Math.abs(curl - lastCurl) > 0.0005) {
           shellShape(curl);
           lastCurl = curl;
+          rims.forEach(m => (m.visible = curl < 0.9));
+          if (curl < 0.9) buildRims();
         }
 
         const zs = lerp(1.22, 1, curl);
@@ -611,7 +644,7 @@ Pets.register({
 
         scoopDirt.forEach(m => (m.visible = load > 0));
 
-        belly.scale.set(lerp(0.57, 0.5, curl), lerp(0.44, 0.46, curl), lerp(0.82, 0.5, curl));
+        belly.scale.set(lerp(1, 0.86, curl), lerp(1, 0.8, curl), lerp(1, 0.6, curl));
         belly.position.y = lerp(-0.07, 0, curl);
 
         legs.forEach(({ lg, sx: lx, sz }) => {
