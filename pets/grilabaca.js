@@ -35,7 +35,7 @@ Pets.register({
     root.add(big);
     const pivot = new THREE.Group();
     pivot.position.set(0, 0, -0.25);
-    big.scale.setScalar(0.78);
+    big.scale.setScalar(1.05);
     big.add(pivot);
     const bodyG = new THREE.Group();
     bodyG.position.set(0, 0, 0.25);
