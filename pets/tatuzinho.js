@@ -177,6 +177,8 @@ Pets.register({
     })();
     const plateMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: plateTex, roughness: 0.5, metalness: 0.12 });
     const shellMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: shellTex, roughness: 0.5, metalness: 0.22 });
+    kit.surface(shellMat, shellTex, { flat: [[(BANDS[0] + 1) / 2, (BANDS[1] + 1) / 2, 0.38, 0.3], [(BANDS[1] + 1) / 2, (BANDS[2] + 1) / 2, 0.18, 0.42], [(BANDS[2] + 1) / 2, (BANDS[3] + 1) / 2, 0.38, 0.3]] });
+    kit.surface(plateMat, plateTex, { seed: 5 });
     const innerMat = new THREE.MeshStandardMaterial({ color: 0x4a3420, roughness: 0.9, side: THREE.BackSide });
     const skinMat = mat(0xd9a07a, 0.7);
     const bellyMat = mat(0xe2b08a, 0.75);

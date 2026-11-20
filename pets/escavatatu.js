@@ -207,6 +207,8 @@ Pets.register({
 
     const shellMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: shellTex, roughness: 0.55, metalness: 0.18 });
     const plateMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: plateTex, roughness: 0.55, metalness: 0.1 });
+    kit.surface(shellMat, shellTex, { flat: [[(BANDS[0] + 1) / 2, (BANDS[1] + 1) / 2, 0.38, 0.3], [(BANDS[1] + 1) / 2, (BANDS[2] + 1) / 2, 0.18, 0.42], [(BANDS[2] + 1) / 2, (BANDS[3] + 1) / 2, 0.38, 0.3]] });
+    kit.surface(plateMat, plateTex, { seed: 5 });
     const plateMat2 = plateMat.clone();
     plateMat2.side = THREE.DoubleSide;
     const innerMat = new THREE.MeshStandardMaterial({ color: 0x3a2814, roughness: 0.9, side: THREE.BackSide });
