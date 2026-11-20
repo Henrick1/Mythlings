@@ -4,7 +4,7 @@ Pets.register({
   name: "Grilabaça",
   color: "#c98a3a",
   types: ["bug", "fighting"],
-  description: "Um grilinho brigão que vive dentro de uma cabaça laqueada, como os grilos de briga da China, e anda com ela como se fosse uma armadura. Os braços e as pernas saem por furos na cabaça, os punhos são enrolados em fitas de seda vermelha e a tampa furada virou o chapéu dele. Quando apanha demais, recolhe tudo e se tampa dentro da cabaça.",
+  description: "Um filhotinho de grilo que nasceu dentro de uma cabacinha laqueada e nunca mais quis sair. Anda com ela como se fosse uma fralda, com as perninhas e os bracinhos saindo pelos furos, e usa a tampa furada como chapéu. Já se acha um lutador: amarra fitinhas vermelhas nos pulsos e dá tapinhas em tudo, mas quando leva um susto se esconde inteirinho dentro da cabaça.",
   actions: {
     jump: { duration: 1.3 },
     eat: { duration: 2.4 },
@@ -35,7 +35,7 @@ Pets.register({
     root.add(big);
     const pivot = new THREE.Group();
     pivot.position.set(0, 0, -0.25);
-    big.scale.setScalar(0.8);
+    big.scale.setScalar(0.78);
     big.add(pivot);
     const bodyG = new THREE.Group();
     bodyG.position.set(0, 0, 0.25);
@@ -316,7 +316,9 @@ Pets.register({
 
     const gG = new THREE.Group();
     const GY = 0.13;
+    const GS = 0.72;
     gG.position.set(0, GY, 0);
+    gG.scale.setScalar(GS);
     bodyG.add(gG);
     const NP = 90;
     const lobe = (phi, s) => 1 + 0.035 * Math.cos(8 * phi) * smooth(0.0, 0.12, s - S0) * smooth(0.0, 0.1, S1 - s);
@@ -368,6 +370,7 @@ Pets.register({
     knot.scale.set(1, 1.15, 0.9);
     gG.add(knot);
     const tasselG = new THREE.Group();
+    tasselG.scale.setScalar(0.72);
     bodyG.add(tasselG);
     tasselG.add(mesh(new THREE.SphereGeometry(0.03, 12, 10), silkDark, false));
     const tasselBand = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 16), ivory, false);
@@ -410,37 +413,39 @@ Pets.register({
     const front = new THREE.Group();
     gG.add(front);
     const collar = mesh(new THREE.SphereGeometry(0.2, 32, 20), chitin);
-    collar.scale.set(1, 0.8, 1);
+    collar.scale.set(1.1, 0.8, 1.1);
     collar.position.set(0, S1 - 0.02, 0);
     front.add(collar);
     const headPivot = new THREE.Group();
-    headPivot.position.set(0, S1 + 0.2, 0.03);
+    headPivot.position.set(0, S1 + 0.27, 0.03);
     front.add(headPivot);
     const head = new THREE.Group();
+    head.scale.setScalar(1.38);
     headPivot.add(head);
     const skull = mesh(new THREE.SphereGeometry(0.27, 44, 30), headMat);
     skull.scale.set(1.08, 0.98, 0.98);
     head.add(skull);
     const eyes = [-1, 1].map(s => {
-      const e = eye({ size: 0.6, whiteColor: 0xfffaf0, pupilColor: 0x160c06 });
-      e.g.position.set(0.125 * s, 0.04, 0.2);
+      const e = eye({ size: 0.62, whiteColor: 0xfffaf0, pupilColor: 0x160c06 });
+      e.g.position.set(0.11 * s, 0.06, 0.215);
       e.g.rotation.y = 0.45 * s;
       head.add(e.g);
       return e;
     });
     const mandibles = [-1, 1].map(s => {
       const mg = new THREE.Group();
-      mg.position.set(0.045 * s, -0.2, 0.18);
+      mg.position.set(0.026 * s, -0.142, 0.226);
       head.add(mg);
-      const m = mesh(new THREE.ConeGeometry(0.028, 0.08, 10), ivory, false);
+      const m = mesh(new THREE.ConeGeometry(0.014, 0.035, 10), ivory, false);
       m.position.y = -0.03;
       m.rotation.z = -0.3 * s;
       mg.add(m);
       return mg;
     });
-    const mouth = mesh(new THREE.TorusGeometry(0.035, 0.009, 6, 14, Math.PI), darkMat, false);
+    const mouth = mesh(new THREE.TorusGeometry(0.042, 0.01, 6, 16, Math.PI), darkMat, false);
     mouth.rotation.z = Math.PI;
-    mouth.position.set(0, -0.12, 0.25);
+    mouth.position.set(0, -0.125, 0.238);
+    mouth.rotation.x = -0.45;
     head.add(mouth);
     const lidAnchorHead = new THREE.Object3D();
     lidAnchorHead.position.set(0.0, 0.235, -0.03);
@@ -544,50 +549,46 @@ Pets.register({
     };
 
     const legs = [-1, 1].map(sx => {
-      const hole = holeAt(0.3, sx * 1.42, 0.088);
-      const l1 = 0.36;
-      const l2 = 0.36;
-      const thigh = mesh(limbGeo(l1, 0.085, 0.05, 0.045, 14), femurMat);
-      const shin = mesh(limbGeo(l2, 0.05, 0.04, 0.0, 8), chitin);
-      const hipBall = mesh(new THREE.SphereGeometry(0.08, 18, 14), chitin, false);
-      const kneeBall = mesh(new THREE.SphereGeometry(0.058, 16, 12), chitin, false);
+      const hole = holeAt(0.26, sx * 1.15, 0.11);
+      const l1 = 0.15;
+      const l2 = 0.15;
+      const thigh = mesh(limbGeo(l1, 0.072, 0.06, 0.02, 10), femurMat);
+      const shin = mesh(limbGeo(l2, 0.06, 0.056, 0.0, 6), chitin);
+      const hipBall = mesh(new THREE.SphereGeometry(0.072, 18, 14), chitin, false);
+      const kneeBall = mesh(new THREE.SphereGeometry(0.06, 16, 12), chitin, false);
       const foot = new THREE.Group();
       const sole = mesh(new THREE.SphereGeometry(1, 22, 14), chitinLight);
-      sole.scale.set(0.085, 0.05, 0.13);
-      sole.position.set(0, 0.035, 0.07);
+      sole.scale.set(0.085, 0.055, 0.115);
+      sole.position.set(0, 0.04, 0.04);
       foot.add(sole);
       [-1, 1].forEach(c => {
-        const cl = mesh(new THREE.ConeGeometry(0.02, 0.06, 8), ivory, false);
-        cl.position.set(c * 0.04, 0.03, 0.19);
-        cl.rotation.set(Math.PI / 2, 0, 0);
+        const cl = mesh(new THREE.SphereGeometry(0.026, 12, 10), chitinLight, false);
+        cl.position.set(c * 0.042, 0.03, 0.14);
         foot.add(cl);
       });
-      const ankleBall = mesh(new THREE.SphereGeometry(0.045, 14, 10), chitin, false);
+      const ankleBall = mesh(new THREE.SphereGeometry(0.056, 14, 10), chitin, false);
       big.add(thigh, shin, hipBall, kneeBall, foot, ankleBall);
-      return { sx, hole, l1, l2, thigh, shin, hipBall, kneeBall, foot, ankleBall, rest: V3(0.4 * sx, 0, 0.06), pole: V3(sx * 0.25, 1, -0.85), knee: V3(0, 0, 0), ft: V3(0, 0, 0) };
+      return { sx, hole, l1, l2, thigh, shin, hipBall, kneeBall, foot, ankleBall, rest: V3(0.17 * sx, 0, 0.07), pole: V3(sx * 0.2, 0.2, 1), knee: V3(0, 0, 0), ft: V3(0, 0, 0) };
     });
     const arms = [-1, 1].map(sx => {
-      const hole = holeAt(0.97, sx * 1.48, 0.068);
-      const l1 = 0.2;
-      const l2 = 0.2;
-      const upperArm = mesh(limbGeo(l1, 0.058, 0.045, 0.01, 8), chitin);
-      const fore = mesh(limbGeo(l2, 0.048, 0.055, 0.0, 8), chitinLight);
-      const shoulder = mesh(new THREE.SphereGeometry(0.062, 16, 12), chitin, false);
-      const elbow = mesh(new THREE.SphereGeometry(0.05, 14, 10), chitin, false);
+      const hole = holeAt(0.95, sx * 1.5, 0.085);
+      const l1 = 0.1;
+      const l2 = 0.1;
+      const upperArm = mesh(limbGeo(l1, 0.052, 0.046, 0.008, 6), chitin);
+      const fore = mesh(limbGeo(l2, 0.046, 0.044, 0.0, 6), chitinLight);
+      const shoulder = mesh(new THREE.SphereGeometry(0.056, 16, 12), chitin, false);
+      const elbow = mesh(new THREE.SphereGeometry(0.048, 14, 10), chitin, false);
       const fist = new THREE.Group();
-      const ball = mesh(new THREE.SphereGeometry(0.1, 22, 16), chitinLight);
-      ball.scale.set(1, 0.92, 1.05);
-      ball.position.y = -0.07;
+      const ball = mesh(new THREE.SphereGeometry(0.068, 22, 16), chitinLight);
+      ball.position.y = -0.05;
       fist.add(ball);
-      [0.0, -0.035].forEach(y => {
-        const w = mesh(new THREE.TorusGeometry(y ? 0.085 : 0.062, 0.018, 8, 26), silk, false);
-        w.rotation.x = Math.PI / 2;
-        w.position.y = y;
-        fist.add(w);
-      });
-      const wrapBand = mesh(new THREE.CylinderGeometry(0.093, 0.1, 0.05, 26), silk);
-      wrapBand.position.y = -0.085;
-      fist.add(wrapBand);
+      const w = mesh(new THREE.TorusGeometry(0.046, 0.014, 8, 26), silk, false);
+      w.rotation.x = Math.PI / 2;
+      w.position.y = 0.0;
+      fist.add(w);
+      const bow = mesh(new THREE.SphereGeometry(0.02, 10, 8), silk, false);
+      bow.position.set(0, 0.0, -0.058);
+      fist.add(bow);
       big.add(upperArm, fore, shoulder, elbow, fist);
       return { sx, hole, l1, l2, upperArm, fore, shoulder, elbow, fist, ball, pole: V3(sx * 0.7, -0.4, -0.7), el: V3(0, 0, 0), hand: V3(0, 0, 0) };
     });
@@ -637,7 +638,7 @@ Pets.register({
     const gToBig = v => big.worldToLocal(gG.localToWorld(v));
     let tasselVel = 0;
     let tasselAng = 0;
-    const HAND_REST = [-1, 1].map(sx => V3(sx * 0.33, 0.66, 0.18));
+    const HAND_REST = [-1, 1].map(sx => V3(sx * 0.34, 0.74, 0.22));
 
     return {
       root,
@@ -676,8 +677,8 @@ Pets.register({
           const crouch = smooth(0.02, 0.2, p) * (1 - smooth(0.2, 0.3, p));
           const air = Math.sin(Math.PI * smooth(0.22, 0.78, p));
           const land = smooth(0.76, 0.82, p) * (1 - smooth(0.84, 1, p));
-          squat = 0.12 * crouch + 0.1 * land;
-          lift = 0.55 * air;
+          squat = 0.06 * crouch + 0.05 * land;
+          lift = 0.4 * air;
           follow = smooth(0.3, 0.45, p) * (1 - smooth(0.68, 0.8, p));
           lean = 0.04 + 0.1 * crouch - 0.06 * air;
           antSweep = -0.5 * air;
@@ -749,8 +750,8 @@ Pets.register({
         const settle = smooth(0.2, 0.55, retract) * GY;
         bodyG.position.y = lift - squat - settle + breath * 0.006 + Math.abs(Math.sin(t * 40)) * 0.01 * shake;
 
-        front.position.y = -0.38 * smooth(0, 0.8, retract);
-        headPivot.scale.setScalar(lerp(1, 0.62, smooth(0, 0.6, retract)));
+        front.position.y = -0.5 * smooth(0, 0.8, retract);
+        headPivot.scale.setScalar(lerp(1, 0.42, smooth(0, 0.6, retract)));
         collar.scale.set(lerp(1, 0.7, smooth(0, 0.6, retract)), lerp(0.8, 0.56, smooth(0, 0.6, retract)), lerp(1, 0.7, smooth(0, 0.6, retract)));
         head.rotation.set(headPitch + lookPitch * 0.4 + breath * 0.02, headYaw + pointer.x * 0.15, headRoll);
         mandibles.forEach((m, i) => (m.rotation.z = (i ? -1 : 1) * (0.08 + chew * 0.35)));
@@ -782,12 +783,12 @@ Pets.register({
             const u = k / (AN - 1);
             const arch = Math.min(1, u / 0.75);
             const curl = smooth(0.7, 1, u);
-            const h = 0.4 * Math.sin(Math.PI * 0.62 * arch) - curl * 0.06 * (1 - Math.cos((u - 0.7) * 14));
+            const h = 0.24 * Math.sin(Math.PI * 0.62 * arch) - curl * 0.05 * (1 - Math.cos((u - 0.7) * 14));
             const f = 0.1 * arch - 0.22 * arch * arch + curl * 0.07 * Math.sin((u - 0.7) * 14);
             const v = b.clone();
             v.addScaledVector(lidUp, lerp(h, 0.1 * u - 0.45 * u * u, antPoke));
             v.addScaledVector(fwd, lerp(f, 0.45 * u, antPoke));
-            v.x += sx * (0.02 + 0.2 * u) + antSweep * u * 0.3 * sx + (sway + q) * u * u;
+            v.x += sx * (0.02 + 0.13 * u) + antSweep * u * 0.3 * sx + (sway + q) * u * u;
             v.y += (sway * 0.5 - q) * u * u;
             if (v.y < 0.03) v.y = 0.03;
             pts.push(v);
@@ -840,8 +841,8 @@ Pets.register({
         tasselAng = Math.max(-0.8, Math.min(0.8, tasselAng));
         const tp = v2.clone();
         const out = V3(Math.sin(KA), 0, Math.cos(KA)).applyQuaternion(bodyG.getWorldQuaternion(new THREE.Quaternion()));
-        const bottom = tp.clone().addScaledVector(out, 0.2 + Math.abs(tasselAng) * 0.02);
-        bottom.y -= 0.2;
+        const bottom = tp.clone().addScaledVector(out, 0.15 + Math.abs(tasselAng) * 0.02);
+        bottom.y -= 0.13;
         bottom.x += Math.sin(tasselAng) * 0.05;
         const bl = bodyG.worldToLocal(big.localToWorld(bottom.clone()));
         tasselG.position.copy(bl);
