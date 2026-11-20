@@ -149,20 +149,59 @@ Pets.register({
 
     const plateTex = (() => {
       if (!hasDoc) return null;
-      const W = 512;
-      const H = 256;
+      const N = 512;
       const c = document.createElement("canvas");
-      c.width = W;
-      c.height = H;
+      c.width = N;
+      c.height = N;
       const g = c.getContext("2d");
-      g.fillStyle = "#5c3d1c";
-      g.fillRect(0, 0, W, H);
-      const r = 26;
-      for (let row = -1; row * r * 1.5 < H + r; row++)
-        for (let col = -1; col * r * 1.732 < W + r; col++) rosette(g, col * r * 1.732 + (row % 2 ? r * 0.866 : 0), row * r * 1.5, r);
+      const cols = 4;
+      const rows = 4;
+      const r = 70;
+      const W0 = cols * r * Math.sqrt(3);
+      const H0 = rows * r * 1.5;
+      g.scale(N / W0, N / H0);
+      g.fillStyle = "#3e2812";
+      g.fillRect(0, 0, W0, H0);
+      let seed = 7;
+      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+      const hex = (cx, cy, rr) => {
+        g.beginPath();
+        for (let i = 0; i < 6; i++) {
+          const a = (i / 6) * TAU + Math.PI / 6;
+          const x = cx + Math.cos(a) * rr;
+          const y = cy + Math.sin(a) * rr;
+          i ? g.lineTo(x, y) : g.moveTo(x, y);
+        }
+        g.closePath();
+      };
+      for (let row = -1; row <= rows; row++)
+        for (let col = -1; col <= cols; col++) {
+          const cx = col * r * Math.sqrt(3) + (row % 2 ? (r * Math.sqrt(3)) / 2 : 0);
+          const cy = row * r * 1.5;
+          const v = rnd();
+          g.lineJoin = "round";
+          hex(cx, cy, r * 0.86);
+          const gr = g.createRadialGradient(cx - r * 0.18, cy - r * 0.22, r * 0.05, cx, cy, r * 0.9);
+          gr.addColorStop(0, v > 0.5 ? "#f0cf8c" : "#e9c27e");
+          gr.addColorStop(0.55, v > 0.5 ? "#c9954f" : "#c08945");
+          gr.addColorStop(1, "#8a5a28");
+          g.fillStyle = gr;
+          g.fill();
+          g.lineWidth = r * 0.07;
+          g.strokeStyle = "rgba(255,236,190,0.35)";
+          hex(cx, cy, r * 0.62);
+          g.stroke();
+          for (let k = 0; k < 6; k++) {
+            const a = (k / 6) * TAU + Math.PI / 6 + 0.5;
+            g.beginPath();
+            g.arc(cx + Math.cos(a) * r * 0.72, cy + Math.sin(a) * r * 0.72, r * 0.035, 0, TAU);
+            g.fillStyle = "rgba(60,36,16,0.6)";
+            g.fill();
+          }
+        }
       const t = new THREE.CanvasTexture(c);
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.anisotropy = 4;
+      t.anisotropy = 8;
       return t;
     })();
 
@@ -203,6 +242,25 @@ Pets.register({
       const p = g.attributes.position;
       const uv = g.attributes.uv;
       for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) / r) * k * 0.5 + 0.5, (p.getZ(i) / r) * k + 0.5);
+      return g;
+    };
+    const lameDome = (R, n, k) => {
+      const pts = [];
+      const y0 = R * Math.cos(1.3);
+      const S = 40;
+      for (let i = 0; i <= S; i++) {
+        const th = 1.3 * (1 - i / S);
+        const y = R * Math.cos(th);
+        const q = ((1.3 - th) / 1.3) * n;
+        const fr = q - Math.floor(q);
+        const lip = i < S ? 1 + 0.06 * Math.pow(1 - fr, 2) * (1 - (i / S) * 0.5) : 1;
+        pts.push(V2(Math.max(0.0001, R * Math.sin(th) * lip * 1.0), y));
+      }
+      pts[0].x *= 1.0;
+      const g = new THREE.LatheGeometry(pts, 40);
+      const p = g.attributes.position;
+      const uv = g.attributes.uv;
+      for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) / R) * k + 0.5, (p.getZ(i) / R) * k + 0.5);
       return g;
     };
     const TC = V3(0, 1.32 - HIP, -0.04);
@@ -335,6 +393,7 @@ Pets.register({
       });
     }
     for (let j = 4; j <= NV - 4; j += 5) {
+      if (Math.cos(((j / NV) * 2 - 1) * azOf(-1)) < 0.05) continue;
       const m = mesh(spikeGeo, knobMat, false);
       m.position.copy(at(2, j));
       m.quaternion.setFromUnitVectors(UPV, nAt(2, j).add(V3(0, -0.8, 0)).normalize());
@@ -366,19 +425,47 @@ Pets.register({
       n.position.set(0.034 * s, 0, 0.045);
       nose.add(n);
     });
-    const helmet = mesh(capUv(new THREE.SphereGeometry(0.385, 44, 22, 0, TAU, 0, 1.1), 0.385, 0.8), plateMat2);
-    helmet.scale.set(0.92, 0.86, 1.08);
-    helmet.rotation.x = -0.45;
-    helmet.position.set(0, 0.035, -0.02);
+    const HC = 1.08;
+    const HT = -0.2;
+    const helmetGeo = new THREE.SphereGeometry(0.36, 56, 24, 0, TAU, 0, HC);
+    helmetGeo.rotateX(HT);
+    capUv(helmetGeo, 0.36, 0.62);
+    const helmet = mesh(helmetGeo, plateMat2);
+    helmet.scale.set(1.05 * 1.04, 0.9 * 1.04, 1.02 * 1.04);
     head.add(helmet);
-    const snoutPlateGeo = new THREE.CylinderGeometry(0.142, 0.238, 0.34, 28, 6, true, Math.PI * 0.6, Math.PI * 0.8);
+    const hEdge = [];
+    for (let k = 0; k < 64; k++) {
+      const ph = (k / 64) * TAU;
+      const v = V3(-0.36 * Math.cos(ph) * Math.sin(HC), 0.36 * Math.cos(HC), 0.36 * Math.sin(ph) * Math.sin(HC));
+      v.applyAxisAngle(V3(1, 0, 0), HT);
+      v.set(v.x * 1.05 * 1.04, v.y * 0.9 * 1.04, v.z * 1.02 * 1.04);
+      hEdge.push(v);
+    }
+    head.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hEdge, true), 128, 0.022, 8, true), rimMat));
+    const snoutProfile = [V2(0.24, -0.05), V2(0.22, 0.06), V2(0.17, 0.22), V2(0.125, 0.36), V2(0.09, 0.45), V2(0.0001, 0.465)];
+    const plateProf = [];
+    for (let k = 0; k <= 12; k++) {
+      const y = 0.04 + k * 0.026;
+      let x = 0;
+      for (let q = 0; q < snoutProfile.length - 1; q++) {
+        const A = snoutProfile[q];
+        const B = snoutProfile[q + 1];
+        if (y >= A.y && y <= B.y) x = lerp(A.x, B.x, (y - A.y) / (B.y - A.y));
+      }
+      plateProf.push(V2(x * 1.045, y));
+    }
+    const snoutPlateGeo = new THREE.LatheGeometry(plateProf, 32, Math.PI - 0.95, 1.9);
     snoutPlateGeo.rotateX(Math.PI / 2);
+    {
+      const pp = snoutPlateGeo.attributes.position;
+      const uv = snoutPlateGeo.attributes.uv;
+      for (let i = 0; i < pp.count; i++) uv.setXY(i, pp.getX(i) * 2.6, pp.getZ(i) * 2.6);
+    }
     const snoutPlate = mesh(snoutPlateGeo, plateMat2);
-    snoutPlate.position.set(0, 0, 0.19);
     snout.add(snoutPlate);
     const ears = [-1, 1].map(s => {
       const eg = new THREE.Group();
-      eg.position.set(0.25 * s, 0.17, -0.2);
+      eg.position.set(0.3 * s, 0.07, -0.17);
       eg.rotation.set(-0.35, 0.5 * s, -0.55 * s);
       head.add(eg);
       const outer = mesh(new THREE.SphereGeometry(0.1, 20, 14), skinMat);
@@ -547,14 +634,14 @@ Pets.register({
       const pg = new THREE.Group();
       pg.position.copy(sh.position);
       upper.add(pg);
-      const pauld = mesh(capUv(new THREE.SphereGeometry(0.29, 30, 16, 0, TAU, 0, 1.3), 0.29, 0.6), plateMat2);
-      pauld.scale.set(1, 0.88, 1.05);
+      const pauld = mesh(lameDome(0.3, 3, 0.55), plateMat2);
+      pauld.scale.set(1, 0.95, 1.05);
       pauld.position.set(0.02 * sx, 0.0, 0);
       pauld.rotation.z = -0.5 * sx;
       pg.add(pauld);
-      const pRim = mesh(new THREE.TorusGeometry(0.29 * Math.sin(1.3), 0.028, 8, 36), rimMat, false);
+      const pRim = mesh(new THREE.TorusGeometry(0.3 * Math.sin(1.3) * 1.06, 0.026, 8, 40), rimMat, false);
       pRim.rotation.x = Math.PI / 2;
-      pRim.position.y = 0.29 * Math.cos(1.3);
+      pRim.position.y = 0.3 * Math.cos(1.3);
       pauld.add(pRim);
       const upperArm = mesh(new THREE.LatheGeometry([V2(0.0001, -0.5), V2(0.12, -0.49), V2(0.145, -0.42), V2(0.16, -0.25), V2(0.18, -0.1), V2(0.17, 0.02), V2(0.0001, 0.08)], 24), skinMat);
       sh.add(upperArm);
@@ -598,7 +685,11 @@ Pets.register({
       knee.position.y = -0.36;
       hip.add(knee);
       knee.add(mesh(new THREE.SphereGeometry(0.175, 20, 14), skinMat));
-      const kcap = mesh(capUv(new THREE.SphereGeometry(0.19, 22, 10, 0, TAU, 0, 1.15), 0.19, 0.42), plateMat2);
+      const kcap = mesh(lameDome(0.19, 2, 0.4), plateMat2);
+      const kRim = mesh(new THREE.TorusGeometry(0.19 * Math.sin(1.3) * 1.06, 0.018, 8, 32), rimMat, false);
+      kRim.rotation.x = Math.PI / 2;
+      kRim.position.y = 0.19 * Math.cos(1.3);
+      kcap.add(kRim);
       kcap.rotation.x = Math.PI / 2 - 0.15;
       kcap.position.set(0, 0.02, 0.02);
       knee.add(kcap);
