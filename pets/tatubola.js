@@ -5,6 +5,8 @@ Pets.register({
   color: "#c8923e",
   types: ["ground", "steel"],
   stage: 2,
+  evolvesTo: "escavatatu",
+  evolveLevel: 36,
   description: "As cintas do casco viraram rodas de borracha com garras de aço, e ele passa o dia rolando ladeira abaixo. Freia cravando a pá do rabo no chão, levantando uma nuvem de terra e faíscas.",
   actions: {
     jump: { duration: 1.0 },
