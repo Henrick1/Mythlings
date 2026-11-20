@@ -5,23 +5,24 @@ Pets.register({
   color: "#9c6a2c",
   types: ["ground", "steel"],
   stage: 3,
-  description: "O casco do Tatubola parou de rolar e cresceu numa cúpula de rosetas de osso, presa por cintas de aço. As garras da frente se torceram em brocas que atravessam rocha, e a pá do rabo varre montanhas de terra de uma vez. Quando ameaçado, se abaixa, tampa a entrada com o elmo e vira uma fortaleza.",
+  description: "Depois de anos rolando, o Tatubola se levanta nas patas de trás e não volta mais a ficar de quatro. O casco virou uma armadura de rosetas de osso presa por cintas de aço, e os braços ganharam garras enormes que se fecham numa ponta só e giram como uma broca, atravessando rocha. A pá do rabo serve de apoio quando ele finca os pés para cavar.",
   actions: {
-    jump: { duration: 1.4 },
+    jump: { duration: 1.5 },
     eat: { duration: 2.4 },
     drill: { duration: 2.8 },
+    slash: { duration: 1.3 },
     sweep: { duration: 1.9 },
     hide: { duration: 3.0 },
     sniff: { duration: 2.0 }
   },
-  battle: { attack: { action: "sweep", hit: 0.48, speed: 1.0 }, special: { action: "drill", hit: 0.6, speed: 1.0 } },
+  battle: { attack: { action: "slash", hit: 0.5, speed: 1.0 }, special: { action: "drill", hit: 0.6, speed: 1.0 } },
   idle: [
     { action: "sniff", min: 12, max: 30 },
     { action: "drill", min: 30, max: 70 },
     { action: "hide", min: 40, max: 80 },
     { action: "sweep", min: 40, max: 90 }
   ],
-  clickAction: n => ["hide", "drill", "sniff", "sweep", "jump"][(n - 1) % 5],
+  clickAction: n => ["hide", "drill", "slash", "sniff", "sweep", "jump"][(n - 1) % 6],
 
   create({ THREE, kit }) {
     const { mat, mesh, lerp, smooth, eye, followPupils, eatPhase, berry } = kit;
@@ -35,15 +36,12 @@ Pets.register({
     root.add(big);
     const bodyG = new THREE.Group();
     big.add(bodyG);
+    const HIP = 0.84;
+    const upper = new THREE.Group();
+    upper.position.y = HIP;
+    bodyG.add(upper);
 
-    const R = 0.8;
-    const CY = 0.86;
     const BANDS = [-0.12, 0.0, 0.12, 0.24];
-    const LA_F = 1.12;
-    const LA_B = 1.45;
-    const AZ = 1.86;
-    const ZS = 1.16;
-    const YS = 1.18;
     const hasDoc = typeof document !== "undefined";
 
     const rosette = (g, cx, cy, r) => {
@@ -173,17 +171,70 @@ Pets.register({
     const plateMat2 = plateMat.clone();
     plateMat2.side = THREE.DoubleSide;
     const innerMat = new THREE.MeshStandardMaterial({ color: 0x3a2814, roughness: 0.9, side: THREE.BackSide });
-    const skinMat = mat(0xc98f68, 0.72);
-    const bellyMat = mat(0xd9a27c, 0.78);
+    const skinMat = mat(0xae7652, 0.72);
+    const bellyTex = (() => {
+      if (!hasDoc) return null;
+      const c = document.createElement("canvas");
+      c.width = 64;
+      c.height = 256;
+      const g = c.getContext("2d");
+      g.fillStyle = "#e6b58e";
+      g.fillRect(0, 0, 64, 256);
+      for (let y = 40; y < 230; y += 26) {
+        const gr = g.createLinearGradient(0, y - 5, 0, y + 5);
+        gr.addColorStop(0, "rgba(160,100,70,0)");
+        gr.addColorStop(0.5, "rgba(160,100,70,0.45)");
+        gr.addColorStop(1, "rgba(160,100,70,0)");
+        g.fillStyle = gr;
+        g.fillRect(0, y - 5, 64, 10);
+      }
+      return new THREE.CanvasTexture(c);
+    })();
+    const bellyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: bellyTex, roughness: 0.8 });
     const noseMat = mat(0x8e5048, 0.5);
-    const steelMat = new THREE.MeshStandardMaterial({ color: 0xc9d1d9, roughness: 0.3, metalness: 0.45 });
-    const darkSteel = new THREE.MeshStandardMaterial({ color: 0x6b737c, roughness: 0.35, metalness: 0.5 });
-    const keratin = new THREE.MeshStandardMaterial({ color: 0x5a3c1f, roughness: 0.4, metalness: 0.12 });
+    const keratin = new THREE.MeshStandardMaterial({ color: 0x4a3018, roughness: 0.35, metalness: 0.15 });
+    const clawTip = new THREE.MeshStandardMaterial({ color: 0xc9d1d9, roughness: 0.3, metalness: 0.45 });
     const knobMat = new THREE.MeshStandardMaterial({ color: 0xc28a46, roughness: 0.45, metalness: 0.1 });
+    const rimMat = new THREE.MeshStandardMaterial({ color: 0x6e4a22, roughness: 0.55, metalness: 0.1 });
+    const ribMat = new THREE.MeshStandardMaterial({ color: 0xaab3bd, roughness: 0.25, metalness: 0.85 });
     const darkMat = mat(0x221a14, 0.5);
 
-    const NU = 90;
-    const NV = 56;
+    const capUv = (g, r, k) => {
+      const p = g.attributes.position;
+      const uv = g.attributes.uv;
+      for (let i = 0; i < p.count; i++) uv.setXY(i, (p.getX(i) / r) * k * 0.5 + 0.5, (p.getZ(i) / r) * k + 0.5);
+      return g;
+    };
+    const TC = V3(0, 1.32 - HIP, -0.04);
+    const TR = V3(0.66, 0.74, 0.56);
+    const LT = Math.PI / 2 - 0.015;
+    const LB = 0.95;
+    const azOf = u => (u < 0 ? lerp(2.15, 1.25, smooth(-0.6, -0.22, u)) : lerp(1.25, Math.PI - 0.32, smooth(0.32, 0.56, u)));
+
+    const torsoGeo = new THREE.SphereGeometry(1, 56, 40);
+    const torso = mesh(torsoGeo, skinMat);
+    torso.scale.copy(TR);
+    torso.position.copy(TC);
+    upper.add(torso);
+    const bellyGeo = new THREE.SphereGeometry(1, 48, 48);
+    {
+      const bp = bellyGeo.attributes.position;
+      for (let i = 0; i < bp.count; i++) {
+        const y = bp.getY(i);
+        const ph = Math.asin(Math.max(-1, Math.min(1, y)));
+        const z = bp.getZ(i);
+        const k = 1 + 0.045 * Math.pow(Math.max(0, Math.sin(ph * 7 + 0.4)), 0.6) * Math.max(0, z);
+        bp.setXYZ(i, bp.getX(i) * k, y, z * k);
+      }
+      bellyGeo.computeVertexNormals();
+    }
+    const belly = mesh(bellyGeo, bellyMat);
+    belly.scale.set(0.45, 0.7, 0.32);
+    belly.position.set(0, 1.3 - HIP, 0.24);
+    upper.add(belly);
+
+    const NU = 80;
+    const NV = 60;
     const sPos = new Float32Array((NU + 1) * (NV + 1) * 3);
     const sUv = new Float32Array((NU + 1) * (NV + 1) * 2);
     const sIdx = [];
@@ -191,23 +242,24 @@ Pets.register({
       let r = 0;
       BANDS.forEach((b, i) => {
         const d = u - b;
-        if (i > 0) r += 0.04 * Math.exp(-((d + 0.012) * (d + 0.012)) / 0.00025) - 0.018 * Math.exp(-((d - 0.018) * (d - 0.018)) / 0.0003);
-        else r -= 0.02 * Math.exp(-(d * d) / 0.0003);
+        if (i > 0) r += 0.035 * Math.exp(-((d + 0.012) * (d + 0.012)) / 0.00025) - 0.015 * Math.exp(-((d - 0.018) * (d - 0.018)) / 0.0003);
+        else r -= 0.018 * Math.exp(-(d * d) / 0.0003);
       });
       return r;
     };
     for (let i = 0; i <= NU; i++) {
       const u = (i / NU) * 2 - 1;
-      const la = u * (u < 0 ? LA_B : LA_F);
-      const rr = R * (1 + ridge(u));
+      const la = u * (u < 0 ? LB : LT);
+      const AZ = azOf(u);
       for (let j = 0; j <= NV; j++) {
         const v = (j / NV) * 2 - 1;
         const az = v * AZ;
-        const flare = 1 + 0.07 * Math.pow(Math.abs(v), 6);
+        const e = Math.min((1 - Math.abs(v)) * AZ * 1.1, 1 - u, (1 + u) * 1.4);
+        const rk = (1.03 + (0.06 + 0.3 * smooth(-0.35, 0.85, Math.cos(az))) * smooth(0, 0.45, e)) * (1 + ridge(u) * smooth(0, 0.1, e));
         const k = i * (NV + 1) + j;
-        sPos[k * 3] = rr * Math.cos(la) * Math.sin(az) * flare;
-        sPos[k * 3 + 1] = rr * Math.cos(la) * Math.cos(az) * YS;
-        sPos[k * 3 + 2] = rr * Math.sin(la) * ZS * (1 + 0.04 * Math.pow(Math.abs(u), 6));
+        sPos[k * 3] = TR.x * rk * Math.cos(la) * Math.sin(az);
+        sPos[k * 3 + 1] = TC.y + TR.y * rk * Math.sin(la);
+        sPos[k * 3 + 2] = TC.z - TR.z * rk * Math.cos(la) * Math.cos(az);
         sUv[k * 2] = i / NU;
         sUv[k * 2 + 1] = j / NV;
         if (i < NU && j < NV) sIdx.push(k, k + NV + 1, k + 1, k + NV + 1, k + NV + 2, k + 1);
@@ -227,88 +279,76 @@ Pets.register({
       const k = i * (NV + 1) + j;
       return V3(sN.getX(k), sN.getY(k), sN.getZ(k)).normalize();
     };
-
-    const domeG = new THREE.Group();
-    domeG.position.y = CY;
-    bodyG.add(domeG);
-    domeG.add(mesh(shellGeo, shellMat));
+    upper.add(mesh(shellGeo, shellMat));
     const shellIn = new THREE.Mesh(shellGeo, innerMat);
-    shellIn.scale.setScalar(0.975);
-    domeG.add(shellIn);
+    shellIn.scale.setScalar(0.985);
+    shellIn.position.copy(TC).multiplyScalar(0.015);
+    upper.add(shellIn);
 
-    const rimMat = new THREE.MeshStandardMaterial({ color: 0x6e4a22, roughness: 0.55, metalness: 0.1 });
-    const edgePts = [];
-    for (let i = NU; i >= 0; i -= 2) edgePts.push(at(i, 0));
-    const rimSide = (j, dir) => {
-      const pts = [];
-      for (let i = 0; i <= NU; i += 2) pts.push(at(dir > 0 ? i : NU - i, j));
-      return pts;
+    const tube = (pts, r, m, closed) => mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, !!closed), Math.max(24, pts.length * 2), r, 10, !!closed), m);
+    const colPts = j => {
+      const p = [];
+      for (let i = 0; i <= NU; i += 2) p.push(at(i, j));
+      return p;
     };
-    [rimSide(0, 1), rimSide(NV, 1)].forEach(pts => domeG.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 90, 0.045, 10, false), rimMat)));
-    const frontPts = [];
-    for (let j = 0; j <= NV; j += 2) frontPts.push(at(NU, j));
-    domeG.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(frontPts), 60, 0.045, 10, false), rimMat));
+    const rowPts = i => {
+      const p = [];
+      for (let j = 0; j <= NV; j += 2) p.push(at(i, j));
+      return p;
+    };
+    upper.add(tube(colPts(0), 0.045, rimMat));
+    upper.add(tube(colPts(NV), 0.045, rimMat));
+    upper.add(tube(rowPts(0), 0.045, rimMat));
     [0, NV].forEach(j => {
-      [0, NU].forEach(i => {
-        const cap = mesh(new THREE.SphereGeometry(0.045, 12, 10), rimMat, false);
-        cap.position.copy(at(i, j));
-        domeG.add(cap);
-      });
+      const c = mesh(new THREE.SphereGeometry(0.045, 12, 10), rimMat, false);
+      c.position.copy(at(0, j));
+      upper.add(c);
     });
-
-    const ribMat = new THREE.MeshStandardMaterial({ color: 0xaab3bd, roughness: 0.25, metalness: 0.85 });
+    const crown = mesh(new THREE.SphereGeometry(0.05, 14, 10), rimMat, false);
+    crown.position.copy(at(NU, NV / 2));
+    upper.add(crown);
     BANDS.forEach(b => {
       const i = Math.round(((b + 1) / 2) * NU);
-      const pts = [];
-      for (let j = 0; j <= NV; j += 2) pts.push(at(i, j, 0.012));
-      domeG.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 64, 0.03, 10, false), ribMat));
+      const p = [];
+      for (let j = 0; j <= NV; j += 2) p.push(at(i, j, 0.01));
+      upper.add(tube(p, 0.028, ribMat));
+      [p[0], p[p.length - 1]].forEach(q => {
+        const c = mesh(new THREE.SphereGeometry(0.028, 12, 10), ribMat, false);
+        c.position.copy(q);
+        upper.add(c);
+      });
     });
 
     const UPV = V3(0, 1, 0);
-    const knobGeo = new THREE.LatheGeometry([V2(0.085, -0.03), V2(0.088, 0.01), V2(0.078, 0.045), V2(0.055, 0.075), V2(0.025, 0.095), V2(0.0001, 0.1)], 18);
-    const spikeGeo = new THREE.LatheGeometry([V2(0.05, -0.02), V2(0.05, 0.01), V2(0.035, 0.05), V2(0.012, 0.09), V2(0.0001, 0.1)], 12);
-    for (let i = 4; i <= NU - 3; i += 6) {
+    const knobGeo = new THREE.LatheGeometry([V2(0.075, -0.03), V2(0.078, 0.01), V2(0.068, 0.042), V2(0.048, 0.068), V2(0.022, 0.085), V2(0.0001, 0.09)], 18);
+    const spikeGeo = new THREE.LatheGeometry([V2(0.045, -0.02), V2(0.045, 0.01), V2(0.032, 0.045), V2(0.011, 0.08), V2(0.0001, 0.09)], 12);
+    for (let i = 5; i <= NU - 4; i += 6) {
       const u = (i / NU) * 2 - 1;
       if (u > BANDS[0] - 0.05 && u < BANDS[3] + 0.05) continue;
-      [NV / 2 - 8, NV / 2, NV / 2 + 8].forEach((j, n) => {
-        if (n !== 1 && (u > 0.8 || u < -0.85)) return;
+      if (u > 0.8) continue;
+      [NV / 2 - 9, NV / 2, NV / 2 + 9].forEach((j, n) => {
         const m = mesh(knobGeo, knobMat, n === 1);
-        if (n !== 1) m.scale.setScalar(0.7);
+        if (n !== 1) m.scale.setScalar(0.72);
         m.position.copy(at(i, j));
         m.quaternion.setFromUnitVectors(UPV, nAt(i, j));
-        domeG.add(m);
+        upper.add(m);
       });
     }
-    [3, NV - 3].forEach(j => {
-      for (let i = 6; i <= NU - 4; i += 7) {
-        const u = (i / NU) * 2 - 1;
-        if (u > BANDS[0] - 0.04 && u < BANDS[3] + 0.04) continue;
-        const m = mesh(spikeGeo, knobMat, false);
-        m.position.copy(at(i, j));
-        m.quaternion.setFromUnitVectors(UPV, nAt(i, j));
-        domeG.add(m);
-      }
-    });
-
-    const bellyGeo = new THREE.SphereGeometry(1, 48, 32);
-    const bp = bellyGeo.attributes.position;
-    for (let i = 0; i < bp.count; i++) {
-      const x = bp.getX(i);
-      const y = bp.getY(i);
-      const z = bp.getZ(i);
-      bp.setXYZ(i, x * 0.7, y * (y > 0 ? 0.62 : 0.5), z * (z < 0 ? 0.78 : 0.92));
+    for (let j = 4; j <= NV - 4; j += 5) {
+      const m = mesh(spikeGeo, knobMat, false);
+      m.position.copy(at(2, j));
+      m.quaternion.setFromUnitVectors(UPV, nAt(2, j).add(V3(0, -0.8, 0)).normalize());
+      upper.add(m);
     }
-    bellyGeo.computeVertexNormals();
-    const belly = mesh(bellyGeo, bellyMat);
-    belly.position.y = -0.14;
-    domeG.add(belly);
 
     const headPivot = new THREE.Group();
-    domeG.add(headPivot);
+    headPivot.position.set(0, 2.06 - HIP, 0.36);
+    upper.add(headPivot);
     const head = new THREE.Group();
+    head.scale.setScalar(1.15);
     headPivot.add(head);
     const skull = mesh(new THREE.SphereGeometry(0.36, 40, 28), skinMat);
-    skull.scale.set(1.05, 0.88, 1.02);
+    skull.scale.set(1.05, 0.9, 1.02);
     head.add(skull);
     const snoutGeo = new THREE.LatheGeometry([V2(0.24, -0.05), V2(0.22, 0.06), V2(0.17, 0.22), V2(0.125, 0.36), V2(0.09, 0.45), V2(0.0001, 0.465)], 36);
     snoutGeo.rotateX(Math.PI / 2);
@@ -326,9 +366,9 @@ Pets.register({
       n.position.set(0.034 * s, 0, 0.045);
       nose.add(n);
     });
-    const helmet = mesh(new THREE.SphereGeometry(0.385, 44, 22, 0, TAU, 0, 0.95), plateMat2);
-    helmet.scale.set(0.9, 0.86, 1.08);
-    helmet.rotation.x = -0.25;
+    const helmet = mesh(capUv(new THREE.SphereGeometry(0.385, 44, 22, 0, TAU, 0, 1.1), 0.385, 0.8), plateMat2);
+    helmet.scale.set(0.92, 0.86, 1.08);
+    helmet.rotation.x = -0.45;
     helmet.position.set(0, 0.035, -0.02);
     head.add(helmet);
     const snoutPlateGeo = new THREE.CylinderGeometry(0.142, 0.238, 0.34, 28, 6, true, Math.PI * 0.6, Math.PI * 0.8);
@@ -338,17 +378,16 @@ Pets.register({
     snout.add(snoutPlate);
     const ears = [-1, 1].map(s => {
       const eg = new THREE.Group();
-      eg.position.set(0.3 * s, 0.04, -0.1);
-      eg.rotation.set(-0.1, 0.55 * s, -1.2 * s);
+      eg.position.set(0.25 * s, 0.17, -0.2);
+      eg.rotation.set(-0.35, 0.5 * s, -0.55 * s);
       head.add(eg);
-      const outer = mesh(new THREE.SphereGeometry(0.09, 18, 12, 0, TAU, 0, Math.PI * 0.55), skinMat);
-      outer.scale.set(1, 1.3, 0.5);
-      outer.rotation.x = -Math.PI / 2;
+      const outer = mesh(new THREE.SphereGeometry(0.1, 20, 14), skinMat);
+      outer.scale.set(0.95, 1.65, 0.38);
+      outer.position.y = 0.12;
       eg.add(outer);
-      const inner = mesh(new THREE.SphereGeometry(0.064, 16, 10, 0, TAU, 0, Math.PI * 0.5), noseMat, false);
-      inner.scale.set(1, 1.25, 0.35);
-      inner.rotation.x = -Math.PI / 2;
-      inner.position.z = 0.012;
+      const inner = mesh(new THREE.SphereGeometry(0.07, 18, 12), noseMat, false);
+      inner.scale.set(0.95, 1.6, 0.25);
+      inner.position.set(0, 0.13, 0.024);
       eg.add(inner);
       return eg;
     });
@@ -372,76 +411,119 @@ Pets.register({
     mouth.position.set(0, -0.255, 0.27);
     head.add(mouth);
 
-    const legs = [];
-    const drills = [];
-    const legSpec = [
-      [-1, 1],
-      [1, 1],
-      [-1, -1],
-      [1, -1]
-    ];
-    legSpec.forEach(([sx, sz]) => {
-      const front = sz > 0;
-      const lg = new THREE.Group();
-      lg.position.set(0.5 * sx, 0.62, front ? 0.46 : -0.5);
-      bodyG.add(lg);
-      const lr = front ? 0.215 : 0.205;
-      const legGeo = new THREE.LatheGeometry([V2(0.0001, -0.6), V2(lr * 0.86, -0.6), V2(lr * 0.98, -0.56), V2(lr * 0.9, -0.42), V2(lr * 0.86, -0.28), V2(lr * 0.95, -0.12), V2(lr * 1.05, 0.02), V2(lr * 0.9, 0.14), V2(0.0001, 0.2)], 26);
-      lg.add(mesh(legGeo, skinMat));
-      const cuffPts = [V2(0.0001, -0.34), V2(lr * 0.9, -0.34)];
-      for (let k = 0; k < 4; k++) {
-        const y0 = -0.32 + k * 0.12;
-        cuffPts.push(V2(lr * 1.08, y0 + 0.012), V2(lr * 1.16, y0 + 0.05), V2(lr * 1.12, y0 + 0.1), V2(lr * 1.04, y0 + 0.118));
+    const clawGeo = (len, r, bend) => {
+      const g = new THREE.ConeGeometry(r, len, 14, 10);
+      g.rotateX(Math.PI);
+      g.translate(0, -len / 2, 0);
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const t = -p.getY(i) / len;
+        p.setZ(i, p.getZ(i) * 0.75 + t * t * len * bend);
+        p.setX(i, p.getX(i) * 0.9);
       }
-      cuffPts.push(V2(lr * 0.9, 0.17), V2(0.0001, 0.2));
-      const cuff = mesh(new THREE.LatheGeometry(cuffPts, 28), rimMat);
-      lg.add(cuff);
-      const foot = mesh(new THREE.SphereGeometry(lr * 0.98, 22, 14, 0, TAU, 0, Math.PI / 2), skinMat);
-      foot.scale.set(1.08, 0.5, front ? 1.15 : 1.28);
-      foot.position.set(0, -0.6, 0.04);
-      lg.add(foot);
-      if (front) {
-        const drillG = new THREE.Group();
-        drillG.position.set(0, -0.47, 0.17);
-        drillG.rotation.x = Math.PI / 2 + 0.22;
-        drillG.scale.setScalar(1.3);
-        lg.add(drillG);
-        const spin = new THREE.Group();
-        drillG.add(spin);
-        const cone = mesh(new THREE.LatheGeometry([V2(0.075, 0), V2(0.072, 0.05), V2(0.058, 0.14), V2(0.038, 0.23), V2(0.014, 0.29), V2(0.0001, 0.31)], 24), steelMat);
-        spin.add(cone);
-        const hel = [];
-        for (let k = 0; k <= 80; k++) {
-          const q = k / 80;
-          const yy = 0.02 + q * 0.26;
-          const rr = lerp(0.075, 0.012, Math.pow(q, 1.15)) + 0.006;
-          const a = q * TAU * 3.2;
-          hel.push(V3(Math.cos(a) * rr, yy, Math.sin(a) * rr));
-        }
-        spin.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(hel), 160, 0.012, 6, false), darkSteel, false));
-        const collar = mesh(new THREE.TorusGeometry(0.078, 0.02, 8, 24), keratin, false);
-        collar.rotation.x = Math.PI / 2;
-        drillG.add(collar);
-        [-1, 1].forEach(k => {
-          const cl = mesh(new THREE.ConeGeometry(0.03, 0.13, 6), keratin, false);
-          cl.position.set(k * 0.1, 0.04, 0.02);
-          cl.rotation.z = -k * 0.25;
-          drillG.add(cl);
-        });
-        drills.push(spin);
-      } else {
-        for (let c = 0; c < 4; c++) {
-          const cl = mesh(new THREE.ConeGeometry(0.028, 0.1, 6), keratin, false);
-          cl.rotation.x = Math.PI / 2 + 0.5;
-          cl.position.set((c - 1.5) * 0.07, -0.585, 0.29);
-          lg.add(cl);
-        }
+      g.computeVertexNormals();
+      return g;
+    };
+    const ringBand = (r0, y0, y1, n) => {
+      const pts = [V2(0.0001, y0 - 0.001), V2(r0 * 0.9, y0)];
+      const h = (y1 - y0) / n;
+      for (let k = 0; k < n; k++) {
+        const a = y0 + k * h;
+        pts.push(V2(r0 * 1.02, a + h * 0.08), V2(r0 * 1.1, a + h * 0.4), V2(r0 * 1.07, a + h * 0.85), V2(r0 * 0.99, a + h * 0.99));
       }
-      legs.push({ lg, sx, sz, front });
+      pts.push(V2(r0 * 0.9, y1 + 0.001), V2(0.0001, y1 + 0.002));
+      return new THREE.LatheGeometry(pts, 28);
+    };
+
+    const arms = [-1, 1].map(sx => {
+      const sh = new THREE.Group();
+      sh.position.set(0.64 * sx, 1.72 - HIP, 0.08);
+      upper.add(sh);
+      const ball = mesh(new THREE.SphereGeometry(0.21, 24, 16), skinMat);
+      sh.add(ball);
+      const pg = new THREE.Group();
+      pg.position.copy(sh.position);
+      upper.add(pg);
+      const pauld = mesh(capUv(new THREE.SphereGeometry(0.29, 30, 16, 0, TAU, 0, 1.3), 0.29, 0.6), plateMat2);
+      pauld.scale.set(1, 0.88, 1.05);
+      pauld.position.set(0.02 * sx, 0.0, 0);
+      pauld.rotation.z = -0.5 * sx;
+      pg.add(pauld);
+      const pRim = mesh(new THREE.TorusGeometry(0.29 * Math.sin(1.3), 0.028, 8, 36), rimMat, false);
+      pRim.rotation.x = Math.PI / 2;
+      pRim.position.y = 0.29 * Math.cos(1.3);
+      pauld.add(pRim);
+      const upperArm = mesh(new THREE.LatheGeometry([V2(0.0001, -0.5), V2(0.12, -0.49), V2(0.145, -0.42), V2(0.16, -0.25), V2(0.18, -0.1), V2(0.17, 0.02), V2(0.0001, 0.08)], 24), skinMat);
+      sh.add(upperArm);
+      const el = new THREE.Group();
+      el.position.y = -0.46;
+      sh.add(el);
+      el.add(mesh(new THREE.SphereGeometry(0.145, 20, 14), skinMat));
+      const fore = mesh(new THREE.LatheGeometry([V2(0.0001, -0.5), V2(0.15, -0.49), V2(0.19, -0.42), V2(0.2, -0.28), V2(0.175, -0.1), V2(0.14, 0.02), V2(0.0001, 0.06)], 26), skinMat);
+      el.add(fore);
+      el.add(mesh(ringBand(0.212, -0.44, -0.12, 4), rimMat));
+      const wrist = new THREE.Group();
+      wrist.position.y = -0.5;
+      el.add(wrist);
+      const hand = new THREE.Group();
+      wrist.add(hand);
+      const palm = mesh(new THREE.SphereGeometry(0.17, 22, 16), skinMat);
+      palm.scale.set(1, 0.75, 0.9);
+      palm.position.y = -0.05;
+      hand.add(palm);
+      const claws = [-1, 0, 1].map(c => {
+        const cg = new THREE.Group();
+        cg.position.set(c * 0.095, -0.1, 0.05 + (c ? 0 : 0.02));
+        cg.rotation.z = c * 0.16;
+        hand.add(cg);
+        const len = c ? 0.27 : 0.36;
+        const base = mesh(new THREE.SphereGeometry(c ? 0.05 : 0.062, 14, 10), keratin, false);
+        cg.add(base);
+        cg.add(mesh(clawGeo(len, c ? 0.05 : 0.062, 0.32), keratin));
+        return { cg, c, len };
+      });
+      return { sh, el, wrist, hand, claws, sx, palm, pg };
     });
 
+    const legs = [-1, 1].map(sx => {
+      const hip = new THREE.Group();
+      hip.position.set(0.33 * sx, HIP, 0.02);
+      bodyG.add(hip);
+      hip.add(mesh(new THREE.SphereGeometry(0.25, 24, 16), skinMat));
+      hip.add(mesh(new THREE.LatheGeometry([V2(0.0001, -0.38), V2(0.17, -0.37), V2(0.2, -0.3), V2(0.24, -0.16), V2(0.25, -0.04), V2(0.0001, 0.05)], 26), skinMat));
+      const knee = new THREE.Group();
+      knee.position.y = -0.36;
+      hip.add(knee);
+      knee.add(mesh(new THREE.SphereGeometry(0.175, 20, 14), skinMat));
+      const kcap = mesh(capUv(new THREE.SphereGeometry(0.19, 22, 10, 0, TAU, 0, 1.15), 0.19, 0.42), plateMat2);
+      kcap.rotation.x = Math.PI / 2 - 0.15;
+      kcap.position.set(0, 0.02, 0.02);
+      knee.add(kcap);
+      knee.add(mesh(new THREE.LatheGeometry([V2(0.0001, -0.37), V2(0.15, -0.36), V2(0.16, -0.25), V2(0.165, -0.1), V2(0.17, 0.0), V2(0.0001, 0.05)], 24), skinMat));
+      knee.add(mesh(ringBand(0.178, -0.3, -0.08, 3), rimMat));
+      const ankle = new THREE.Group();
+      ankle.position.y = -0.36;
+      knee.add(ankle);
+      ankle.add(mesh(new THREE.SphereGeometry(0.15, 18, 12), skinMat));
+      const foot = mesh(new THREE.SphereGeometry(0.2, 26, 16), skinMat);
+      foot.scale.set(1.05, 0.55, 1.4);
+      foot.position.set(0, -0.11, 0.08);
+      ankle.add(foot);
+      [-1, 0, 1].forEach(c => {
+        const t = mesh(clawGeo(0.13, 0.04, 0.0), keratin, false);
+        t.rotation.x = -Math.PI / 2 - 0.35;
+        t.position.set(c * 0.1, -0.12, 0.33 - Math.abs(c) * 0.04);
+        ankle.add(t);
+      });
+      return { hip, knee, ankle, sx };
+    });
+    const L1 = 0.36;
+    const L2 = 0.36;
+    const FH = 0.12;
+
     const tailPivot = new THREE.Group();
-    domeG.add(tailPivot);
+    tailPivot.position.set(0, 0.7 - HIP, -0.3);
+    upper.add(tailPivot);
     const NS = 64;
     const NC = 30;
     const tailGeo = new THREE.BufferGeometry();
@@ -463,9 +545,9 @@ Pets.register({
     const tailMesh = mesh(tailGeo, plateMat);
     tailMesh.frustumCulled = false;
     tailPivot.add(tailMesh);
-    const tailRoot = mesh(new THREE.SphereGeometry(0.235, 26, 18), plateMat);
+    const tailRoot = mesh(new THREE.SphereGeometry(0.22, 26, 18), plateMat);
     tailRoot.scale.set(1, 0.95, 1.2);
-    tailRoot.position.z = 0.08;
+    tailRoot.position.z = 0.06;
     tailPivot.add(tailRoot);
     const tipFrame = new THREE.Group();
     tailPivot.add(tipFrame);
@@ -476,22 +558,22 @@ Pets.register({
       tooth.position.set(k * 0.08, -0.016, -0.035);
       tipFrame.add(tooth);
     });
-    const TL = 1.08;
-    const SPLIT = 0.55;
+    const TL = 1.2;
+    const SPLIT = 0.6;
     const tailShape = (th0, bend, hook) => {
       let py = 0;
       let pz = 0;
       const ds = TL / NS;
       for (let i = 0; i <= NS; i++) {
         const s = i / NS;
-        const th = lerp(-0.12, th0, smooth(0, 0.2, s)) + (bend * Math.min(s, SPLIT)) / SPLIT + hook * smooth(SPLIT - 0.08, 1, s);
+        const th = lerp(-0.4, th0, smooth(0, 0.2, s)) + (bend * Math.min(s, SPLIT)) / SPLIT + hook * smooth(SPLIT - 0.08, 1, s);
         const ty = Math.sin(th);
         const tz = -Math.cos(th);
         const ny = Math.cos(th);
         const nz = Math.sin(th);
         const m = smooth(SPLIT - 0.06, SPLIT + 0.25, s);
         const ring = 0.028 * Math.pow(Math.max(0, Math.sin(s * Math.PI * 9)), 2) * (1 - m) * smooth(0.04, 0.12, s);
-        const r = lerp(0.215, 0.1, Math.pow(Math.min(1, s / SPLIT), 0.75)) + ring;
+        const r = lerp(0.2, 0.095, Math.pow(Math.min(1, s / SPLIT), 0.75)) + ring;
         const end = smooth(0.9, 1, s);
         const w = lerp(r, 0.34, m) * (1 - 0.15 * end);
         const h = lerp(r, 0.115, m) * (1 - 0.35 * end);
@@ -522,13 +604,12 @@ Pets.register({
       tailGeo.attributes.position.needsUpdate = true;
       tailGeo.computeVertexNormals();
     };
-    tailPivot.position.set(0, -0.08, -R * Math.sin(LA_B) * ZS * 0.9);
 
     const dirtMat = new THREE.MeshStandardMaterial({ color: 0x86603c, roughness: 1 });
     const rockMat = new THREE.MeshStandardMaterial({ color: 0x8f8a80, roughness: 0.9 });
     const debris = [];
     for (let k = 0; k < 20; k++) {
-      const m = mesh(new THREE.DodecahedronGeometry(0.04 + (k % 4) * 0.018), k % 3 ? dirtMat : rockMat, false);
+      const m = mesh(new THREE.DodecahedronGeometry(0.045 + (k % 4) * 0.02), k % 3 ? dirtMat : rockMat, false);
       m.visible = false;
       big.add(m);
       debris.push({ m, k, a: (k / 20) * 2 - 1, sp: 0.7 + (k % 5) * 0.15 });
@@ -553,6 +634,18 @@ Pets.register({
     const food = berry();
     food.visible = false;
     big.add(food);
+    const tmpV = new THREE.Vector3();
+
+    const pose = (a, s) => {
+      a.sh.rotation.set(s.sx || 0, 0, s.sz || 0);
+      a.el.rotation.set(s.ex || 0, 0, s.ez || 0);
+      a.wrist.rotation.set(s.wx || 0, 0, 0);
+    };
+    const mix = (a, b, k) => {
+      const o = {};
+      Object.keys(a).concat(Object.keys(b)).forEach(n => (o[n] = lerp(a[n] || 0, b[n] || 0, k)));
+      return o;
+    };
 
     return {
       root,
@@ -562,110 +655,147 @@ Pets.register({
         const p = action ? action.p : 0;
         const ph = nm === "eat" ? eatPhase(p) : null;
 
-        let lift = 0;
-        let pitch = 0;
-        let roll = 0;
-        let sink = 0;
-        let sy = 1 + Math.sin(t * 1.3) * 0.008 * motion;
-        let headPitch = 0;
+        const breath = Math.sin(t * 1.4) * motion;
+        let drop = 0.02 + breath * 0.008;
+        let lean = 0.16;
+        let twist = 0;
+        let sideLean = 0;
+        let headPitch = 0.05;
         let headYaw = 0;
-        let headIn = 0;
+        let headDuck = 0;
         let earK = 0;
         let impact = 0;
-        let drillSpin = 0;
-        let drillDig = 0;
-        let frontReach = 0;
+        let spin = 0;
+        let converge = 0;
         let shut = 0;
-        let baseA = -0.3 + Math.sin(t * 0.9) * 0.04 * motion;
-        let bendA = 0.45 + Math.sin(t * 1.2 + 1) * 0.05 * motion;
-        let hookA = -1.7 + Math.sin(t * 1.5 + 2) * 0.08 * motion;
+        let liftL = 0;
+        let liftR = 0;
+        let baseA = -0.5 + Math.sin(t * 0.9) * 0.03 * motion;
+        let bendA = 0.32 + Math.sin(t * 1.2 + 1) * 0.04 * motion;
+        let hookA = -1.5 + Math.sin(t * 1.5 + 2) * 0.06 * motion;
         let tailYaw = Math.sin(t * 0.8) * 0.12 * motion;
         let throwK = -1;
-        let sweepK = 0;
+        let digK = 0;
+        const rest = { sx: 0.1 + breath * 0.02, sz: 0.3, ex: -0.45, wx: -0.15 };
+        let poseL = Object.assign({}, rest);
+        let poseR = Object.assign({}, rest);
 
         if (nm === "jump") {
-          const rear = smooth(0.08, 0.38, p) * (1 - smooth(0.46, 0.56, p));
-          pitch = -0.42 * rear;
-          lift = 0.12 * rear;
-          frontReach = rear;
-          earK = rear;
-          if (p > 0.52 && p < 0.8) impact = Math.sin(((p - 0.52) / 0.28) * Math.PI);
-          sy -= 0.06 * (p > 0.5 && p < 0.62 ? Math.sin(((p - 0.5) / 0.12) * Math.PI) : 0);
-          hookA -= rear * 0.6;
+          const up = smooth(0.05, 0.35, p) * (1 - smooth(0.5, 0.6, p));
+          const fall = smooth(0.5, 0.6, p) * (1 - smooth(0.8, 0.98, p));
+          const raise = { sx: -2.5, sz: 0.45, ex: -0.5, wx: 0 };
+          const slam = { sx: -0.5, sz: 0.25, ex: -0.3, wx: -0.2 };
+          poseL = mix(mix(rest, raise, up), slam, fall);
+          poseR = mix(mix(rest, raise, up), slam, fall);
+          liftR = 0.28 * up;
+          lean = 0.16 - 0.18 * up + 0.2 * fall;
+          drop += 0.1 * fall;
+          headPitch = -0.3 * up + 0.15 * fall;
+          earK = up;
+          if (p > 0.55 && p < 0.85) impact = Math.sin(((p - 0.55) / 0.3) * Math.PI);
         } else if (nm === "drill") {
-          const k = smooth(0.05, 0.18, p) * (1 - smooth(0.86, 0.98, p));
-          pitch = 0.22 * k;
-          sink = 0.05 * k;
-          headPitch = 0.25 * k;
-          drillSpin = k;
-          drillDig = smooth(0.25, 0.4, p) * (1 - smooth(0.78, 0.9, p));
-          shut = drillDig * 0.55;
-          if (drillDig > 0.3) impact = 0.35 + Math.abs(Math.sin(t * 9)) * 0.25;
+          const k = smooth(0.04, 0.18, p) * (1 - smooth(0.86, 0.98, p));
+          const dig = { sx: -1.05, sz: -0.05, ex: -0.35, wx: -0.1 };
+          poseL = mix(rest, dig, k);
+          poseR = mix(rest, dig, k);
+          lean = lerp(0.16, 0.45, k);
+          drop += 0.18 * k;
+          headPitch = 0.1 * k;
+          converge = smooth(0.08, 0.22, p) * (1 - smooth(0.82, 0.94, p));
+          spin = converge;
+          digK = smooth(0.25, 0.4, p) * (1 - smooth(0.78, 0.9, p));
+          shut = digK * 0.55;
+          baseA = lerp(baseA, -0.62, k);
+          if (digK > 0.3) impact = 0.35 + Math.abs(Math.sin(t * 9)) * 0.25;
+        } else if (nm === "slash") {
+          const wind = smooth(0.05, 0.35, p) * (1 - smooth(0.4, 0.52, p));
+          const hit = smooth(0.4, 0.52, p) * (1 - smooth(0.75, 0.98, p));
+          poseR = mix(mix(rest, { sx: -2.6, sz: 0.5, ex: -0.6, wx: 0 }, wind), { sx: -0.6, sz: -0.75, ex: -0.25, wx: 0 }, hit);
+          poseL = mix(rest, { sx: -0.5, sz: 0.4, ex: -0.9, wx: -0.2 }, Math.max(wind, hit));
+          twist = 0.3 * wind - 0.4 * hit;
+          lean = 0.16 - 0.1 * wind + 0.2 * hit;
+          headYaw = -0.2 * hit + 0.15 * wind;
+          if (p > 0.46 && p < 0.7) impact = Math.sin(((p - 0.46) / 0.24) * Math.PI) * 0.45;
         } else if (nm === "sweep") {
           const wind = smooth(0.05, 0.3, p) * (1 - smooth(0.32, 0.42, p));
           const swing = smooth(0.32, 0.55, p) * (1 - smooth(0.75, 0.95, p));
-          tailYaw = 0.7 * wind - 1.1 * swing;
-          roll = 0.06 * swing - 0.04 * wind;
-          baseA = lerp(baseA, -0.55, Math.max(wind, swing));
-          hookA = lerp(hookA, -1.2, swing);
-          headYaw = -0.25 * swing + 0.2 * wind;
-          sweepK = swing;
+          tailYaw = 0.75 * wind - 1.15 * swing;
+          twist = -0.25 * wind + 0.35 * swing;
+          baseA = lerp(baseA, -0.7, Math.max(wind, swing));
+          hookA = lerp(hookA, -1.0, swing);
+          headYaw = -0.3 * swing + 0.2 * wind;
+          const brace = { sx: -0.35, sz: 0.45, ex: -0.9, wx: -0.1 };
+          poseL = mix(rest, brace, Math.max(wind, swing));
+          poseR = mix(rest, brace, Math.max(wind, swing));
+          drop += 0.06 * swing;
           if (p > 0.4 && p < 0.62) impact = Math.sin(((p - 0.4) / 0.22) * Math.PI) * 0.6;
           if (p > 0.42 && p < 0.82) throwK = (p - 0.42) / 0.4;
         } else if (nm === "hide") {
-          const k = smooth(0.04, 0.22, p) * (1 - smooth(0.8, 0.96, p));
-          sink = 0.5 * k;
-          headIn = k;
-          shut = k > 0.6 ? 1 : 0;
+          const k = smooth(0.04, 0.2, p) * (1 - smooth(0.82, 0.96, p));
           const peek = smooth(0.46, 0.54, p) * (1 - smooth(0.64, 0.72, p));
-          headIn -= peek * 0.4;
-          shut = Math.max(0, shut - peek * 2);
-          baseA = lerp(baseA, -0.75, k);
-          bendA = lerp(bendA, -0.05, k);
-          hookA = lerp(hookA, -0.6, k);
-          if (p > 0.16 && p < 0.3) impact = Math.sin(((p - 0.16) / 0.14) * Math.PI) * 0.45;
+          const guard = { sx: -0.95, sz: -0.2, ex: -1.95, wx: 0.1 };
+          poseL = mix(rest, guard, k);
+          poseR = mix(rest, guard, k);
+          drop += 0.2 * k;
+          lean = lerp(0.16, 0.3, k);
+          headDuck = k * (1 - peek * 0.7);
+          shut = k > 0.5 ? 1 - peek * 2 : 0;
+          baseA = lerp(baseA, -0.8, k);
+          hookA = lerp(hookA, -1.1, k);
+          if (p > 0.14 && p < 0.28) impact = Math.sin(((p - 0.14) / 0.14) * Math.PI) * 0.35;
         } else if (nm === "sniff") {
           const k = smooth(0, 0.12, p) * (1 - smooth(0.85, 1, p));
           headYaw = Math.sin(p * Math.PI * 4) * 0.4 * k;
-          headPitch = -0.12 * k + Math.sin(t * 20) * 0.02 * k;
+          headPitch = 0.12 * k + Math.sin(t * 20) * 0.02 * k;
+          lean = lerp(0.16, 0.28, k);
           earK = k * Math.abs(Math.sin(p * Math.PI * 6));
           tailYaw += Math.sin(p * Math.PI * 3) * 0.2 * k;
+          poseR = mix(rest, { sx: -0.4, sz: 0.1, ex: -1.2, wx: -0.3 }, k);
         } else if (nm === "eat") {
-          headPitch = 0.28 * smooth(0.25, 0.35, p) * (1 - smooth(0.85, 0.95, p));
-          shut = p > 0.35 && p < 0.85 ? 0.55 : 0;
+          const k = smooth(0.0, 0.25, p) * (1 - smooth(0.88, 1, p));
+          poseR = mix(rest, { sx: -0.6, sz: -0.8, ex: -1.0, wx: -0.4 }, k);
+          headPitch = 0.25 * smooth(0.25, 0.35, p) * (1 - smooth(0.85, 0.95, p));
+          shut = p > 0.35 && p < 0.85 ? 0.45 : 0;
         }
 
         root.rotation.y = lookYaw;
-        bodyG.position.set(0, lift - sink, 0);
-        bodyG.rotation.set(pitch + lookPitch * 0.4, 0, roll);
-        const sx = 1 / Math.sqrt(sy);
-        domeG.scale.set(sx, sy, sx);
+        bodyG.position.y = -drop;
+        upper.rotation.set(lean + lookPitch * 0.3, twist, sideLean);
+        const sq = 1 + breath * 0.012;
+        torso.scale.set(TR.x * sq, TR.y, TR.z * sq);
 
-        headPivot.position.set(0, lerp(-0.08, 0.02, headIn), lerp(R * Math.sin(LA_F) * ZS + 0.02, R * Math.sin(LA_F) * ZS - 0.2, headIn));
-        headPivot.scale.setScalar(lerp(1, 0.94, headIn));
-        head.rotation.set(headPitch + headIn * 1.15, headYaw, 0);
+        legs.forEach(({ hip, knee, ankle, sx }) => {
+          const lift = sx > 0 ? liftR : liftL;
+          const H = Math.max(0.2, HIP - drop - FH - lift);
+          const a = Math.acos(Math.min(1, H / (L1 + L2)));
+          hip.position.y = HIP;
+          hip.rotation.set(-a - lift * 1.2, 0, 0);
+          knee.rotation.set(2 * a + lift * 1.6, 0, 0);
+          ankle.rotation.set(-a - lift * 0.4, 0, 0);
+        });
+
+        arms.forEach(a => {
+          const ps = a.sx > 0 ? poseR : poseL;
+          pose(a, { sx: ps.sx, sz: (ps.sz || 0) * a.sx, ex: ps.ex, wx: ps.wx });
+          a.pg.rotation.set(a.sh.rotation.x * 0.3, 0, a.sh.rotation.z * 0.45);
+          a.hand.rotation.y += spin * 0.55 * a.sx;
+          if (!spin) a.hand.rotation.y = lerp(a.hand.rotation.y % TAU, 0, 0.2);
+          a.claws.forEach(({ cg, c }) => {
+            cg.rotation.z = c * lerp(0.16, -0.36, converge);
+            cg.rotation.x = c ? lerp(0, -0.05, converge) : lerp(0, 0.12, converge);
+          });
+        });
+
+        headPivot.position.set(0, lerp(2.06 - HIP, 1.92 - HIP, headDuck), lerp(0.36, 0.2, headDuck));
+        head.rotation.set(headPitch - lean * 0.8 + headDuck * 0.45, headYaw, 0);
         mouth.scale.set(1, nm === "eat" && ph && ph.chew ? 0.4 + ph.chew * 0.8 : 1, 1);
 
         tailPivot.rotation.set(0, tailYaw, 0);
-        tailShape(baseA, bendA, hookA);
-
-        legs.forEach(({ lg, sx: lx, sz, front }) => {
-          const tuck = sink / 0.5;
-          lg.position.set(lerp(0.5, 0.32, tuck) * lx, 0.62 + sink * 0.8, (front ? 0.46 : -0.5) * lerp(1, 0.85, tuck));
-          let rx = 0;
-          if (front) {
-            rx = -0.9 * frontReach + 0.55 * drillDig + Math.sin(t * 7 + (lx > 0 ? Math.PI : 0)) * 0.25 * drillDig;
-          }
-          lg.rotation.x = rx;
-          lg.rotation.z = 0;
-        });
-        drills.forEach((d, i) => {
-          d.rotation.y += drillSpin * 0.6 * (i ? 1 : -1);
-        });
+        tailShape(baseA - lean, bendA, hookA);
 
         ears.forEach((e, i) => {
           const s2 = i ? 1 : -1;
-          e.rotation.z = -1.2 * s2 + Math.sin(t * 9 + i) * 0.16 * earK;
+          e.rotation.z = -0.55 * s2 + Math.sin(t * 9 + i) * 0.16 * earK;
         });
         const close = Math.max(shut, 1 - blink);
         eyes.forEach(({ g }) => {
@@ -681,40 +811,45 @@ Pets.register({
           d.m.visible = fx;
           if (!fx) return;
           const u = 1 - impact;
-          const r = 1.0 + u * 0.6;
-          const cz = nm === "drill" ? 1.0 : nm === "sweep" ? -1.2 : 0;
-          d.m.position.set(Math.cos(d.a) * r * (nm === "drill" ? 0.5 : 1), 0.12 + u * 0.2, cz + Math.sin(d.a) * r * (nm === "drill" ? 0.4 : 1));
+          const r = 0.9 + u * 0.6;
+          const cz = nm === "drill" ? 1.25 : nm === "sweep" ? -1.3 : 0.1;
+          d.m.position.set(Math.cos(d.a) * r * (nm === "drill" ? 0.5 : 1), 0.1 + u * 0.2, cz + Math.sin(d.a) * r * (nm === "drill" ? 0.4 : 0.8));
           d.m.scale.setScalar(0.35 + u * 0.7);
           dustMat.opacity = 0.3 * impact;
         });
         debris.forEach(d => {
           let vis = false;
-          if (drillDig > 0.25) {
+          if (digK > 0.25) {
             vis = true;
             const q = (t * d.sp * 1.4 + d.k * 0.31) % 1;
-            d.m.position.set(d.a * 0.7, 0.1 + Math.sin(q * Math.PI) * 0.9, 1.15 + q * 0.5 - q * q * 0.2);
+            d.m.position.set(d.a * 0.8, 0.1 + Math.sin(q * Math.PI) * 1.0, 1.3 + q * 0.5 - q * q * 0.2);
           } else if (throwK >= 0) {
             vis = true;
             const q = Math.min(1, throwK * (0.75 + (d.k % 4) * 0.1));
             const side = Math.sin(tailYaw) > 0 ? 1 : -1;
-            d.m.position.set(side * (0.6 + q * 1.4) + d.a * 0.3, 0.15 + Math.sin(q * Math.PI) * (0.5 + (d.k % 3) * 0.2), -1.3 + d.a * 0.4 + q * 0.4);
+            d.m.position.set(side * (0.6 + q * 1.4) + d.a * 0.3, 0.15 + Math.sin(q * Math.PI) * (0.5 + (d.k % 3) * 0.2), -1.4 + d.a * 0.4 + q * 0.4);
           }
           d.m.visible = vis;
           d.m.rotation.set(t * 4 + d.k, t * 3, 0);
         });
         sparks.forEach(sp => {
-          sp.m.visible = drillDig > 0.3;
+          sp.m.visible = digK > 0.3;
           if (!sp.m.visible) return;
           const q = (t * 3 + sp.k * 0.17) % 1;
           const sd = sp.k % 2 ? 1 : -1;
-          sp.m.position.set(sd * (0.5 + Math.sin(sp.k) * 0.1) + Math.cos(sp.k * 2.3) * q * 0.5, 0.06 + q * 0.5, 1.0 + Math.sin(sp.k * 1.7) * q * 0.5);
+          sp.m.position.set(sd * (0.45 + Math.sin(sp.k) * 0.1) + Math.cos(sp.k * 2.3) * q * 0.5, 0.06 + q * 0.6, 1.15 + Math.sin(sp.k * 1.7) * q * 0.5);
           sp.m.scale.setScalar(1 - q);
         });
 
         if (nm === "eat" && ph) {
           food.visible = ph.visible;
-          food.position.set(0, lerp(3.4, 0.25, ph.fall * ph.fall), 1.62);
-          food.scale.setScalar((1 - 0.85 * ph.bite) * 0.85);
+          root.updateMatrixWorld(true);
+          arms[1].palm.getWorldPosition(tmpV);
+          big.worldToLocal(tmpV);
+          tmpV.z += 0.14;
+          tmpV.y += 0.1;
+          food.position.set(tmpV.x, lerp(3.6, tmpV.y, ph.fall * ph.fall), tmpV.z);
+          food.scale.setScalar(1 - 0.85 * ph.bite);
         } else food.visible = false;
       }
     };
