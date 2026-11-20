@@ -34,7 +34,7 @@ document.addEventListener(
         const d = Pets.find(sp);
         return d ? { name: d.name, color: d.color, types: d.types } : null;
       },
-      thumb: sp => thumbs[sp] || (thumbs[sp] = PetStage.thumbnail(THREE, PetKit, Pets, sp, 256, true)),
+      thumb: (sp, v) => thumbs[sp + (v ? "*" : "")] || (thumbs[sp + (v ? "*" : "")] = PetStage.thumbnail(THREE, PetKit, Pets, sp, 256, true, !!v)),
       ensure: async () => {},
       lobby: () => window.pet.battle({ op: "lobby" }),
       setMoves: (uid, moves) => window.pet.battle({ op: "moves", uid, moves }),

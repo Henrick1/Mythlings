@@ -135,7 +135,12 @@ function snapshot() {
   view.expeditionSize = Game.C.EXPEDITION_SIZE;
   view.expeditionKinds = Object.keys(Game.C.EXPEDITIONS);
   view.eggPrice = Game.C.EGG_PRICE;
-  view.eggs = view.eggs.map(e => Object.assign(e, { color: (petMeta[e.species] && petMeta[e.species].color) || "#999999" }));
+  view.eggs = view.eggs.map(e => {
+    const type = (petMeta[e.species] && petMeta[e.species].types && petMeta[e.species].types[0]) || null;
+    return Object.assign(e, { type, color: (type && PetTypes.INFO[type] && PetTypes.INFO[type].color) || "#999999" });
+  });
+  view.eggTiers = Game.C.EGG_TIERS;
+  view.eggPools = Object.keys(Game.C.EGG_TIERS).reduce((o, k) => Object.assign(o, { [k]: Game.eggPool(state, eggBaseIds(), k).length }), {});
   view.incubatorSlots = Game.C.INCUBATOR_SLOTS;
   view.hatchMs = Game.C.HATCH_MS;
   view.careDecay = Game.C.CARE_DECAY_PER_MIN;
@@ -537,6 +542,15 @@ ipcMain.on("swap-party", (_e, p) => {
   scheduleSync();
 });
 
+function lineOf(species) {
+  const out = [species];
+  for (let i = 0; i < out.length; i++) {
+    const m = petMeta[out[i]] || {};
+    [m.evolvesTo].concat(m.evolveBranches ? Object.values(m.evolveBranches) : []).filter(Boolean).forEach(x => !out.includes(x) && out.push(x));
+  }
+  return out;
+}
+
 function eggBaseIds() {
   const forms = id => {
     const m = petMeta[id] || {};
@@ -557,8 +571,8 @@ ipcMain.handle("eco", (_e, p) => {
   let r = { changed: false };
   let msg = "";
   if (p.op === "daily") {
-    r = Game.claimDaily(state);
-    if (r.changed) msg = "+" + r.coins + " moedas" + (r.item ? " e " + Game.ITEMS[r.item].name : "");
+    r = Game.claimDaily(state, Date.now(), eggBaseIds());
+    if (r.changed) msg = "+" + r.coins + " moedas" + (r.item ? " e " + Game.ITEMS[r.item].name : "") + (r.egg ? " e um " + Game.C.EGG_TIERS[r.egg].name.toLowerCase() : "");
   } else if (p.op === "buy") {
     r = Game.buyItem(state, p.item);
     if (r.changed) msg = Game.ITEMS[p.item].name + " foi para a mochila";
@@ -570,8 +584,12 @@ ipcMain.handle("eco", (_e, p) => {
     if (r.changed) msg = r.levels > 0 ? "Subiu para o nível " + r.level + "!" : Game.ITEMS[p.item].name + " usado";
     if (r.changed && Game.ITEMS[p.item].hunger && alive(win)) win.webContents.send("feed");
   } else if (p.op === "egg") {
-    r = Game.buyEgg(state, eggBaseIds());
+    r = Game.buyEgg(state, eggBaseIds(), Date.now(), Math.random, Game.C.EGG_TIERS[p.tier] ? p.tier : "common");
     if (r.changed) msg = "Ovo adicionado ao inventário";
+  } else if (p.op === "dupe") {
+    const line = lineOf(Game.speciesOf(state, p.uid));
+    r = Game.convertDupe(state, p.uid, p.mode, p.target, line);
+    if (r.changed) msg = p.mode === "coins" ? "+" + r.coins + " moedas" : name(p.target) + " ganhou " + r.xp + " de XP" + (r.levels ? " e subiu para o nível " + r.level : "");
   } else if (p.op === "incubate") {
     r = Game.incubate(state, p.id);
     if (r.changed) msg = "Ovo foi para a chocadeira";
@@ -583,7 +601,15 @@ ipcMain.handle("eco", (_e, p) => {
     r = Game.hatchEgg(state, p.id);
     if (r.changed) {
       const m = petMeta[r.species] || {};
-      msg = { hatched: true, species: r.species, name: m.name || r.species, color: m.color || "#999999", where: state.party.includes(r.uid) ? "o seu grupo" : "a caixa" };
+      msg = { hatched: true, species: r.species, uid: r.uid, name: m.name || r.species, color: m.color || "#999999", where: state.party.includes(r.uid) ? "o seu grupo" : "a caixa", variant: r.variant, dupe: r.dupe, tier: r.tier };
+      if (r.dupe) {
+        const line = lineOf(r.species);
+        const mate = state.owned.filter(u => u !== r.uid && line.includes(Game.speciesOf(state, u))).sort((a, b) => Game.levelOf(state, b) - Game.levelOf(state, a))[0];
+        const t = Game.C.EGG_TIERS[r.tier] || Game.C.EGG_TIERS.common;
+        msg.dupeCoins = t.dupCoins;
+        msg.dupeXp = t.dupXp;
+        if (mate) msg.mate = { uid: mate, name: name(mate) };
+      }
     }
   } else if (p.op === "release") {
     const nm = name(p.id);
