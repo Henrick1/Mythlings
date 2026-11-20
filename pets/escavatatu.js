@@ -156,49 +156,14 @@ Pets.register({
       const g = c.getContext("2d");
       const cols = 4;
       const rows = 4;
-      const r = 70;
+      const r = 50;
       const W0 = cols * r * Math.sqrt(3);
       const H0 = rows * r * 1.5;
       g.scale(N / W0, N / H0);
-      g.fillStyle = "#3e2812";
+      g.fillStyle = "#5c3d1c";
       g.fillRect(0, 0, W0, H0);
-      let seed = 7;
-      const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-      const hex = (cx, cy, rr) => {
-        g.beginPath();
-        for (let i = 0; i < 6; i++) {
-          const a = (i / 6) * TAU + Math.PI / 6;
-          const x = cx + Math.cos(a) * rr;
-          const y = cy + Math.sin(a) * rr;
-          i ? g.lineTo(x, y) : g.moveTo(x, y);
-        }
-        g.closePath();
-      };
       for (let row = -1; row <= rows; row++)
-        for (let col = -1; col <= cols; col++) {
-          const cx = col * r * Math.sqrt(3) + (row % 2 ? (r * Math.sqrt(3)) / 2 : 0);
-          const cy = row * r * 1.5;
-          const v = rnd();
-          g.lineJoin = "round";
-          hex(cx, cy, r * 0.86);
-          const gr = g.createRadialGradient(cx - r * 0.18, cy - r * 0.22, r * 0.05, cx, cy, r * 0.9);
-          gr.addColorStop(0, v > 0.5 ? "#f0cf8c" : "#e9c27e");
-          gr.addColorStop(0.55, v > 0.5 ? "#c9954f" : "#c08945");
-          gr.addColorStop(1, "#8a5a28");
-          g.fillStyle = gr;
-          g.fill();
-          g.lineWidth = r * 0.07;
-          g.strokeStyle = "rgba(255,236,190,0.35)";
-          hex(cx, cy, r * 0.62);
-          g.stroke();
-          for (let k = 0; k < 6; k++) {
-            const a = (k / 6) * TAU + Math.PI / 6 + 0.5;
-            g.beginPath();
-            g.arc(cx + Math.cos(a) * r * 0.72, cy + Math.sin(a) * r * 0.72, r * 0.035, 0, TAU);
-            g.fillStyle = "rgba(60,36,16,0.6)";
-            g.fill();
-          }
-        }
+        for (let col = -1; col <= cols; col++) rosette(g, col * r * Math.sqrt(3) + (row % 2 ? (r * Math.sqrt(3)) / 2 : 0), row * r * 1.5, r);
       const t = new THREE.CanvasTexture(c);
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.anisotropy = 8;
