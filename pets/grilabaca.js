@@ -4,7 +4,7 @@ Pets.register({
   name: "Grilabaça",
   color: "#c98a3a",
   types: ["bug", "fighting"],
-  description: "Um grilinho brigão que mora dentro de uma cabaça laqueada, como os grilos de briga criados na China. A cabaça cresceu dentro de um molde e saiu com relevos de nuvens e flores de lótus, e a tampa furada virou o chapéu dele, com as antenas passando pelos furinhos. Quando se assusta, entra na cabaça e se tampa.",
+  description: "Um grilinho brigão que vive dentro de uma cabaça laqueada, como os grilos de briga da China, e anda com ela como se fosse uma armadura. Os braços e as pernas saem por furos na cabaça, os punhos são enrolados em fitas de seda vermelha e a tampa furada virou o chapéu dele. Quando apanha demais, recolhe tudo e se tampa dentro da cabaça.",
   actions: {
     jump: { duration: 1.3 },
     eat: { duration: 2.4 },
@@ -35,6 +35,7 @@ Pets.register({
     root.add(big);
     const pivot = new THREE.Group();
     pivot.position.set(0, 0, -0.25);
+    big.scale.setScalar(0.8);
     big.add(pivot);
     const bodyG = new THREE.Group();
     bodyG.position.set(0, 0, 0.25);
@@ -313,12 +314,10 @@ Pets.register({
     const spineMat = new THREE.MeshStandardMaterial({ color: 0x2a160a, roughness: 0.35 });
     const darkMat = mat(0x1a0e06, 0.5);
 
-    const TH = 1.2;
     const gG = new THREE.Group();
-    gG.position.set(0, 0.265, -0.6);
-    gG.rotation.x = TH;
+    const GY = 0.13;
+    gG.position.set(0, GY, 0);
     bodyG.add(gG);
-    const AX = V3(0, Math.cos(TH), Math.sin(TH));
     const NP = 90;
     const lobe = (phi, s) => 1 + 0.035 * Math.cos(8 * phi) * smooth(0.0, 0.12, s - S0) * smooth(0.0, 0.1, S1 - s);
     const profile = [];
@@ -326,126 +325,126 @@ Pets.register({
       const s = sOfV(i / NP);
       profile.push(V2(Math.max(i === 0 ? 0.0001 : 0.002, R(s)), s));
     }
-    profile[NP].x = R(S1);
-    const shapeGourd = (g, k) => {
+    const shapeGourd = g => {
       const p = g.attributes.position;
       for (let i = 0; i < p.count; i++) {
         const x = p.getX(i);
         const z = p.getZ(i);
-        const phi = Math.atan2(x, z);
-        const m = lobe(phi, p.getY(i)) * k;
+        const m = lobe(Math.atan2(x, z), p.getY(i));
         p.setX(i, x * m);
         p.setZ(i, z * m);
       }
       g.computeVertexNormals();
       return g;
     };
-    const gourdGeo = shapeGourd(new THREE.LatheGeometry(profile, 72), 1);
-    gG.add(mesh(gourdGeo, gourdMat));
+    gG.add(mesh(shapeGourd(new THREE.LatheGeometry(profile, 72)), gourdMat));
     const inProfile = profile.map(v => V2(Math.max(0.0001, v.x - 0.022), v.y));
     inProfile[0].y += 0.02;
-    const gourdInner = mesh(shapeGourd(new THREE.LatheGeometry(inProfile, 72), 1), gourdIn, false);
-    gG.add(gourdInner);
+    gG.add(mesh(shapeGourd(new THREE.LatheGeometry(inProfile, 72)), gourdIn, false));
     const OR = R(S1);
+    const ring = (pts, r, m) => mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), pts.length * 2, r, 10, true), m);
     const rimPts = [];
     for (let k = 0; k < 72; k++) {
       const phi = (k / 72) * TAU;
       const rr = (OR - 0.011) * lobe(phi, S1);
       rimPts.push(V3(Math.sin(phi) * rr, S1, Math.cos(phi) * rr));
     }
-    gG.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(rimPts, true), 144, 0.016, 10, true), ivory));
+    gG.add(ring(rimPts, 0.016, ivory));
     const nub = mesh(new THREE.SphereGeometry(0.035, 14, 10), chitinLight, false);
     nub.scale.set(1, 0.6, 1);
     nub.position.y = S0 + 0.01;
     gG.add(nub);
     const NECK = 0.79;
+    const KA = 0.75;
     const cordPts = [];
     for (let k = 0; k < 72; k++) {
       const phi = (k / 72) * TAU;
       const rr = R(NECK) * lobe(phi, NECK) + 0.012;
       cordPts.push(V3(Math.sin(phi) * rr, NECK + 0.012 * Math.sin(phi * 2), Math.cos(phi) * rr));
     }
-    gG.add(mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(cordPts, true), 144, 0.017, 8, true), silk));
-    const knotPos = V3(R(NECK) + 0.02, NECK, 0);
+    gG.add(ring(cordPts, 0.017, silk));
     const knot = mesh(new THREE.SphereGeometry(0.04, 16, 12), silk);
-    knot.position.copy(knotPos);
+    knot.position.set(Math.sin(KA) * (R(NECK) + 0.02), NECK, Math.cos(KA) * (R(NECK) + 0.02));
     knot.scale.set(1, 1.15, 0.9);
     gG.add(knot);
     const tasselG = new THREE.Group();
     bodyG.add(tasselG);
-    const tasselTop = mesh(new THREE.SphereGeometry(0.03, 12, 10), silkDark, false);
-    tasselG.add(tasselTop);
+    tasselG.add(mesh(new THREE.SphereGeometry(0.03, 12, 10), silkDark, false));
     const tasselBand = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 16), ivory, false);
     tasselBand.position.y = -0.04;
     tasselG.add(tasselBand);
-    const tasselBody = mesh(new THREE.LatheGeometry([V2(0.0001, -0.2), V2(0.03, -0.2), V2(0.055, -0.17), V2(0.045, -0.1), V2(0.028, -0.05), V2(0.0001, -0.04)], 18), silk);
-    tasselG.add(tasselBody);
+    tasselG.add(mesh(new THREE.LatheGeometry([V2(0.0001, -0.2), V2(0.03, -0.2), V2(0.055, -0.17), V2(0.045, -0.1), V2(0.028, -0.05), V2(0.0001, -0.04)], 18), silk));
     const tasselCord = mesh(new THREE.CylinderGeometry(0.008, 0.008, 1, 8), silk, false);
     bodyG.add(tasselCord);
 
-    const opening = V3(0, S1, 0);
+    const dR = s => (R(s + 0.004) - R(s - 0.004)) / 0.008;
+    const holeAt = (s, phi, rh) => {
+      const rr = R(s) * lobe(phi, s);
+      const p = V3(Math.sin(phi) * rr, s, Math.cos(phi) * rr);
+      const n = V3(Math.sin(phi), -dR(s), Math.cos(phi)).normalize();
+      const pts = [];
+      const t1 = V3(0, 1, 0).cross(n).normalize();
+      const t2 = n.clone().cross(t1).normalize();
+      for (let k = 0; k < 40; k++) {
+        const a = (k / 40) * TAU;
+        const d = t1.clone().multiplyScalar(Math.cos(a) * rh).addScaledVector(t2, Math.sin(a) * rh);
+        const q = p.clone().add(d);
+        const qs = q.y;
+        const qphi = Math.atan2(q.x, q.z);
+        const qr = R(qs) * lobe(qphi, qs);
+        pts.push(V3(Math.sin(qphi) * qr, qs, Math.cos(qphi) * qr).addScaledVector(n, 0.004));
+      }
+      gG.add(ring(pts, 0.014, ivory));
+      const disc = mesh(new THREE.CircleGeometry(rh * 0.98, 32), darkMat, false);
+      disc.material = darkMat.clone();
+      disc.material.side = THREE.DoubleSide;
+      disc.position.copy(p).addScaledVector(n, -0.012);
+      disc.quaternion.setFromUnitVectors(V3(0, 0, 1), n);
+      gG.add(disc);
+      const anchor = new THREE.Object3D();
+      anchor.position.copy(p).addScaledVector(n, -0.01);
+      gG.add(anchor);
+      return { anchor, n };
+    };
 
     const front = new THREE.Group();
     gG.add(front);
-    const thorax = mesh(new THREE.SphereGeometry(0.205, 32, 24), chitin);
-    thorax.scale.set(1, 1.05, 1.1);
-    thorax.position.set(0, S1 + 0.04, 0.0);
-    front.add(thorax);
-    const seg = mesh(new THREE.SphereGeometry(0.2, 28, 18), chitinLight);
-    seg.scale.set(1, 0.9, 1);
-    seg.position.set(0, S1 - 0.1, 0);
-    front.add(seg);
-    const pron = mesh(new THREE.SphereGeometry(0.225, 36, 16, 0, TAU, 0, 1.15), chitin);
-    pron.material = chitin.clone();
-    pron.material.side = THREE.DoubleSide;
-    pron.rotation.x = -Math.PI / 2 + 0.55;
-    pron.scale.set(1.04, 1, 1.12);
-    pron.position.set(0, S1 + 0.05, 0.0);
-    front.add(pron);
-
+    const collar = mesh(new THREE.SphereGeometry(0.2, 32, 20), chitin);
+    collar.scale.set(1, 0.8, 1);
+    collar.position.set(0, S1 - 0.02, 0);
+    front.add(collar);
     const headPivot = new THREE.Group();
-    headPivot.position.set(0, S1 + 0.25, 0.06);
+    headPivot.position.set(0, S1 + 0.2, 0.03);
     front.add(headPivot);
-    const headAim = new THREE.Group();
-    headAim.rotation.x = -TH + 0.12;
-    headPivot.add(headAim);
     const head = new THREE.Group();
-    headAim.add(head);
-    const skull = mesh(new THREE.SphereGeometry(0.24, 40, 28), headMat);
-    skull.scale.set(1.08, 1, 0.96);
+    headPivot.add(head);
+    const skull = mesh(new THREE.SphereGeometry(0.27, 44, 30), headMat);
+    skull.scale.set(1.08, 0.98, 0.98);
     head.add(skull);
     const eyes = [-1, 1].map(s => {
-      const e = eye({ size: 0.52, whiteColor: 0xfffaf0, pupilColor: 0x160c06 });
-      e.g.position.set(0.118 * s, 0.035, 0.172);
-      e.g.rotation.y = 0.5 * s;
+      const e = eye({ size: 0.6, whiteColor: 0xfffaf0, pupilColor: 0x160c06 });
+      e.g.position.set(0.125 * s, 0.04, 0.2);
+      e.g.rotation.y = 0.45 * s;
       head.add(e.g);
       return e;
     });
     const mandibles = [-1, 1].map(s => {
       const mg = new THREE.Group();
-      mg.position.set(0.05 * s, -0.175, 0.15);
+      mg.position.set(0.045 * s, -0.2, 0.18);
       head.add(mg);
-      const m = mesh(new THREE.ConeGeometry(0.032, 0.11, 10), chitinLight, false);
-      m.position.y = -0.045;
-      m.rotation.z = -0.35 * s;
+      const m = mesh(new THREE.ConeGeometry(0.028, 0.08, 10), ivory, false);
+      m.position.y = -0.03;
+      m.rotation.z = -0.3 * s;
       mg.add(m);
       return mg;
     });
-    const palps = [-1, 1].map(s => {
-      const pg = new THREE.Group();
-      pg.position.set(0.105 * s, -0.16, 0.12);
-      head.add(pg);
-      const a = mesh(new THREE.CylinderGeometry(0.014, 0.016, 0.08, 8), chitinLight, false);
-      a.position.y = -0.04;
-      pg.add(a);
-      const b = mesh(new THREE.SphereGeometry(0.02, 10, 8), chitinLight, false);
-      b.position.y = -0.085;
-      pg.add(b);
-      return pg;
-    });
+    const mouth = mesh(new THREE.TorusGeometry(0.035, 0.009, 6, 14, Math.PI), darkMat, false);
+    mouth.rotation.z = Math.PI;
+    mouth.position.set(0, -0.12, 0.25);
+    head.add(mouth);
     const lidAnchorHead = new THREE.Object3D();
-    lidAnchorHead.position.set(0.0, 0.205, -0.03);
-    lidAnchorHead.rotation.set(-0.22, 0, 0.2);
+    lidAnchorHead.position.set(0.0, 0.235, -0.03);
+    lidAnchorHead.rotation.set(-0.16, 0, 0.16);
     head.add(lidAnchorHead);
     const lidAnchorGourd = new THREE.Object3D();
     lidAnchorGourd.position.set(0, S1 + 0.012, 0);
@@ -453,7 +452,7 @@ Pets.register({
 
     const lid = new THREE.Group();
     big.add(lid);
-    const LR = 0.235;
+    const LR = 0.25;
     const lidGeo = new THREE.LatheGeometry([V2(0.0001, -0.018), V2(LR * 0.72, -0.018), V2(LR * 0.95, -0.01), V2(LR, 0.006), V2(LR * 0.96, 0.024), V2(LR * 0.7, 0.05), V2(LR * 0.35, 0.064), V2(0.0001, 0.068)], 56);
     {
       const p = lidGeo.attributes.position;
@@ -465,38 +464,34 @@ Pets.register({
     lidRim.rotation.x = Math.PI / 2;
     lidRim.position.y = 0.006;
     lid.add(lidRim);
-    const knob = mesh(new THREE.LatheGeometry([V2(0.0001, 0.06), V2(0.04, 0.062), V2(0.045, 0.08), V2(0.03, 0.1), V2(0.035, 0.118), V2(0.022, 0.135), V2(0.0001, 0.14)], 20), ivory);
-    lid.add(knob);
-    const holeLocal = [-1, 1].map(s => V3(0.075 * s, 0.058, 0.095));
+    lid.add(mesh(new THREE.LatheGeometry([V2(0.0001, 0.06), V2(0.04, 0.062), V2(0.045, 0.08), V2(0.03, 0.1), V2(0.035, 0.118), V2(0.022, 0.135), V2(0.0001, 0.14)], 20), ivory));
+    const holeLocal = [-1, 1].map(s => V3(0.08 * s, 0.058, 0.1));
     holeLocal.forEach(h => {
-      const ring = mesh(new THREE.TorusGeometry(0.019, 0.007, 8, 18), ivory, false);
-      ring.rotation.x = Math.PI / 2;
-      ring.position.copy(h);
-      lid.add(ring);
+      const r = mesh(new THREE.TorusGeometry(0.024, 0.008, 8, 18), ivory, false);
+      r.rotation.x = Math.PI / 2;
+      r.position.copy(h);
+      lid.add(r);
     });
 
-    const antG = new THREE.Group();
-    big.add(antG);
     const antMeshes = [-1, 1].map(() => {
       const m = new THREE.Mesh(new THREE.BufferGeometry(), chitin);
       m.castShadow = true;
       m.frustumCulled = false;
-      antG.add(m);
-      const tip = mesh(new THREE.SphereGeometry(0.007, 8, 6), chitin, false);
-      antG.add(tip);
+      big.add(m);
+      const tip = mesh(new THREE.SphereGeometry(0.03, 14, 10), chitinLight, false);
+      big.add(tip);
       return { m, tip };
     });
-    const AN = 14;
-    const antRadius = t => lerp(0.012, 0.004, t);
+    const AN = 22;
     const buildAntenna = (a, pts) => {
       const curve = new THREE.CatmullRomCurve3(pts);
-      const g = new THREE.TubeGeometry(curve, 48, 0.009, 6, false);
+      const n = 60;
+      const rs = 8;
+      const g = new THREE.TubeGeometry(curve, n, 1, rs - 1, false);
       const p = g.attributes.position;
-      const n = 48;
-      const rs = 7;
       for (let i = 0; i <= n; i++) {
         const c = curve.getPointAt(i / n);
-        const r = antRadius(i / n) / 0.009;
+        const r = lerp(0.02, 0.009, i / n);
         for (let j = 0; j < rs; j++) {
           const k = i * rs + j;
           p.setXYZ(k, c.x + (p.getX(k) - c.x) * r, c.y + (p.getY(k) - c.y) * r, c.z + (p.getZ(k) - c.z) * r);
@@ -523,20 +518,18 @@ Pets.register({
         const a = (k / 4) * (Math.PI / 2);
         pts.push(V2(Math.max(0.0001, Math.sin(a) * r0), Math.cos(a) * r0 * 0.95));
       }
-      return new THREE.LatheGeometry(pts, 18);
+      return new THREE.LatheGeometry(pts, 22);
     };
     const DOWN = V3(0, -1, 0);
     const tmpA = new THREE.Vector3();
     const tmpB = new THREE.Vector3();
-    const qTmp = new THREE.Quaternion();
-    const placeLimb = (m, a, b, len) => {
+    const placeLimb = (m, a, b, len, sc) => {
       m.position.copy(a);
       tmpA.subVectors(b, a);
       const d = tmpA.length();
       if (d < 1e-5) return;
-      qTmp.setFromUnitVectors(DOWN, tmpA.multiplyScalar(1 / d));
-      m.quaternion.copy(qTmp);
-      m.scale.set(1, d / len, 1);
+      m.quaternion.setFromUnitVectors(DOWN, tmpA.multiplyScalar(1 / d));
+      m.scale.set(sc, d / len, sc);
     };
     const ik = (A, B, l1, l2, pole, knee, foot) => {
       const d = tmpB.subVectors(B, A);
@@ -550,63 +543,53 @@ Pets.register({
       foot.copy(A).addScaledVector(dir, L);
     };
 
-    const legsG = new THREE.Group();
-    big.add(legsG);
-    const mkLeg = (sx, kind) => {
-      const hind = kind === "hind";
-      const l1 = hind ? 0.6 : 0.4;
-      const l2 = hind ? 0.58 : 0.46;
-      const femur = mesh(limbGeo(l1, hind ? 0.06 : 0.055, hind ? 0.04 : 0.04, hind ? 0.05 : 0.012, 14), hind ? femurMat : chitinLight);
-      const tibia = mesh(limbGeo(l2, hind ? 0.034 : 0.04, hind ? 0.026 : 0.03, 0, 8), chitin);
-      const hipBall = mesh(new THREE.SphereGeometry(hind ? 0.065 : 0.058, 16, 12), chitin, false);
-      const kneeBall = mesh(new THREE.SphereGeometry(hind ? 0.045 : 0.046, 14, 10), chitin, false);
+    const legs = [-1, 1].map(sx => {
+      const hole = holeAt(0.3, sx * 1.42, 0.088);
+      const l1 = 0.36;
+      const l2 = 0.36;
+      const thigh = mesh(limbGeo(l1, 0.085, 0.05, 0.045, 14), femurMat);
+      const shin = mesh(limbGeo(l2, 0.05, 0.04, 0.0, 8), chitin);
+      const hipBall = mesh(new THREE.SphereGeometry(0.08, 18, 14), chitin, false);
+      const kneeBall = mesh(new THREE.SphereGeometry(0.058, 16, 12), chitin, false);
       const foot = new THREE.Group();
-      const tarsus = mesh(limbGeo(hind ? 0.12 : 0.08, hind ? 0.022 : 0.018, hind ? 0.018 : 0.014, 0, 4), chitinLight);
-      tarsus.rotation.x = -Math.PI / 2 + 0.18;
-      foot.add(tarsus);
-      const pad = mesh(new THREE.SphereGeometry(hind ? 0.026 : 0.02, 12, 8), chitinLight, false);
-      pad.position.set(0, -0.004, hind ? 0.12 : 0.08);
-      pad.scale.set(1.2, 0.6, 1);
-      foot.add(pad);
+      const sole = mesh(new THREE.SphereGeometry(1, 22, 14), chitinLight);
+      sole.scale.set(0.085, 0.05, 0.13);
+      sole.position.set(0, 0.035, 0.07);
+      foot.add(sole);
       [-1, 1].forEach(c => {
-        const cl = mesh(new THREE.ConeGeometry(hind ? 0.01 : 0.008, hind ? 0.05 : 0.04, 6), spineMat, false);
-        cl.position.set(c * 0.014, -0.004, (hind ? 0.12 : 0.08) + 0.02);
-        cl.rotation.set(Math.PI / 2 - 0.25, 0, c * 0.4);
+        const cl = mesh(new THREE.ConeGeometry(0.02, 0.06, 8), ivory, false);
+        cl.position.set(c * 0.04, 0.03, 0.19);
+        cl.rotation.set(Math.PI / 2, 0, 0);
         foot.add(cl);
       });
-      legsG.add(femur, tibia, hipBall, kneeBall, foot);
-      const spines = [];
-      if (hind) {
-        for (let k = 0; k < 5; k++) {
-          const sp = mesh(new THREE.ConeGeometry(0.011, 0.06, 6), spineMat, false);
-          sp.position.set(0, -l2 * (0.25 + k * 0.15), -0.025);
-          sp.rotation.x = -Math.PI / 2 - 0.5;
-          tibia.add(sp);
-          spines.push(sp);
-        }
-      }
-      return { sx, kind, hind, l1, l2, femur, tibia, hipBall, kneeBall, foot, knee: V3(0, 0, 0), ft: V3(0, 0, 0), anchor: new THREE.Object3D() };
-    };
-    const legs = [];
-    [-1, 1].forEach(sx => {
-      const fore = mkLeg(sx, "fore");
-      fore.anchor.position.set(0.12 * sx, S1 + 0.04 + 0.02, -0.15);
-      front.add(fore.anchor);
-      fore.rest = V3(0.3 * sx, 0, 0.84);
-      fore.pole = V3(sx * 0.7, 1, 0.5);
-      legs.push(fore);
-      const mid = mkLeg(sx, "mid");
-      mid.anchor.position.set(0.15 * sx, S1 - 0.06, -0.15);
-      front.add(mid.anchor);
-      mid.rest = V3(0.42 * sx, 0, 0.42);
-      mid.pole = V3(sx * 0.8, 1, -0.4);
-      legs.push(mid);
-      const hind = mkLeg(sx, "hind");
-      hind.anchor.position.set(0.2 * sx, S1 - 0.08, -0.06);
-      gG.add(hind.anchor);
-      hind.rest = V3(0.43 * sx, 0, 0.18);
-      hind.pole = V3(sx * 0.35, 1.1, -0.75);
-      legs.push(hind);
+      const ankleBall = mesh(new THREE.SphereGeometry(0.045, 14, 10), chitin, false);
+      big.add(thigh, shin, hipBall, kneeBall, foot, ankleBall);
+      return { sx, hole, l1, l2, thigh, shin, hipBall, kneeBall, foot, ankleBall, rest: V3(0.4 * sx, 0, 0.06), pole: V3(sx * 0.25, 1, -0.85), knee: V3(0, 0, 0), ft: V3(0, 0, 0) };
+    });
+    const arms = [-1, 1].map(sx => {
+      const hole = holeAt(0.97, sx * 1.48, 0.068);
+      const l1 = 0.2;
+      const l2 = 0.2;
+      const upperArm = mesh(limbGeo(l1, 0.058, 0.045, 0.01, 8), chitin);
+      const fore = mesh(limbGeo(l2, 0.048, 0.055, 0.0, 8), chitinLight);
+      const shoulder = mesh(new THREE.SphereGeometry(0.062, 16, 12), chitin, false);
+      const elbow = mesh(new THREE.SphereGeometry(0.05, 14, 10), chitin, false);
+      const fist = new THREE.Group();
+      const ball = mesh(new THREE.SphereGeometry(0.1, 22, 16), chitinLight);
+      ball.scale.set(1, 0.92, 1.05);
+      ball.position.y = -0.07;
+      fist.add(ball);
+      [0.0, -0.035].forEach(y => {
+        const w = mesh(new THREE.TorusGeometry(y ? 0.085 : 0.062, 0.018, 8, 26), silk, false);
+        w.rotation.x = Math.PI / 2;
+        w.position.y = y;
+        fist.add(w);
+      });
+      const wrapBand = mesh(new THREE.CylinderGeometry(0.093, 0.1, 0.05, 26), silk);
+      wrapBand.position.y = -0.085;
+      fist.add(wrapBand);
+      big.add(upperArm, fore, shoulder, elbow, fist);
+      return { sx, hole, l1, l2, upperArm, fore, shoulder, elbow, fist, ball, pole: V3(sx * 0.7, -0.4, -0.7), el: V3(0, 0, 0), hand: V3(0, 0, 0) };
     });
 
     const ringMat = new THREE.MeshBasicMaterial({ color: 0xfff2c8, transparent: true, opacity: 0.6, depthWrite: false });
@@ -651,10 +634,10 @@ Pets.register({
       obj.getWorldPosition(out);
       return big.worldToLocal(out);
     };
-    const mix = (a, b, k) => a + (b - a) * k;
-    const FRONT_REST = front.position.clone();
+    const gToBig = v => big.worldToLocal(gG.localToWorld(v));
     let tasselVel = 0;
     let tasselAng = 0;
+    const HAND_REST = [-1, 1].map(sx => V3(sx * 0.33, 0.66, 0.18));
 
     return {
       root,
@@ -666,12 +649,14 @@ Pets.register({
 
         const breath = Math.sin(t * 1.8) * motion;
         let lift = 0;
-        let tilt = 0;
-        let rock = Math.sin(t * 0.9) * 0.01 * motion;
+        let squat = 0;
+        let lean = 0.04;
+        let twist = 0;
+        let rock = Math.sin(t * 0.9) * 0.012 * motion;
         let shake = 0;
         let retract = 0;
         let lidOff = 0;
-        let lidSeat = 0;
+        let lidRaise = 0;
         let headPitch = 0;
         let headYaw = 0;
         let headRoll = 0;
@@ -682,89 +667,94 @@ Pets.register({
         let impact = 0;
         let ringK = -1;
         let follow = 0;
-        let hindFold = 0;
         let saw = 0;
-        let squat = 0;
-        const foreT = [null, null];
-        const midT = [null, null];
+        let starK = 0;
+        const hands = HAND_REST.map(h => h.clone().add(V3(0, breath * 0.012, 0)));
+        const feet = legs.map(L => L.rest.clone());
 
         if (nm === "jump") {
           const crouch = smooth(0.02, 0.2, p) * (1 - smooth(0.2, 0.3, p));
           const air = Math.sin(Math.PI * smooth(0.22, 0.78, p));
           const land = smooth(0.76, 0.82, p) * (1 - smooth(0.84, 1, p));
-          squat = 0.07 * crouch + 0.06 * land;
-          lift = 0.45 * air;
-          follow = smooth(0.32, 0.5, p) * (1 - smooth(0.66, 0.8, p));
-          tilt = -0.18 * air + 0.06 * land;
-          antSweep = -0.4 * air;
+          squat = 0.12 * crouch + 0.1 * land;
+          lift = 0.55 * air;
+          follow = smooth(0.3, 0.45, p) * (1 - smooth(0.68, 0.8, p));
+          lean = 0.04 + 0.1 * crouch - 0.06 * air;
+          antSweep = -0.5 * air;
+          hands.forEach((h, i) => h.lerp(V3((i ? 1 : -1) * 0.42, 1.2, 0.05), air));
           if (p > 0.78 && p < 0.97) impact = Math.sin(((p - 0.78) / 0.19) * Math.PI) * 0.6;
         } else if (nm === "jab") {
-          const up = smooth(0.0, 0.18, p) * (1 - smooth(0.85, 1, p));
-          tilt = -0.2 * up;
-          headPitch = -0.1 * up;
-          const pk = (st, en) => Math.sin(Math.PI * smooth(st, en, p)) * (p > st && p < en ? 1 : 0);
-          const jL = pk(0.2, 0.42);
-          const jR = pk(0.42, 0.64);
-          const jB = pk(0.64, 0.86);
-          [0, 1].forEach(i => {
+          const up = smooth(0.0, 0.16, p) * (1 - smooth(0.86, 1, p));
+          const pk = (st, en) => (p > st && p < en ? Math.sin(Math.PI * smooth(st, en, p)) : 0);
+          const jL = pk(0.18, 0.4);
+          const jR = pk(0.4, 0.62);
+          const jB = pk(0.62, 0.86);
+          hands.forEach((h, i) => {
             const sx = i ? 1 : -1;
-            const j = (i ? jR : jL) + jB;
-            foreT[i] = V3(sx * lerp(0.24, 0.13, j), lerp(0.5, 0.6, j), lerp(0.84, 1.22, j));
-            foreT[i].y += up * 0.08;
+            h.lerp(V3(sx * 0.17, 1.12, 0.34), up);
+            h.lerp(V3(sx * 0.07, 1.05, 0.72), (i ? jR : jL) + jB);
           });
-          foreT.up = up;
-          if (jL > 0.7 || jR > 0.7 || jB > 0.7) impact = 0.35;
+          twist = 0.22 * (jL - jR);
+          lean = 0.04 + 0.12 * up + 0.08 * (jL + jR + jB);
+          squat = 0.05 * up;
+          headPitch = 0.05 * up;
+          const pkv = Math.max(jL, jR, jB);
+          if (pkv > 0.75) {
+            impact = 0.4;
+            starK = 1;
+          }
           antQuiver = up * 0.5;
         } else if (nm === "chirp") {
           const k = smooth(0.04, 0.16, p) * (1 - smooth(0.84, 0.97, p));
           shake = k;
           saw = k;
-          hindFold = 0.35 * k;
-          headPitch = -0.18 * k;
+          headPitch = -0.15 * k;
           antQuiver = k;
           ringK = k;
+          hands.forEach((h, i) => h.lerp(V3((i ? 1 : -1) * 0.3, 0.88, 0.32), k));
         } else if (nm === "hide") {
-          lidSeat = smooth(0.03, 0.13, p) * (1 - smooth(0.86, 0.95, p));
+          lidRaise = smooth(0.03, 0.12, p) * (1 - smooth(0.88, 0.96, p));
           lidOff = smooth(0.14, 0.32, p) * (1 - smooth(0.68, 0.84, p));
-          retract = smooth(0.1, 0.26, p) * (1 - smooth(0.74, 0.9, p));
-          hindFold = retract;
+          retract = smooth(0.08, 0.26, p) * (1 - smooth(0.74, 0.92, p));
           const wob = smooth(0.38, 0.45, p) * (1 - smooth(0.56, 0.64, p));
-          rock += Math.sin(t * 9) * 0.05 * wob;
-          if (p > 0.33 && p < 0.42) impact = Math.sin(((p - 0.33) / 0.09) * Math.PI) * 0.3;
+          rock += Math.sin(t * 9) * 0.06 * wob;
+          if (p > 0.3 && p < 0.4) impact = Math.sin(((p - 0.3) / 0.1) * Math.PI) * 0.35;
         } else if (nm === "sniff") {
           const k = smooth(0, 0.12, p) * (1 - smooth(0.85, 1, p));
           antPoke = k;
           antSweep = Math.sin(p * Math.PI * 3) * 0.6 * k;
-          headPitch = 0.22 * k;
-          headYaw = Math.sin(p * Math.PI * 3) * 0.25 * k;
-          tilt = 0.05 * k;
+          headPitch = 0.28 * k;
+          headYaw = Math.sin(p * Math.PI * 3) * 0.3 * k;
+          lean = 0.04 + 0.12 * k;
         } else if (nm === "taunt") {
           const k = smooth(0, 0.14, p) * (1 - smooth(0.82, 1, p));
-          tilt = -0.08 * k;
-          headRoll = 0.22 * k;
-          headYaw = -0.15 * k;
-          const w = Math.max(0, Math.sin(p * Math.PI * 6)) * k;
-          foreT[1] = V3(lerp(0.3, 0.42, k), lerp(0.0, 0.5, k) + 0.1 * w, lerp(0.84, 1.08, k) - 0.16 * w);
-          foreT.taunt = k;
+          const w = Math.sin(p * Math.PI * 6);
+          hands[1].lerp(V3(0.38 + 0.06 * w, 1.32, 0.3 - 0.08 * w), k);
+          hands[0].lerp(V3(-0.2, 1.0, 0.36), k);
+          headRoll = -0.18 * k;
+          headYaw = 0.12 * k;
+          squat = 0.05 * k * Math.abs(Math.sin(p * Math.PI * 4));
           antQuiver = 0.6 * k;
         } else if (nm === "eat") {
-          const k = smooth(0.18, 0.32, p) * (1 - smooth(0.86, 0.98, p));
-          headPitch = 0.3 * k;
-          tilt = 0.06 * k;
+          const k = smooth(0.14, 0.3, p) * (1 - smooth(0.86, 0.98, p));
+          hands.forEach((h, i) => h.lerp(V3((i ? 1 : -1) * 0.12, 1.18, 0.42), k));
+          headPitch = 0.22 * k;
           chew = ph && ph.chew ? ph.chew : 0;
-          foreT.eat = k;
         }
 
         root.rotation.y = lookYaw;
-        pivot.rotation.x = tilt + rock * 0.4;
+        pivot.rotation.x = lean + rock * 0.3;
         pivot.rotation.z = rock + Math.sin(t * 46) * 0.018 * shake;
-        bodyG.position.y = lift - squat + breath * 0.004 + Math.abs(Math.sin(t * 40)) * 0.008 * shake;
+        bodyG.rotation.y = twist;
+        const settle = smooth(0.2, 0.55, retract) * GY;
+        bodyG.position.y = lift - squat - settle + breath * 0.006 + Math.abs(Math.sin(t * 40)) * 0.01 * shake;
 
-        front.position.copy(FRONT_REST).addScaledVector(V3(0, 1, 0), -0.42 * retract);
-        headPivot.scale.setScalar(lerp(1, 0.72, smooth(0, 0.6, retract)));
+        front.position.y = -0.38 * smooth(0, 0.8, retract);
+        headPivot.scale.setScalar(lerp(1, 0.62, smooth(0, 0.6, retract)));
+        collar.scale.set(lerp(1, 0.7, smooth(0, 0.6, retract)), lerp(0.8, 0.56, smooth(0, 0.6, retract)), lerp(1, 0.7, smooth(0, 0.6, retract)));
         head.rotation.set(headPitch + lookPitch * 0.4 + breath * 0.02, headYaw + pointer.x * 0.15, headRoll);
-        mandibles.forEach((m, i) => (m.rotation.z = (i ? -1 : 1) * (0.1 + chew * 0.35 + Math.max(0, Math.sin(t * 3)) * 0.05)));
-        palps.forEach((pp, i) => (pp.rotation.x = Math.sin(t * 5 + i * 1.7) * 0.25 + chew * 0.3));
+        mandibles.forEach((m, i) => (m.rotation.z = (i ? -1 : 1) * (0.08 + chew * 0.35)));
+        mouth.scale.set(1, 1 + chew * 0.8, 1);
 
         root.updateMatrixWorld(true);
         mInv.copy(big.matrixWorld).invert();
@@ -772,96 +762,97 @@ Pets.register({
         mB.multiplyMatrices(mInv, lidAnchorGourd.matrixWorld);
         mA.decompose(pA, qA, sA);
         mB.decompose(pB, qB, v3);
-        const hover = V3(0, 0, 0).copy(AX).applyQuaternion(pivot.quaternion);
-        pA.y += 0.18 * lidSeat;
+        pA.y += 0.2 * lidRaise;
         v1.copy(pA).lerp(pB, lidOff);
-        v1.addScaledVector(hover, 0.14 * Math.sin(Math.PI * lidOff));
+        v1.y += 0.12 * Math.sin(Math.PI * lidOff);
         lid.position.copy(v1);
         lid.quaternion.copy(qA).slerp(qB, lidOff);
-        const ls = lerp(sA.x, v3.x, lidOff);
-        lid.scale.setScalar(ls);
+        lid.scale.setScalar(lerp(sA.x, v3.x, lidOff));
         lid.updateMatrixWorld(true);
 
-        const antBase = holeLocal.map(h => lid.localToWorld(h.clone()));
         const lidUp = V3(0, 1, 0).applyQuaternion(lid.quaternion);
         const fwd = V3(0, 0, 1).applyQuaternion(lid.quaternion);
         antMeshes.forEach((a, i) => {
           const sx = i ? 1 : -1;
-          const b = big.worldToLocal(antBase[i].clone());
-          const sway = Math.sin(t * 1.6 + i * 1.3) * 0.08 * motion;
-          const q = Math.sin(t * 38 + i) * 0.03 * antQuiver;
+          const b = big.worldToLocal(lid.localToWorld(holeLocal[i].clone()));
+          const sway = Math.sin(t * 1.6 + i * 1.3) * 0.06 * motion;
+          const q = Math.sin(t * 38 + i) * 0.025 * antQuiver;
           const pts = [];
           for (let k = 0; k < AN; k++) {
             const u = k / (AN - 1);
-            const h = 0.42 * Math.sin(Math.PI * Math.min(1, u * 0.85)) + 0.06 * u;
-            const f = 0.32 * u - 1.0 * u * u;
+            const arch = Math.min(1, u / 0.75);
+            const curl = smooth(0.7, 1, u);
+            const h = 0.4 * Math.sin(Math.PI * 0.62 * arch) - curl * 0.06 * (1 - Math.cos((u - 0.7) * 14));
+            const f = 0.1 * arch - 0.22 * arch * arch + curl * 0.07 * Math.sin((u - 0.7) * 14);
             const v = b.clone();
-            v.addScaledVector(lidUp, lerp(h, 0.12 * u - 0.75 * u * u, antPoke));
-            v.addScaledVector(fwd, lerp(f, 0.75 * u, antPoke));
-            v.x += sx * (0.04 + 0.42 * u) + antSweep * u * 0.5 * sx + (sway + q) * u * u;
+            v.addScaledVector(lidUp, lerp(h, 0.1 * u - 0.45 * u * u, antPoke));
+            v.addScaledVector(fwd, lerp(f, 0.45 * u, antPoke));
+            v.x += sx * (0.02 + 0.2 * u) + antSweep * u * 0.3 * sx + (sway + q) * u * u;
             v.y += (sway * 0.5 - q) * u * u;
-            if (v.y < 0.02) v.y = 0.02;
+            if (v.y < 0.03) v.y = 0.03;
             pts.push(v);
           }
           buildAntenna(a, pts);
         });
 
-        const sinkY = 0;
-        legs.forEach(L => {
-          const hip = toBig(L.anchor, v1);
-          let target = L.rest.clone();
-          if (L.kind === "fore") {
-            const i = L.sx > 0 ? 1 : 0;
-            if (foreT[i]) target = foreT[i].clone();
-            if (foreT.eat) target.lerp(V3(L.sx * 0.13, 0.44, 0.97), foreT.eat);
+        const limbSc = lerp(1, 0.0, smooth(0.05, 0.4, retract));
+        const limbVis = limbSc > 0.04;
+        legs.forEach((L, i) => {
+          const hip = toBig(L.hole.anchor, v1.set(0, 0, 0)).clone();
+          const target = feet[i];
+          if (saw && L.sx > 0) {
+            const sw = Math.sin(t * 24);
+            target.set(0.32, 0.22 + 0.06 * sw, 0.05 + 0.12 * sw);
+            target.lerp(L.rest, 1 - saw);
           }
-          if (L.hind) {
-            target.y += saw * Math.max(0, Math.sin(t * 22 + (L.sx > 0 ? 0 : Math.PI))) * 0.16;
-            target.lerp(V3(L.sx * 0.36, 0.25, -0.05), hindFold);
-          }
-          target.y += (lift + breath * 0.004) * follow;
-          if (!L.hind && retract > 0) target.lerp(hip, smooth(0, 0.35, retract));
-          target.y = Math.max(target.y, sinkY);
-          let pole = L.pole;
-          if (L.kind === "fore" && (foreT.eat || (foreT.taunt && L.sx > 0))) pole = L.pole.clone().lerp(V3(L.sx, -0.5, 0.15), foreT.eat || foreT.taunt);
-          ik(hip, target, L.l1, L.l2, pole, L.knee, L.ft);
-          placeLimb(L.femur, hip, L.knee, L.l1);
-          placeLimb(L.tibia, L.knee, L.ft, L.l2);
+          target.y += (lift + breath * 0.006) * follow;
+          target.lerp(hip, 1 - limbSc);
+          ik(hip, target, L.l1 * Math.max(limbSc, 0.05), L.l2 * Math.max(limbSc, 0.05), L.pole, L.knee, L.ft);
+          placeLimb(L.thigh, hip, L.knee, L.l1, limbSc);
+          placeLimb(L.shin, L.knee, L.ft, L.l2, limbSc);
           L.hipBall.position.copy(hip);
           L.kneeBall.position.copy(L.knee);
-          L.foot.position.copy(L.ft);
-          L.foot.rotation.set(0, L.sx * (L.hind ? 0.25 : 0.4), 0);
-          const vis = L.hind || retract < 0.34;
-          const sc = L.hind ? 1 : lerp(1, 0.3, smooth(0.05, 0.34, retract));
-          [L.femur, L.tibia, L.hipBall, L.kneeBall, L.foot].forEach(m => {
-            m.visible = vis;
-          });
-          L.hipBall.scale.setScalar(sc);
-          L.kneeBall.scale.setScalar(sc);
-          L.foot.scale.setScalar(sc);
-          L.femur.scale.x = L.femur.scale.z = sc;
-          L.tibia.scale.x = L.tibia.scale.z = sc;
+          L.ankleBall.position.copy(L.ft);
+          L.foot.position.copy(L.ft).setY(L.ft.y - 0.035 * limbSc);
+          L.foot.rotation.set(0, L.sx * 0.18, 0);
+          [L.hipBall, L.kneeBall, L.ankleBall, L.foot].forEach(m => m.scale.setScalar(limbSc));
+          [L.thigh, L.shin, L.hipBall, L.kneeBall, L.ankleBall, L.foot].forEach(m => (m.visible = limbVis));
+        });
+        arms.forEach((A, i) => {
+          const sh = toBig(A.hole.anchor, v1.set(0, 0, 0)).clone();
+          const target = gToBig(hands[i].clone());
+          target.lerp(sh, 1 - limbSc);
+          ik(sh, target, A.l1 * Math.max(limbSc, 0.05), A.l2 * Math.max(limbSc, 0.05), A.pole, A.el, A.hand);
+          placeLimb(A.upperArm, sh, A.el, A.l1, limbSc);
+          placeLimb(A.fore, A.el, A.hand, A.l2, limbSc);
+          A.shoulder.position.copy(sh);
+          A.elbow.position.copy(A.el);
+          A.fist.position.copy(A.hand);
+          v2.subVectors(A.hand, A.el).normalize();
+          A.fist.quaternion.setFromUnitVectors(DOWN, v2);
+          [A.shoulder, A.elbow, A.fist].forEach(m => m.scale.setScalar(limbSc));
+          [A.upperArm, A.fore, A.shoulder, A.elbow, A.fist].forEach(m => (m.visible = limbVis));
         });
 
         toBig(knot, v2);
-        const kd = V3(1, 0, 0);
-        tasselVel += (-tasselAng * 30 - tasselVel * 4 + (shake * Math.sin(t * 46) * 40 + (nm === "jump" ? Math.cos(Math.PI * smooth(0.22, 0.78, p)) * 6 : 0))) * 0.016;
+        tasselVel += (-tasselAng * 30 - tasselVel * 4 + shake * Math.sin(t * 46) * 40 + (nm === "jump" ? Math.cos(Math.PI * smooth(0.22, 0.78, p)) * 6 : 0) + twist * 20) * 0.016;
         tasselAng += tasselVel * 0.016;
         tasselAng = Math.max(-0.8, Math.min(0.8, tasselAng));
-        const hang = 0.16;
-        const tp = v2.clone().add(kd.multiplyScalar(0.03));
-        const bottom = V3(tp.x + Math.sin(tasselAng) * 0.05, tp.y - hang, tp.z + Math.sin(tasselAng * 0.7) * hang * 0.5);
-        if (bottom.y < 0.25) bottom.y = 0.25;
-        bodyG.worldToLocal(big.localToWorld(bottom));
-        tasselG.position.copy(bottom);
-        tasselG.rotation.set(tasselAng * 0.5, 0, tasselAng * 0.6);
+        const tp = v2.clone();
+        const out = V3(Math.sin(KA), 0, Math.cos(KA)).applyQuaternion(bodyG.getWorldQuaternion(new THREE.Quaternion()));
+        const bottom = tp.clone().addScaledVector(out, 0.2 + Math.abs(tasselAng) * 0.02);
+        bottom.y -= 0.2;
+        bottom.x += Math.sin(tasselAng) * 0.05;
+        const bl = bodyG.worldToLocal(big.localToWorld(bottom.clone()));
+        tasselG.position.copy(bl);
+        tasselG.rotation.set(0, 0, tasselAng * 0.5);
         const tpl = bodyG.worldToLocal(big.localToWorld(tp.clone()));
-        tasselCord.position.copy(tpl).add(bottom).multiplyScalar(0.5);
-        v3.subVectors(tpl, bottom);
+        tasselCord.position.copy(tpl).add(bl).multiplyScalar(0.5);
+        v3.subVectors(tpl, bl);
         tasselCord.scale.set(1, Math.max(0.01, v3.length()), 1);
         tasselCord.quaternion.setFromUnitVectors(V3(0, 1, 0), v3.normalize());
 
-        const close = 1 - blink;
+        const close = Math.max(1 - blink, retract > 0.3 ? 1 : 0);
         eyes.forEach(({ g }) => {
           g.scale.y = lerp(1, 0.1, close);
         });
@@ -871,19 +862,16 @@ Pets.register({
           r.visible = ringK > 0.05;
           if (!r.visible) return;
           const q = (t * 1.6 + i / 3) % 1;
-          toBig(gG, v2);
-          const c = v2.clone().addScaledVector(AX, 0.45);
-          r.position.copy(c);
-          r.position.y = Math.max(r.position.y, 0.4);
-          r.rotation.set(0, 0, 0);
-          r.scale.setScalar(0.3 + q * 0.75);
+          r.position.copy(toBig(gG, v2)).add(V3(0, 0.45, 0));
+          r.rotation.set(Math.PI / 2, 0, 0);
+          r.scale.setScalar(0.45 + q * 0.7);
           r.material.opacity = 0.55 * (1 - q) * ringK;
         });
         stars.forEach((st, i) => {
-          st.visible = nm === "jab" && impact > 0.1;
+          st.visible = starK > 0;
           if (!st.visible) return;
           const a = t * 9 + (i / 3) * TAU;
-          st.position.set(Math.cos(a) * 0.12, 0.8 + Math.sin(a) * 0.12, 1.22);
+          st.position.copy(gToBig(V3(0, 1.05, 0.85))).add(V3(Math.cos(a) * 0.12, Math.sin(a) * 0.12, 0));
           st.rotation.set(t * 5, t * 3, 0);
         });
         const fx = impact > 0.05 && nm !== "jab";
@@ -891,16 +879,16 @@ Pets.register({
           d.m.visible = fx;
           if (!fx) return;
           const u = 1 - impact;
-          const r = 0.55 + u * 0.5;
-          d.m.position.set(Math.cos(d.a) * r, 0.06 + u * 0.12, -0.1 + Math.sin(d.a) * r * 0.8);
+          const r = 0.5 + u * 0.45;
+          d.m.position.set(Math.cos(d.a) * r, 0.06 + u * 0.12, Math.sin(d.a) * r * 0.8);
           d.m.scale.setScalar(0.4 + u * 0.7);
           dustMat.opacity = 0.32 * impact;
         });
 
         if (nm === "eat" && ph) {
           food.visible = ph.visible;
-          const target = V3(0, 0.52, 1.02);
-          food.position.set(target.x, lerp(3.0, target.y, ph.fall * ph.fall), target.z);
+          const target = gToBig(V3(0, 1.2, 0.5));
+          food.position.set(target.x, lerp(3.4, target.y, ph.fall * ph.fall), target.z);
           food.scale.setScalar((1 - 0.85 * ph.bite) * 0.62);
         } else food.visible = false;
       }
