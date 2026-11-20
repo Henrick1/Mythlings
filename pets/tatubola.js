@@ -181,6 +181,8 @@ Pets.register({
 
     const shellMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: shellTex, roughness: 0.55, metalness: 0.15 });
     const plateMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: plateTex, roughness: 0.55, metalness: 0.1 });
+    kit.surface(shellMat, shellTex, { flat: [[wrapA(BAND_A[0]), wrapA(BAND_A[1]), 0.38, 0.3], [wrapA(BAND_A[1]), wrapA(BAND_A[2]), 0.18, 0.42], [wrapA(BAND_A[2]), wrapA(BAND_A[3]), 0.38, 0.3]] });
+    kit.surface(plateMat, plateTex, { seed: 5 });
     const plateMat2 = plateMat.clone();
     plateMat2.side = THREE.DoubleSide;
     const innerMat = new THREE.MeshStandardMaterial({ color: 0x3a2814, roughness: 0.9, side: THREE.BackSide });
