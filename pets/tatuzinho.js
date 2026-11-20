@@ -215,12 +215,13 @@ Pets.register({
     };
     const shellShape = c => {
       const la0 = lerp(1.14, Math.PI * 0.49, c);
+      const laB = lerp(1.47, Math.PI * 0.49, c);
       const az0 = lerp(1.95, Math.PI * 0.99, c);
       const zs = lerp(1.22, 1, c);
       const ys = lerp(0.98, 1, c);
       for (let i = 0; i <= NU; i++) {
         const u = (i / NU) * 2 - 1;
-        const la = u * la0;
+        const la = u * (u < 0 ? laB : la0);
         const rr = R * (1 + ridge(u));
         for (let j = 0; j <= NV; j++) {
           const v = (j / NV) * 2 - 1;
@@ -244,7 +245,7 @@ Pets.register({
     shell.frustumCulled = false;
     ballG.add(shell);
     const rimMatE = new THREE.MeshStandardMaterial({ color: 0x8a6234, roughness: 0.55, metalness: 0.1 });
-    const rims = [0, NU].map(i => {
+    const rims = [NU].map(i => {
       const m = new THREE.Mesh(new THREE.BufferGeometry(), rimMatE);
       m.castShadow = true;
       m.frustumCulled = false;
@@ -277,7 +278,7 @@ Pets.register({
       const y = bp.getY(i);
       const z = bp.getZ(i);
       const back = Math.max(0, -z);
-      bp.setXYZ(i, x * (0.55 - 0.03 * back), y * (y > 0 ? 0.44 + 0.2 * back * back : 0.44), z * 0.82);
+      bp.setXYZ(i, x * (0.55 - 0.05 * back), y * 0.44, z * (z < 0 ? 0.66 : 0.82));
     }
     bellyGeo.computeVertexNormals();
     const belly = mesh(bellyGeo, bellyMat);
@@ -308,7 +309,9 @@ Pets.register({
       nose.add(n);
     });
 
-    const helmet = mesh(new THREE.SphereGeometry(0.325, 36, 18, 0, TAU, 0, 0.85), plateMat);
+    const helmetMat = plateMat.clone();
+    helmetMat.side = THREE.DoubleSide;
+    const helmet = mesh(new THREE.SphereGeometry(0.325, 36, 18, 0, TAU, 0, 0.85), helmetMat);
     helmet.scale.set(0.9, 0.9, 1.06);
     helmet.rotation.x = -0.3;
     helmet.position.set(0, 0.025, -0.015);
@@ -416,7 +419,7 @@ Pets.register({
         const nz = Math.sin(th);
         const m = smooth(SPLIT - 0.06, SPLIT + 0.26, sN);
         const ring = 0.006 * Math.max(0, Math.sin(sN * Math.PI * 13)) * (1 - m);
-        const r = lerp(0.105, 0.058, Math.min(1, sN / SPLIT)) + ring;
+        const r = lerp(0.135, 0.06, Math.pow(Math.min(1, sN / SPLIT), 0.7)) + ring;
         const end = smooth(0.9, 1, sN);
         const w = lerp(r, 0.19, m) * (1 - 0.18 * end);
         const h = lerp(r, 0.08, m) * (1 - 0.35 * end);
@@ -634,7 +637,7 @@ Pets.register({
         [skull, snout, mouth, ...ears, ...eyes.map(e => e.g), ...lids, ...blushes].forEach(o => (o.visible = tucked));
         head.rotation.set(headPitch + (airborne ? -0.15 : 0) + pawDig * Math.sin(t * 14) * 0.06, headYaw, 0);
 
-        tailPivot.position.set(0, lerp(-0.12, 0, curl), lerp(-0.66 * zs, -R * 0.9, curl));
+        tailPivot.position.set(0, -0.02, lerp(-0.68 * zs, -R * 0.9, curl));
         const cK = smooth(0, 0.7, curl);
         tailPivot.rotation.set(0, tailYaw * (1 - cK), 0);
         if (tailPivot.visible || curl < 0.78) tailShape(lerp(baseA, 1.2, cK), lerp(bendA, 1.2, cK), lerp(bucketA, 0.8, cK));
