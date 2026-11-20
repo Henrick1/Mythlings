@@ -4,6 +4,8 @@ Pets.register({
   name: "Grilabaça",
   color: "#c98a3a",
   types: ["bug", "fighting"],
+  evolvesTo: "grilutador",
+  evolveLevel: 18,
   description: "Um filhotinho de grilo que nasceu dentro de uma cabacinha laqueada e nunca mais quis sair. Anda com ela como se fosse uma fralda, com as perninhas e os bracinhos saindo pelos furos, e usa a tampa furada como chapéu. Já se acha um lutador: amarra fitinhas vermelhas nos pulsos e dá tapinhas em tudo, mas quando leva um susto se esconde inteirinho dentro da cabaça.",
   actions: {
     jump: { duration: 1.3 },
