@@ -4,7 +4,9 @@ Pets.register({
   name: "Tatuzinho",
   color: "#e0a42a",
   types: ["ground", "steel"],
-  description: "Um tatuzinho operário que nunca tira o capacete. O rabo é uma caçamba de escavadeira que ele usa para cavar túneis. Ao menor susto se fecha numa bola perfeita, com o capacete e a caçamba tampando as pontas.",
+  evolvesTo: "tatubola",
+  evolveLevel: 16,
+  description: "Um tatuzinho cavador de casco cheio de plaquinhas. A ponta do rabo é uma pá curva com dentes, parecida com a caçamba de uma escavadeira, que ele usa para abrir túneis. Ao menor susto se fecha numa bola perfeita.",
   actions: {
     jump: { duration: 0.95 },
     eat: { duration: 2.4 },
@@ -216,7 +218,7 @@ Pets.register({
     const shellShape = c => {
       const la0 = lerp(1.14, Math.PI * 0.49, c);
       const laB = lerp(1.47, Math.PI * 0.49, c);
-      const az0 = lerp(1.95, Math.PI * 0.99, c);
+      const az0 = lerp(1.95, Math.PI, c);
       const zs = lerp(1.22, 1, c);
       const ys = lerp(0.98, 1, c);
       for (let i = 0; i <= NU; i++) {
