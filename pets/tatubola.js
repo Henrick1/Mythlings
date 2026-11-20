@@ -483,12 +483,13 @@ Pets.register({
       head.add(e.g);
       return e;
     });
-    const lids = [-1, 1].map(s => {
-      const l = mesh(new THREE.SphereGeometry(0.125, 20, 10, 0, TAU, 0, Math.PI * 0.5), skinMat, false);
-      l.scale.set(1, 1.08, 0.62);
-      l.position.set(0.17 * s, 0.03, 0.262);
-      l.rotation.set(-0.8, 0.42 * s, 0);
-      head.add(l);
+    const lids = eyes.map(({ g }) => {
+      const hold = new THREE.Group();
+      hold.scale.set(1.05, 1.13, 0.74);
+      g.add(hold);
+      const l = mesh(new THREE.SphereGeometry(0.1133, 28, 16, 0, TAU, 0, Math.PI * 0.55), skinMat, false);
+      l.rotation.x = -1.77;
+      hold.add(l);
       return l;
     });
     const mouth = mesh(new THREE.TorusGeometry(0.035, 0.009, 6, 14, Math.PI), darkMat, false);
@@ -777,11 +778,8 @@ Pets.register({
           e.scale.setScalar(lerp(1, 0.25, smooth(0, 0.6, tuck)));
         });
         const close = Math.max(shut, 1 - blink, tuck > 0.3 ? 1 : 0);
-        eyes.forEach(({ g }) => {
-          g.scale.y = lerp(1, 0.08, close);
-        });
         lids.forEach(l => {
-          l.rotation.x = lerp(-0.8, -0.18, close * 0.95);
+          l.rotation.x = lerp(-1.77, Math.PI / 2, close);
         });
         followPupils(eyes, pointer, 0.6);
 
