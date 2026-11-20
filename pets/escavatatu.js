@@ -585,11 +585,12 @@ Pets.register({
         const groove = 1 - lerp(0.0, 0.12, k) * Math.exp(-((jf - 0.5) * (jf - 0.5)) / 0.004);
         const rr = t >= 1 ? 0 : sr * SEG_R * Math.pow(1 - t, lerp(0.72, 0.85, k)) * (lerp(0.75, 0.8, k) + lerp(0.25, 0.2, k) * Math.sin(Math.PI * jf)) * groove;
         const fcT = fc + tw;
-        const push = (1 - k) * (0.16 * t + 0.3 * t * t) * SEG_L;
+        const push = (1 - k) * (0.06 * t + 0.26 * t * t) * SEG_L;
         const len = SEG_L * lerp(lr, 1, k);
-        out[o] = rr * Math.sin(f) + push * Math.sin(fcT);
+        const rest = 1 - smooth(0, 0.7, k);
+        out[o] = rr * Math.sin(f) + push * Math.sin(fcT) + rest * 0.1 * Math.sin(fr);
         out[o + 1] = -len * t;
-        out[o + 2] = rr * Math.cos(f) + push * Math.cos(fcT);
+        out[o + 2] = rr * Math.cos(f) + push * Math.cos(fcT) - rest * 0.1 * Math.cos(fr);
       };
       const fill = k => {
         for (let i = 0; i < n; i++) place(vt[i * 3], vt[i * 3 + 1], vt[i * 3 + 2], k, pos, i * 3);
