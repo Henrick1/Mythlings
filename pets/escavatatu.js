@@ -180,23 +180,71 @@ Pets.register({
     const skinMat = mat(0xae7652, 0.72);
     const bellyTex = (() => {
       if (!hasDoc) return null;
+      const W = 512;
+      const H = 512;
       const c = document.createElement("canvas");
-      c.width = 64;
-      c.height = 256;
+      c.width = W;
+      c.height = H;
       const g = c.getContext("2d");
       g.fillStyle = "#e6b58e";
-      g.fillRect(0, 0, 64, 256);
-      for (let y = 40; y < 230; y += 26) {
-        const gr = g.createLinearGradient(0, y - 5, 0, y + 5);
-        gr.addColorStop(0, "rgba(160,100,70,0)");
-        gr.addColorStop(0.5, "rgba(160,100,70,0.45)");
-        gr.addColorStop(1, "rgba(160,100,70,0)");
-        g.fillStyle = gr;
-        g.fillRect(0, y - 5, 64, 10);
+      g.fillRect(0, 0, W, H);
+      let sd = 21;
+      const rnd = () => (sd = (sd * 16807) % 2147483647) / 2147483647;
+      const yOf = ph => (0.5 - ph / Math.PI) * H;
+      for (let n = -3; n <= 3; n++) {
+        const p0 = (n * Math.PI - 0.4) / 7;
+        const p1 = ((n + 1) * Math.PI - 0.4) / 7;
+        if (n % 2 === 0) {
+          const y0 = yOf(p1);
+          const y1 = yOf(p0);
+          const gr = g.createLinearGradient(0, y0, 0, y1);
+          gr.addColorStop(0, "rgba(170,110,75,0.55)");
+          gr.addColorStop(0.18, "rgba(255,226,190,0.0)");
+          gr.addColorStop(0.45, "rgba(255,232,200,0.55)");
+          gr.addColorStop(0.82, "rgba(255,226,190,0.0)");
+          gr.addColorStop(1, "rgba(150,95,65,0.6)");
+          g.fillStyle = gr;
+          g.fillRect(0, y0, W, y1 - y0);
+        } else {
+          const y0 = yOf(p1);
+          const y1 = yOf(p0);
+          g.fillStyle = "rgba(175,115,80,0.25)";
+          g.fillRect(0, y0, W, y1 - y0);
+          for (let k = 0; k < 3; k++) {
+            const y = lerp(y0, y1, (k + 1) / 4) + (rnd() - 0.5) * 4;
+            g.beginPath();
+            g.moveTo(0, y);
+            for (let x = 0; x <= W; x += 16) g.lineTo(x, y + Math.sin(x * 0.05 + k * 2) * 1.5);
+            g.lineWidth = 1.4;
+            g.strokeStyle = "rgba(140,85,55,0.35)";
+            g.stroke();
+          }
+        }
       }
-      return new THREE.CanvasTexture(c);
+      for (let k = 0; k < 900; k++) {
+        const x = rnd() * W;
+        const y = rnd() * H;
+        g.beginPath();
+        g.ellipse(x, y, 0.8 + rnd() * 1.3, 0.6 + rnd() * 0.8, 0, 0, TAU);
+        g.fillStyle = "rgba(150,95,65," + (0.15 + rnd() * 0.25) + ")";
+        g.fill();
+      }
+      for (let k = 0; k < 60; k++) {
+        const x = rnd() * W;
+        const y = rnd() * H;
+        const r = 10 + rnd() * 30;
+        const gr = g.createRadialGradient(x, y, 0, x, y, r);
+        gr.addColorStop(0, rnd() > 0.5 ? "rgba(255,235,210,0.18)" : "rgba(190,130,95,0.16)");
+        gr.addColorStop(1, "rgba(0,0,0,0)");
+        g.fillStyle = gr;
+        g.fillRect(x - r, y - r, r * 2, r * 2);
+      }
+      const t = new THREE.CanvasTexture(c);
+      t.anisotropy = 4;
+      return t;
     })();
     const bellyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: bellyTex, roughness: 0.8 });
+    kit.surface(bellyMat, bellyTex, { seed: 9, rough: [0.62, 0.9], metal: 0, bump: 0.05, scratch: 0, pits: 0.4 });
     const noseMat = mat(0x8e5048, 0.5);
     const keratin = new THREE.MeshStandardMaterial({ color: 0x4a3018, roughness: 0.35, metalness: 0.15 });
     const clawTip = new THREE.MeshStandardMaterial({ color: 0xc9d1d9, roughness: 0.3, metalness: 0.45 });
@@ -616,7 +664,7 @@ Pets.register({
       const el = new THREE.Group();
       el.position.y = -0.46;
       sh.add(el);
-      el.add(mesh(new THREE.SphereGeometry(0.145, 20, 14), skinMat));
+      el.add(mesh(new THREE.SphereGeometry(0.158, 22, 16), skinMat));
       const fore = mesh(new THREE.LatheGeometry([V2(0.0001, -0.5), V2(0.15, -0.49), V2(0.19, -0.42), V2(0.2, -0.28), V2(0.175, -0.1), V2(0.14, 0.02), V2(0.0001, 0.06)], 26), skinMat);
       el.add(fore);
       el.add(mesh(ringBand(0.212, -0.44, -0.12, 4), rimMat));
@@ -643,16 +691,84 @@ Pets.register({
       return { sh, el, wrist, hand, claws, sx, palm, pg };
     });
 
+    const FS = V3(0.17, 0.13, 0.22);
+    const FC = V3(0, -0.11, 0.05);
+    const widen = (x, z) => x * (1 + 0.3 * Math.max(0, z));
+    const soleGeo = (() => {
+      const g = new THREE.SphereGeometry(1, 36, 22);
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        let y = p.getY(i);
+        const z = p.getZ(i);
+        if (y < -0.6) y = -0.6 - (y + 0.6) * 0.2;
+        p.setXYZ(i, widen(p.getX(i), z), y, z);
+      }
+      g.computeVertexNormals();
+      return g;
+    })();
+    const PC = 0.78;
+    const footPlateGeo = (() => {
+      const g = new THREE.SphereGeometry(1, 32, 12, 0, TAU, 0, PC);
+      g.rotateX(0.62);
+      const p = g.attributes.position;
+      const uv = g.attributes.uv;
+      for (let i = 0; i < p.count; i++) {
+        const z = p.getZ(i);
+        p.setX(i, widen(p.getX(i), z));
+        uv.setXY(i, p.getX(i) * 0.22 + 0.5, z * 0.28 + 0.5);
+      }
+      g.computeVertexNormals();
+      return g;
+    })();
+    const footEdge = (() => {
+      const pts = [];
+      for (let k = 0; k < 48; k++) {
+        const ph = (k / 48) * TAU;
+        const v = V3(-Math.cos(ph) * Math.sin(PC), Math.cos(PC), Math.sin(ph) * Math.sin(PC));
+        v.applyAxisAngle(V3(1, 0, 0), 0.62);
+        v.x = widen(v.x, v.z);
+        pts.push(v.multiply(FS).multiplyScalar(1.06).add(FC));
+      }
+      return new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 96, 0.016, 8, true);
+    })();
+    const toeGeo = new THREE.SphereGeometry(1, 18, 12);
+    const nailGeo = clawGeo(0.09, 0.03, -0.35);
+    const buildFoot = () => {
+      const f = new THREE.Group();
+      const sole = mesh(soleGeo, skinMat);
+      sole.scale.copy(FS);
+      sole.position.copy(FC);
+      f.add(sole);
+      const plate = mesh(footPlateGeo, plateMat2);
+      plate.scale.copy(FS).multiplyScalar(1.06);
+      plate.position.copy(FC);
+      f.add(plate);
+      f.add(mesh(footEdge, rimMat, false));
+      [-1.5, -0.5, 0.5, 1.5].forEach(i => {
+        const tz = FC.z + 0.2 - Math.abs(i) * 0.03;
+        const tx = i * 0.075;
+        const toe = mesh(toeGeo, skinMat);
+        toe.scale.set(0.05, 0.048, 0.072);
+        toe.position.set(tx, -0.155, tz);
+        toe.rotation.y = i * 0.15;
+        f.add(toe);
+        const nail = mesh(nailGeo, keratin, false);
+        nail.rotation.set(-Math.PI / 2 + 0.5, i * 0.15, 0, "YXZ");
+        nail.position.set(tx + i * 0.008, -0.135, tz + 0.05);
+        f.add(nail);
+      });
+      return f;
+    };
     const legs = [-1, 1].map(sx => {
       const hip = new THREE.Group();
       hip.position.set(0.33 * sx, HIP, 0.02);
       bodyG.add(hip);
-      hip.add(mesh(new THREE.SphereGeometry(0.25, 24, 16), skinMat));
+      hip.add(mesh(new THREE.SphereGeometry(0.262, 26, 18), skinMat));
       hip.add(mesh(new THREE.LatheGeometry([V2(0.0001, -0.38), V2(0.17, -0.37), V2(0.2, -0.3), V2(0.24, -0.16), V2(0.25, -0.04), V2(0.0001, 0.05)], 26), skinMat));
       const knee = new THREE.Group();
       knee.position.y = -0.36;
       hip.add(knee);
-      knee.add(mesh(new THREE.SphereGeometry(0.175, 20, 14), skinMat));
+      knee.add(mesh(new THREE.SphereGeometry(0.188, 22, 16), skinMat));
       const kcap = mesh(lameDome(0.19, 2, 0.4), plateMat2);
       const kRim = mesh(new THREE.TorusGeometry(0.19 * Math.sin(1.3) * 1.06, 0.018, 8, 32), rimMat, false);
       kRim.rotation.x = Math.PI / 2;
@@ -661,27 +777,18 @@ Pets.register({
       kcap.rotation.x = Math.PI / 2 - 0.15;
       kcap.position.set(0, 0.02, 0.02);
       knee.add(kcap);
-      knee.add(mesh(new THREE.LatheGeometry([V2(0.0001, -0.37), V2(0.15, -0.36), V2(0.16, -0.25), V2(0.165, -0.1), V2(0.17, 0.0), V2(0.0001, 0.05)], 24), skinMat));
+      knee.add(mesh(new THREE.LatheGeometry([V2(0.0001, -0.4), V2(0.09, -0.395), V2(0.135, -0.34), V2(0.16, -0.25), V2(0.165, -0.1), V2(0.17, 0.0), V2(0.0001, 0.05)], 24), skinMat));
       knee.add(mesh(ringBand(0.178, -0.3, -0.08, 3), rimMat));
       const ankle = new THREE.Group();
       ankle.position.y = -0.36;
       knee.add(ankle);
-      ankle.add(mesh(new THREE.SphereGeometry(0.15, 18, 12), skinMat));
-      const foot = mesh(new THREE.SphereGeometry(0.2, 26, 16), skinMat);
-      foot.scale.set(1.05, 0.55, 1.4);
-      foot.position.set(0, -0.11, 0.08);
-      ankle.add(foot);
-      [-1, 0, 1].forEach(c => {
-        const t = mesh(clawGeo(0.13, 0.04, 0.0), keratin, false);
-        t.rotation.x = -Math.PI / 2 - 0.35;
-        t.position.set(c * 0.1, -0.12, 0.33 - Math.abs(c) * 0.04);
-        ankle.add(t);
-      });
+      ankle.add(mesh(new THREE.SphereGeometry(0.13, 18, 12), skinMat));
+      ankle.add(buildFoot());
       return { hip, knee, ankle, sx };
     });
     const L1 = 0.36;
     const L2 = 0.36;
-    const FH = 0.12;
+    const FH = 0.205;
 
     const tailPivot = new THREE.Group();
     tailPivot.position.set(0, 0.7 - HIP, -0.3);
