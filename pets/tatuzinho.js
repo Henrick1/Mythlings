@@ -385,6 +385,10 @@ Pets.register({
     tailPivot.add(tailMesh);
     const tipFrame = new THREE.Group();
     tailPivot.add(tipFrame);
+    const tailRoot = mesh(new THREE.SphereGeometry(0.14, 24, 16), plateMat);
+    tailRoot.scale.set(1, 0.95, 1.25);
+    tailRoot.position.z = 0.06;
+    tailPivot.add(tailRoot);
     const teeth = [-1, 0, 1].map(k => {
       const tooth = mesh(new THREE.ConeGeometry(0.026, 0.075, 10), keratin, false);
       tooth.rotation.x = -Math.PI / 2;
@@ -412,7 +416,7 @@ Pets.register({
       let th = th0;
       for (let i = 0; i <= NS; i++) {
         const sN = i / NS;
-        th = th0 + bend * Math.min(sN, SPLIT) / SPLIT + hook * smooth(SPLIT - 0.08, 1, sN);
+        th = lerp(-0.15, th0, smooth(0, 0.22, sN)) + bend * Math.min(sN, SPLIT) / SPLIT + hook * smooth(SPLIT - 0.08, 1, sN);
         const ty = Math.sin(th);
         const tz = -Math.cos(th);
         const ny = Math.cos(th);
@@ -637,7 +641,7 @@ Pets.register({
         [skull, snout, mouth, ...ears, ...eyes.map(e => e.g), ...lids, ...blushes].forEach(o => (o.visible = tucked));
         head.rotation.set(headPitch + (airborne ? -0.15 : 0) + pawDig * Math.sin(t * 14) * 0.06, headYaw, 0);
 
-        tailPivot.position.set(0, -0.02, lerp(-0.68 * zs, -R * 0.9, curl));
+        tailPivot.position.set(0, -0.02, lerp(-0.62 * zs, -R * 0.9, curl));
         const cK = smooth(0, 0.7, curl);
         tailPivot.rotation.set(0, tailYaw * (1 - cK), 0);
         if (tailPivot.visible || curl < 0.78) tailShape(lerp(baseA, 1.2, cK), lerp(bendA, 1.2, cK), lerp(bucketA, 0.8, cK));
