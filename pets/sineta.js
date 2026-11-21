@@ -24,9 +24,11 @@ Pets.register({
     const { mesh, lerp, smooth, eatPhase, berry } = kit;
 
     const BASE = 1.1;
-    const TILT = 0.28;
+    const TILT = 0;
     const BELL_SCALE = 0.9;
     const HANDLE = 1.0;
+    const GY = 0.72;
+    const GLIFT = (GY - 0.5) * 0.9;
 
     const brass = new THREE.MeshStandardMaterial({
       color: 0xd9a441,
@@ -118,48 +120,66 @@ Pets.register({
     bell.scale.setScalar(BELL_SCALE);
     bodyG.add(bell);
 
-    const profile = [
+    const OUTER = [
       [0.001, 0],
-      [0.4, 0],
-      [0.46, 0.06],
-      [0.54, 0.3],
-      [0.64, 0.6],
-      [0.74, 0.85],
-      [0.8, 0.95],
-      [0.82, 0.98],
-      [0.8, 1.0],
-      [0.74, 1.0],
+      [0.2, 0.0],
+      [0.32, 0.03],
+      [0.39, 0.09],
+      [0.42, 0.18],
+      [0.43, 0.32],
+      [0.45, 0.5],
+      [0.5, 0.66],
+      [0.58, 0.79],
+      [0.7, 0.9],
+      [0.8, 0.96],
+      [0.84, 1.0]
+    ];
+    const INNER = [
+      [0.83, 1.03],
+      [0.79, 1.035],
       [0.72, 0.97],
-      [0.66, 0.85],
-      [0.56, 0.6],
-      [0.46, 0.3],
-      [0.38, 0.15],
+      [0.62, 0.89],
+      [0.52, 0.79],
+      [0.45, 0.66],
+      [0.41, 0.5],
+      [0.39, 0.32],
+      [0.37, 0.2],
+      [0.3, 0.14],
       [0.001, 0.12]
-    ].map(([r, y]) => new THREE.Vector2(r, y));
-    bell.add(mesh(new THREE.LatheGeometry(profile, 48), brass));
+    ];
+    const outerR = y => {
+      for (let i = 0; i < OUTER.length - 1; i++) {
+        const [r0, y0] = OUTER[i];
+        const [r1, y1] = OUTER[i + 1];
+        if (y >= y0 && y <= y1 && y1 > y0) return lerp(r0, r1, (y - y0) / (y1 - y0));
+      }
+      return OUTER[OUTER.length - 1][0];
+    };
+    const profile = OUTER.concat(INNER).map(([r, y]) => new THREE.Vector2(r, y));
+    bell.add(mesh(new THREE.LatheGeometry(profile, 64), brass));
+    const collar = mesh(new THREE.LatheGeometry([[0.001, -0.06], [0.15, -0.06], [0.2, -0.03], [0.22, 0.0], [0.2, 0.03], [0.001, 0.04]].map(([r, y]) => new THREE.Vector2(r, y)), 32), rimMat);
+    bell.add(collar);
 
-    const rim = mesh(new THREE.TorusGeometry(0.78, 0.045, 10, 48), rimMat, false);
+    const rim = mesh(new THREE.TorusGeometry(0.82, 0.04, 10, 64), rimMat, false);
     rim.rotation.x = Math.PI / 2;
-    rim.position.y = 0.99;
+    rim.position.y = 1.015;
     bell.add(rim);
 
-    const hole = new THREE.Mesh(new THREE.CircleGeometry(0.7, 40), voidMat);
+    const hole = new THREE.Mesh(new THREE.CircleGeometry(0.6, 48), voidMat);
     hole.rotation.x = -Math.PI / 2;
-    hole.position.y = 0.93;
+    hole.position.y = 0.87;
     bell.add(hole);
 
-    [
-      [0.2, 0.51],
-      [0.45, 0.6],
-      [0.7, 0.7]
-    ].forEach(([y, r]) => {
-      const band = mesh(new THREE.TorusGeometry(r, 0.026, 8, 48), bandMat, false);
+    [0.14, 0.72].forEach(y => {
+      const band = mesh(new THREE.TorusGeometry(outerR(y) + 0.004, 0.026, 8, 64), bandMat, false);
       band.rotation.x = Math.PI / 2;
       band.position.y = y;
       bell.add(band);
-      const line = mesh(new THREE.TorusGeometry(r + 0.04, 0.009, 6, 48), lineMat, false);
+    });
+    [0.2, 0.78].forEach(y => {
+      const line = mesh(new THREE.TorusGeometry(outerR(y) + 0.002, 0.01, 6, 64), lineMat, false);
       line.rotation.x = Math.PI / 2;
-      line.position.y = y + 0.07;
+      line.position.y = y;
       bell.add(line);
     });
 
@@ -168,12 +188,13 @@ Pets.register({
       g.rotation.y = (i / 14) * Math.PI * 2;
       const stud = mesh(new THREE.CylinderGeometry(0.032, 0.04, 0.05, 8), rimMat, false);
       stud.rotation.z = Math.PI / 2;
-      stud.position.x = 0.76;
+      stud.position.x = outerR(0.86) + 0.012;
       const cap = mesh(new THREE.ConeGeometry(0.032, 0.04, 8), rimMat, false);
       cap.rotation.z = -Math.PI / 2;
-      cap.position.x = 0.8;
+      cap.position.x = outerR(0.86) + 0.05;
       g.add(stud, cap);
       g.position.y = 0.86;
+      g.rotation.z = 0;
       bell.add(g);
     }
 
@@ -181,24 +202,26 @@ Pets.register({
       const g = new THREE.Group();
       g.rotation.y = (i / 16) * Math.PI * 2;
       const spike = mesh(new THREE.ConeGeometry(0.04, 0.13, 6), rimMat, false);
-      spike.position.set(0.78, 1.06, 0);
+      spike.position.set(0.82, 1.08, 0);
       g.add(spike);
       bell.add(g);
     }
 
     const emblem = new THREE.Group();
-    emblem.position.set(0, 0.55, 0.63);
-    emblem.rotation.x = 0.36;
-    const plate = mesh(new THREE.OctahedronGeometry(0.16), bandMat, false);
-    plate.scale.set(0.8, 1.25, 0.25);
-    const gem = mesh(new THREE.OctahedronGeometry(0.09), gemMat, false);
-    gem.scale.set(0.8, 1.25, 0.4);
+    emblem.position.set(0, 0.44, outerR(0.44) - 0.005);
+    emblem.rotation.x = 0.12;
+    const plate = mesh(new THREE.CylinderGeometry(0.12, 0.13, 0.04, 32), rimMat, false);
+    plate.rotation.x = Math.PI / 2;
+    const plateRing = mesh(new THREE.TorusGeometry(0.125, 0.014, 8, 32), bandMat, false);
+    plateRing.position.z = 0.02;
+    const gem = mesh(new THREE.SphereGeometry(0.075, 20, 14), gemMat, false);
+    gem.scale.set(0.85, 1.1, 0.55);
     gem.position.z = 0.03;
-    emblem.add(plate, gem);
+    emblem.add(plate, plateRing, gem);
     bell.add(emblem);
 
     const ghost = new THREE.Group();
-    ghost.position.y = 0.5;
+    ghost.position.y = GY;
     bell.add(ghost);
 
     const gProfile = [
@@ -241,7 +264,7 @@ Pets.register({
     ghost.add(mouthOpen);
 
     const M = 12;
-    const S = [-0.55, 1.94, 0.28];
+    const S = [-0.5, 1.94 + GLIFT, 0.1];
     const ARM_LEN = 1.2;
     const LAG = 0.1;
 
@@ -288,7 +311,7 @@ Pets.register({
     ].map(([r, start, span]) => {
       const m = new THREE.MeshBasicMaterial({ color: 0xe8eeff, transparent: true, opacity: 0 });
       const a = new THREE.Mesh(new THREE.TorusGeometry(r, 0.018, 6, 28, span), m);
-      a.position.set(S[0], S[1], 0.4);
+      a.position.set(S[0], S[1], 0.25);
       a.rotation.z = start;
       a.visible = false;
       root.add(a);
@@ -300,7 +323,7 @@ Pets.register({
       for (let i = 0; i < 2; i++) {
         const m = new THREE.MeshBasicMaterial({ color: 0xffe27a, transparent: true, opacity: 0 });
         const a = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.015, 6, 16, Math.PI * 0.6), m);
-        a.position.set(0.85 * s, 1.96, 0.28);
+        a.position.set(0.85 * s, 1.96 + GLIFT, 0.1);
         a.rotation.z = s > 0 ? -Math.PI * 0.3 : Math.PI - Math.PI * 0.3;
         a.visible = false;
         root.add(a);
@@ -365,7 +388,7 @@ Pets.register({
 
         if (a === "eat") {
           food.visible = ph.visible;
-          food.position.set(0, lerp(3.4, 2.07, ph.fall * ph.fall), lerp(0.6, 0.55, ph.fall));
+          food.position.set(0, lerp(3.6, 2.07 + GLIFT, ph.fall * ph.fall), lerp(0.4, 0.3, ph.fall));
           food.scale.setScalar(1 - 0.85 * ph.bite);
           food.rotation.z = (1 - ph.fall) * 1.2;
           opened = p > 0.12 && p < 0.85 && (p < 0.3 || ph.chew > 0.35);
@@ -385,7 +408,7 @@ Pets.register({
         bell.rotation.x = TILT + Math.sin(t * 1.1) * 0.01 * motion;
         bell.rotation.z = rock;
 
-        ghost.position.y = 0.5 + ghostLift;
+        ghost.position.y = GY + ghostLift;
         ghost.rotation.z = swing;
         ghost.rotation.y = lookYaw * 0.8 + ghostYaw;
         ghost.rotation.x = lookPitch * 0.8 + ghostPitch;
@@ -398,7 +421,7 @@ Pets.register({
             const f = (i - 0.5) / (M - 1);
             const ang = swingAngle(p - LAG * f) + 0.25 * f + Math.sin(t * 6 + i * 0.7) * 0.03 * f;
             const prev = pts[i - 1];
-            pts.push([prev[0] + Math.cos(ang) * segLen, prev[1] + Math.sin(ang) * segLen, 0.4 + 0.1 * f]);
+            pts.push([prev[0] + Math.cos(ang) * segLen, prev[1] + Math.sin(ang) * segLen, 0.15 + 0.1 * f]);
           }
           armSegs.forEach((seg, i) => {
             const A = pts[i];
