@@ -4,6 +4,8 @@ Pets.register({
   name: "Badalma",
   color: "#d9a441",
   types: ["ghost"],
+  evolvesTo: "rachadalma",
+  evolveLevel: 28,
   move: "fly",
   description: "Um sino antigo assombrado por um espírito mascarado. Seu toque ecoa pela casa mesmo quando ninguém o balança.",
   actions: {
