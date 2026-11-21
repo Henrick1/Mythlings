@@ -841,7 +841,8 @@ Pets.register({
           lean = 0.1 - 0.35 * strike + 0.12 * wind;
           twist = -0.4 * strike + 0.15 * wind;
           squat = 0.08 * hold;
-          hands[0].lerp(V3(-0.34, CH + 0.05, 0.2), strike);
+          hands.forEach((h, i) => h.lerp(V3((i ? 1 : -1) * 0.24, CH, 0.46), wind));
+          hands[0].lerp(V3(-0.42, CH - 0.08, 0.26), strike);
           hands[1].lerp(V3(0.42, CH - 0.2, -0.15), strike);
           footLift[1] = hold;
           squint = hold * 0.4;
@@ -862,7 +863,7 @@ Pets.register({
           hands.forEach((h, i) => h.lerp(V3((i ? 1 : -1) * 0.55, CH - 0.05, 0.2), k));
         } else if (nm === "guard") {
           const k = smooth(0.04, 0.18, p) * (1 - smooth(0.82, 0.96, p));
-          hands.forEach((h, i) => h.lerp(V3((i ? 1 : -1) * 0.07, CH + 0.3, 0.32), k));
+          hands.forEach((h, i) => h.lerp(V3((i ? 1 : -1) * 0.1, CH + 0.2, 0.46), k));
           squat = 0.14 * k;
           lean = 0.1 + 0.15 * k;
           headPitch = 0.15 * k;

@@ -747,19 +747,33 @@ Pets.register({
     mouth.rotation.set(-0.4, 0, Math.PI);
     mouth.position.set(0, -0.105, 0.207);
     head.add(mouth);
-    const chinAnchors = [-1, 0, 1].map(k => {
-      const o = new THREE.Object3D();
-      o.position.set(k * 0.06, -0.165 + Math.abs(k) * 0.02, 0.16 - Math.abs(k) * 0.02);
-      head.add(o);
-      return o;
-    });
-    const beard = [0, 1, 2].map(() => dyn(beardMat));
     [-1, 1].forEach(s => {
-      const m = mesh(new THREE.ConeGeometry(0.016, 0.05, 10), ivory, false);
-      m.position.set(0.035 * s, -0.15, 0.185);
-      m.rotation.set(0, 0, -0.3 * s + Math.PI);
+      const m = mesh(new THREE.ConeGeometry(0.015, 0.048, 12), ivory, false);
+      m.position.set(0.034 * s, -0.142, 0.19);
+      m.rotation.set(Math.PI - 0.25, 0, 0.12 * s);
       head.add(m);
     });
+    const beardGeo = (() => {
+      const g = new THREE.SphereGeometry(1, 32, 24);
+      const p = g.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        const y = p.getY(i);
+        const t = (1 - y) / 2;
+        const w = lerp(1, 0.12, Math.pow(t, 1.3));
+        p.setXYZ(i, p.getX(i) * w, y, p.getZ(i) * lerp(1, 0.5, t));
+      }
+      g.translate(0, -1, 0);
+      g.computeVertexNormals();
+      return g;
+    })();
+    const beardPivot = new THREE.Group();
+    chest.add(beardPivot);
+    const beardMesh = mesh(beardGeo, beardMat);
+    beardMesh.scale.set(0.085, 0.2, 0.035);
+    beardPivot.add(beardMesh);
+    const chinAnchor = new THREE.Object3D();
+    chinAnchor.position.set(0, -0.165, 0.175);
+    head.add(chinAnchor);
 
     const HC = 1.12;
     const HR = 0.252;
@@ -1160,13 +1174,13 @@ Pets.register({
         } else if (nm === "swing") {
           const wind = smooth(0.04, 0.32, p) * (1 - smooth(0.34, 0.46, p));
           const strike = smooth(0.34, 0.48, p) * (1 - smooth(0.72, 0.94, p));
-          hands[1].lerp(V3(0.38, CH + 0.55, -0.05), wind);
-          hands[0].lerp(V3(0.1, CH + 0.4, 0.05), wind);
-          staffDir.lerp(V3(-0.35, 0.55, -0.75), wind);
+          hands[1].lerp(V3(0.5, CH + 0.28, 0.05), wind);
+          hands[0].lerp(V3(-0.36, CH - 0.05, 0.38), wind);
+          staffDir.lerp(V3(0.15, 0.6, -0.8), wind);
           hands[1].lerp(V3(0.12, CH * 0.25, 0.62), strike);
           hands[0].lerp(V3(-0.12, CH * 0.35, 0.45), strike);
           staffDir.lerp(V3(-0.15, 0.05, 1), strike);
-          twoHand = Math.max(wind, strike) * 0.9;
+          twoHand = strike * 0.85;
           twist = -0.25 * wind + 0.35 * strike;
           lean = 0.02 - 0.12 * wind + 0.22 * strike;
           squat = 0.1 * strike;
@@ -1193,9 +1207,9 @@ Pets.register({
         } else if (nm === "twirl") {
           const k = smooth(0.04, 0.16, p) * (1 - smooth(0.82, 0.96, p));
           const a = smooth(0.12, 0.85, p) * TAU * 3;
-          hands[1].lerp(V3(0.2, CH * 0.5, 0.5), k);
-          staffDir.lerp(V3(Math.cos(a), 0.05, Math.sin(a) * 0.5), k);
-          staffGrip = 0.5 * k;
+          hands[1].lerp(V3(0.12, CH * 0.35, 0.62), k);
+          staffDir.lerp(V3(Math.sin(a), Math.cos(a), 0.06), k);
+          staffGrip = -0.065 * k;
           hands[0].lerp(V3(-0.42, CH + 0.3, 0.1), k);
           headRoll = 0.12 * k;
           trailK = k * 0.6;
@@ -1237,7 +1251,7 @@ Pets.register({
           squint = 0.15 + 0.2 * k;
         } else if (nm === "eat") {
           const k = smooth(0.14, 0.3, p) * (1 - smooth(0.86, 0.98, p));
-          hands[0].lerp(V3(-0.07, CH + 0.12, 0.38), k);
+          hands[0].lerp(V3(-0.03, CH + 0.1, 0.44), k);
           headPitch = 0.2 * k;
           chew = ph && ph.chew ? ph.chew : 0;
         }
@@ -1283,22 +1297,11 @@ Pets.register({
           a.tip.position.copy(pts[pts.length - 1]);
         });
 
-        const fbase = V3(0, 0, 0);
-        chinAnchors.forEach((o, i) => {
-          toBig(o, fbase);
-          const hq = bigQuat(head);
-          const dn = V3(0, -1, 0.25).normalize().applyQuaternion(hq);
-          const pts = [];
-          const L = [0.36, 0.5, 0.36][i];
-          for (let k = 0; k < 10; k++) {
-            const u = k / 9;
-            const v = fbase.clone().addScaledVector(dn, u * L);
-            v.z += 0.05 * u * u * u;
-            v.x += Math.sin(t * 1.7 + i + u * 2) * 0.015 * u + (i - 1) * 0.02 * u;
-            pts.push(v);
-          }
-          flexTube(beard[i], pts, 0.034, 0.012, 0.4);
-        });
+        chest.updateMatrixWorld(true);
+        chinAnchor.getWorldPosition(v1);
+        chest.worldToLocal(v1);
+        beardPivot.position.copy(v1);
+        beardPivot.rotation.set(-0.42 + Math.max(0, headPitch - lean) * 0.6, (headYaw + pointer.x * 0.15) * 0.8, Math.sin(t * 1.7) * 0.05 * motion + headRoll * 0.6);
 
         const bk = toBig(buckle, V3(0, 0, 0));
         const pq = bigQuat(pelvis);
@@ -1357,7 +1360,7 @@ Pets.register({
         staff.updateMatrixWorld(true);
         const bottom = staff.localToWorld(V3(0, -ST_DN, 0));
         big.worldToLocal(bottom);
-        if (bottom.y < 0.04) staff.position.y += 0.04 - bottom.y;
+        if (bottom.y < 0.04 && sd.y > 0.85) staff.position.y += 0.04 - bottom.y;
 
         flags.forEach(({ tilt, flapPivot, ang, i }) => {
           const buzz = Math.sin(t * 50 + i * 1.7) * 0.12 * flagBuzz;
@@ -1374,7 +1377,7 @@ Pets.register({
         trail.visible = trailK > 0.05;
         if (trail.visible) {
           trail.position.copy(chestToBig(V3(0, CH * 0.4, 0.1)));
-          if (nm === "twirl") trail.rotation.set(-Math.PI / 2, 0, trailRot);
+          if (nm === "twirl") trail.rotation.set(0, 0, -trailRot + Math.PI / 2 - 0.8);
           else trail.rotation.set(0.2, Math.PI / 2, 0.6);
           trail.material.opacity = 0.45 * trailK;
         }
@@ -1408,7 +1411,7 @@ Pets.register({
 
         if (nm === "eat" && ph) {
           food.visible = ph.visible;
-          const target = chestToBig(V3(0, CH + 0.12, 0.38)).add(V3(0, 0.1, 0.06));
+          const target = chestToBig(V3(-0.01, CH + 0.1, 0.44)).add(V3(0, 0.12, 0.04));
           food.position.set(target.x, lerp(4, target.y, ph.fall * ph.fall), target.z);
           food.scale.setScalar((1 - 0.85 * ph.bite) * 0.75);
         } else food.visible = false;
