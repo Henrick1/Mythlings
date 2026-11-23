@@ -2328,7 +2328,7 @@ Pets.register({
       });
       const dh = add(bodyG, new THREE.Group());
       const dhIn = new THREE.Group();
-      dhIn.scale.setScalar(1.85);
+      dhIn.scale.setScalar(2.5);
       dh.add(dhIn);
       const jaw = new THREE.Group();
       jaw.position.set(0, -0.012, -0.1);
@@ -2697,8 +2697,8 @@ Pets.register({
           wingMat.color.setHex(shiny ? 0x2a6a58 : 0x3a2f78);
         },
         rest(S, t, motion) {
-          S.hL.set(0.86 + Math.sin(t * 1.1) * 0.035 * motion, TIP + 1.2 + Math.sin(t * 1.7) * 0.03 * motion, 0.38);
-          want.set(0.12 + Math.sin(t * 1.1 + 0.6) * 0.08 * motion, 0.12, 1);
+          S.hL.set(1.05 + Math.sin(t * 1.1) * 0.035 * motion, TIP + 0.92 + Math.sin(t * 1.7) * 0.03 * motion, 0.42);
+          want.set(0.3 + Math.sin(t * 1.1 + 0.6) * 0.08 * motion, 0.12, 1);
           S.lean += 0.08;
           S.headPitch += 0.05;
           S.spinY -= 0.1;
@@ -2711,8 +2711,8 @@ Pets.register({
           if (nm === "swipe") {
             const wind = smooth(0.04, 0.3, p) * (1 - smooth(0.33, 0.4, p));
             const strike = smooth(0.33, 0.42, p) * (1 - smooth(0.7, 0.95, p));
-            S.hL.lerp(V3(0.62, TIP + 1.28, 0.08), wind);
-            want.lerp(V3(-0.05, 0.35, 1), wind);
+            S.hL.lerp(V3(0.88, TIP + 1.36, 0.05), wind);
+            want.lerp(V3(0.12, 0.35, 1), wind);
             S.hL.lerp(V3(0.3, TIP + 1.0, 0.85), strike);
             want.lerp(V3(-0.15, -0.12, 1), strike);
             S.jaw = Math.max(S.jaw, 0.95 * smooth(0.12, 0.32, p) * (1 - smooth(0.4, 0.45, p)));
@@ -2728,8 +2728,8 @@ Pets.register({
           if (nm === "fling") {
             const rear = smooth(0.04, 0.34, p) * (1 - smooth(0.38, 0.46, p));
             const fire = smooth(0.38, 0.46, p) * (1 - smooth(0.84, 0.97, p));
-            S.hL.lerp(V3(0.62, TIP + 1.6, 0.2), rear);
-            want.lerp(V3(0, 0.75, 0.55), rear);
+            S.hL.lerp(V3(0.86, TIP + 1.6, 0.15), rear);
+            want.lerp(V3(0.2, 0.75, 0.55), rear);
             S.hL.lerp(V3(0.4, TIP + 1.12, 0.8), fire);
             want.lerp(V3(-0.1, -0.06, 1), fire);
             S.jaw = Math.max(S.jaw, smooth(0.16, 0.36, p) * (1 - smooth(0.86, 0.96, p)));
@@ -2750,15 +2750,15 @@ Pets.register({
             S.wingK = 0.6 * S.spinK;
           }
           if (nm === "jump") {
-            S.hL.lerp(V3(0.75, TIP + 1.3, 0.35), S.air);
-            want.lerp(V3(0, 0.4, 1), S.air);
+            S.hL.lerp(V3(0.95, TIP + 1.35, 0.3), S.air);
+            want.lerp(V3(0.25, 0.4, 1), S.air);
             S.wingK = S.air;
           }
           return false;
         },
         arm(S, t, motion) {
           dir.lerp(want.clone().normalize(), 0.5).normalize();
-          const rad = u => lerp(0.125, 0.088, smooth(0.25, 0.9, u));
+          const rad = u => lerp(0.125, 0.1, smooth(0.25, 0.6, u)) + 0.03 * smooth(0.82, 1, u);
           const c = moltenArm(arm, shoulders[1], S.hL, t, motion, rad, 0.75);
           const upOf = u => {
             const tg = c.getTangentAt(u);
@@ -2789,14 +2789,14 @@ Pets.register({
           if (x.lengthSq() < 1e-4) x = V3(1, 0, 0);
           x.normalize();
           const y = z.clone().cross(x).normalize();
-          dh.position.copy(c.getPointAt(1)).addScaledVector(tg, 0.2);
+          dh.position.copy(c.getPointAt(1)).addScaledVector(tg, 0.3);
           dh.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
           jaw.rotation.x = 0.62 * (S.jaw || 0);
           dh.updateMatrix();
           whiskers.forEach((w, i) => {
             const sg = i ? 1 : -1;
             const sw = Math.sin(t * 2.1 + i) * 0.03 * motion;
-            const pts = [V3(sg * 0.045, 0.02, 0.2), V3(sg * 0.12, 0.0, 0.15 + sw), V3(sg * 0.2, -0.05, 0.03 + sw * 2), V3(sg * 0.25, -0.11 + sw, -0.12 + sw * 3), V3(sg * 0.26, -0.19 + sw, -0.26 + sw * 3)].map(q => q.multiplyScalar(1.85).applyMatrix4(dh.matrix));
+            const pts = [V3(sg * 0.045, 0.02, 0.2), V3(sg * 0.12, 0.0, 0.15 + sw), V3(sg * 0.2, -0.05, 0.03 + sw * 2), V3(sg * 0.25, -0.11 + sw, -0.12 + sw * 3), V3(sg * 0.26, -0.19 + sw, -0.26 + sw * 3)].map(q => q.multiplyScalar(2.5).applyMatrix4(dh.matrix));
             flexTube(w, pts, u => lerp(0.008, 0.002, u), 20, 5);
           });
           const k = S.wingK || 0;
