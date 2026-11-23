@@ -1011,24 +1011,28 @@ Pets.register({
           fu.position.set(0, sg * 0.03, BL * 0.42);
           sword.add(fu);
         });
-        const guard = mesh(new THREE.BoxGeometry(0.34, 0.08, 0.07), redMat);
-        guard.position.z = -0.01;
+        const sleeve = (() => {
+          const g = new THREE.LatheGeometry([V2(0.097, -0.1), V2(0.104, -0.06), V2(0.1, -0.02), V2(0.088, 0.02), V2(0.074, 0.055), V2(0.066, 0.085)], 32);
+          const q = g.attributes.position;
+          for (let i = 0; i < q.count; i++) {
+            const k = smooth(-0.06, 0.07, q.getY(i));
+            q.setZ(i, q.getZ(i) * lerp(1, 0.42, k));
+          }
+          g.rotateX(Math.PI / 2);
+          g.computeVertexNormals();
+          return mesh(g, castMat);
+        })();
+        sword.add(sleeve);
+        const guard = (() => {
+          const pts = [V3(-0.28, 0, 0.2), V3(-0.22, 0, 0.12), V3(-0.13, 0, 0.085), V3(0, 0, 0.072), V3(0.13, 0, 0.085), V3(0.22, 0, 0.12), V3(0.28, 0, 0.2)];
+          const { g } = tubeGeo(pts, u => 0.006 + 0.036 * Math.pow(Math.sin(Math.PI * u), 0.75), 40, 14);
+          g.scale(1, 0.75, 1);
+          return mesh(g, redMat);
+        })();
         sword.add(guard);
-        [-1, 1].forEach(sg => {
-          const tip = mesh(new THREE.ConeGeometry(0.045, 0.17, 6), castMat);
-          tip.position.set(sg * 0.2, 0, 0.05);
-          tip.rotation.set(Math.PI / 2, 0, 0);
-          tip.rotateZ(sg * 0.6);
-          sword.add(tip);
-          const curl = mesh(flameGeo, castMat);
-          curl.scale.setScalar(0.55);
-          curl.position.set(sg * 0.16, 0, 0.02);
-          curl.rotation.set(Math.PI / 2, 0, -sg * 0.9);
-          sword.add(curl);
-        });
-        const gem = mesh(new THREE.OctahedronGeometry(0.035, 0), coreMat, false);
-        gem.position.set(0, 0.045, -0.01);
-        gem.scale.set(1, 0.6, 1);
+        const gem = mesh(new THREE.OctahedronGeometry(0.03, 0), coreMat, false);
+        gem.position.set(0, 0.028, 0.072);
+        gem.scale.set(1, 0.55, 1);
         sword.add(gem);
       }
       const flames = [];
