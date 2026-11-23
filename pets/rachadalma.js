@@ -446,9 +446,9 @@ Pets.register({
     ghost.add(head);
     const hole0 = HOLES[0];
     const eyeDir = V3(Math.sin(hole0.th), 0, Math.cos(hole0.th));
-    const eyes = [0, 1].map(k => {
+    const eyes = [0].map(() => {
       const g = new THREE.Group();
-      const ang = hole0.th + (k ? 0.5 : 0);
+      const ang = hole0.th;
       const ey = hole0.y - 0.72 + 0.02;
       const rr = Math.sqrt(Math.max(0, 0.4 * 0.4 - ey * ey * 0.9));
       g.position.set(Math.sin(ang) * rr * 0.99, ey, Math.cos(ang) * rr * 0.99);
@@ -688,7 +688,7 @@ Pets.register({
         ghost.rotation.set(lookPitch * 0.3, pointer.x * 0.25, 0);
         chain.rotation.set(Math.sin(t * 1.7) * 0.06, 0, -swingZ * 0.8 + Math.sin(t * 2.2) * 0.05);
 
-        eyes.forEach(({ g, glow }, k) => {
+        eyes.forEach(({ g, glow }) => {
           g.scale.y = lerp(1, 0.12, 1 - blink);
           glow.position.x = pointer.x * 0.02;
           glow.position.y = pointer.y * 0.02;
