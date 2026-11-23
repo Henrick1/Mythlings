@@ -1852,14 +1852,86 @@ Pets.register({
       big.add(ring);
 
       const crown = add(head, new THREE.Group());
+      const BT = 0.24;
+      const brCv = mkCanvas(256);
+      const brRm = mkCanvas(256);
+      const brTex = texOf(brCv);
+      const brRmTex = texOf(brRm);
+      const brMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: brTex, roughnessMap: brRmTex, metalnessMap: brRmTex, roughness: 1, metalness: 1 });
+      if (!brTex) {
+        brMat.color.set(0x6e4a2c);
+        brMat.roughness = 0.8;
+        brMat.metalness = 0;
+      }
+      const brJag = Array.from({ length: 33 }, () => rnd());
+      const brSliv = Array.from({ length: 7 }, () => [rnd(), 0.05 + rnd() * 0.16, 1 + rnd() * 2]);
+      const brGrain = Array.from({ length: 46 }, () => [rnd(), 1 + rnd() * 2.5, rnd() > 0.42, rnd(), rnd() * TAU]);
+      const paintBranch = (plateHex, woodK) => {
+        if (!brCv) return;
+        const W = 256;
+        const g = brCv.getContext("2d");
+        const r = brRm.getContext("2d");
+        const pc = new THREE.Color(plateHex);
+        const pcs = "rgb(" + [pc.r, pc.g, pc.b].map(v => Math.round(v * 255)).join(",") + ")";
+        const edge = y => {
+          const f = (y / W) * 32;
+          const i = Math.floor(f);
+          return W * (BT + 0.07 * lerp(brJag[i], brJag[i + 1], f - i) - 0.035);
+        };
+        const wb = [110, 74, 44].map(v => Math.round(v * woodK));
+        g.fillStyle = "rgb(" + wb.join(",") + ")";
+        g.fillRect(0, 0, W, W);
+        brGrain.forEach(([y0, lw, dark, amp, ph]) => {
+          g.strokeStyle = dark ? "rgba(38,22,10,0.45)" : "rgba(176,132,86,0.28)";
+          g.lineWidth = lw;
+          g.beginPath();
+          for (let x = 0; x <= W; x += 4) {
+            const y = y0 * W + (2 + amp * 4) * Math.sin((x / W) * TAU * 2 + ph);
+            if (x) g.lineTo(x, y);
+            else g.moveTo(x, y);
+          }
+          g.stroke();
+        });
+        r.fillStyle = "rgb(0,210,0)";
+        r.fillRect(0, 0, W, W);
+        g.fillStyle = pcs;
+        r.fillStyle = "rgb(0,105,105)";
+        [g, r].forEach(c => {
+          c.beginPath();
+          c.moveTo(0, 0);
+          for (let y = 0; y <= W; y += 8) c.lineTo(edge(y), y);
+          c.lineTo(0, W);
+          c.closePath();
+          c.fill();
+        });
+        brSliv.forEach(([y, l, w]) => {
+          const yy = y * W;
+          const x0 = edge(yy) - 4;
+          [g, r].forEach(c => {
+            c.beginPath();
+            c.moveTo(x0, yy - w * 2);
+            c.lineTo(x0 + l * W, yy);
+            c.lineTo(x0, yy + w * 2);
+            c.closePath();
+            c.fill();
+          });
+        });
+        g.strokeStyle = "rgba(30,18,8,0.6)";
+        g.lineWidth = 2;
+        g.beginPath();
+        for (let y = 0; y <= W; y += 8) {
+          if (y) g.lineTo(edge(y) + 1, y);
+          else g.moveTo(edge(y) + 1, y);
+        }
+        g.stroke();
+        brTex.needsUpdate = true;
+        brRmTex.needsUpdate = true;
+      };
+      paintBranch(0x4e7a3e, 1);
       {
         const VX = 0.52;
         const VY0 = 0.04;
         const VY1 = 0.5;
-        const vp = (x, off) => {
-          const p = HP(x, lerp(VY0, VY1, x / VX));
-          return p.addScaledVector(HN(p), off);
-        };
         const hp = (x, y, off) => {
           const p = HP(x, y);
           return p.addScaledVector(HN(p), off);
@@ -1867,37 +1939,103 @@ Pets.register({
         const E = HP(VX, VY1);
         const nE = HN(E);
         const D = V3(1, 0.86, -0.38).normalize();
-        const up = V3(0, 1, 0);
-        const at = (d, n, u) => E.clone().addScaledVector(D, d).addScaledVector(nE, n).addScaledVector(up, u);
-        const A = [vp(-0.03, 0.024), vp(0.1, 0.034), vp(0.22, 0.038), vp(0.34, 0.04), vp(0.46, 0.042), at(0.08, 0.04, 0), at(0.2, 0.035, -0.005), at(0.32, 0.025, 0.02), at(0.44, 0.005, 0.05), at(0.55, -0.02, 0.1), at(0.6, -0.05, 0.17)];
-        const cA = rootTube(crown, A, 0.044, 0.004, 80, woodMat, u => (u < 0.45 ? 0.044 : lerp(0.044, 0.004, Math.pow((u - 0.45) / 0.55, 0.9))));
-        rootTube(crown, [at(0.15, 0.035, 0), at(0.22, 0.03, -0.04), at(0.3, -0.03, -0.1), at(0.34, -0.12, -0.15), at(0.33, -0.2, -0.16)], 0.022, 0.003, 24);
-        rootTube(crown, [at(0.1, 0.035, 0), at(0.15, 0.04, 0.09), at(0.16, 0.02, 0.2), at(0.12, -0.01, 0.31), at(0.06, -0.03, 0.38)], 0.024, 0.003, 24);
-        const helix = [];
-        for (let i = 0; i <= 30; i++) {
-          const u = lerp(0.0, 0.62, i / 30);
-          const p = cA.getPointAt(u);
-          const tg = cA.getTangentAt(u);
-          const n = HN(p.clone());
-          const b = tg.clone().cross(n).normalize();
-          const nn = b.clone().cross(tg).normalize();
-          const ph = u * TAU * 3.2;
-          helix.push(p.addScaledVector(nn, 0.028 * Math.cos(ph)).addScaledVector(b, 0.028 * Math.sin(ph)));
+        const P = [];
+        const NN = [];
+        const NS = 16;
+        for (let i = 0; i <= NS; i++) {
+          const x = lerp(-0.01, VX, i / NS);
+          const p = HP(x, lerp(VY0, VY1, x / VX));
+          P.push(p);
+          NN.push(HN(p));
         }
-        rootTube(crown, helix, 0.013, 0.005, 60);
-        rootTube(crown, [vp(0.2, 0.02), hp(0.45, 0.33, 0.02), hp(0.66, 0.18, 0.018), hp(0.8, -0.02, 0.015), hp(0.86, -0.28, 0.01), hp(0.8, -0.52, -0.004)], 0.017, 0.003, 40);
-        rootTube(crown, [vp(0.16, 0.025), hp(0.17, 0.36, 0.015), hp(0.14, 0.56, 0.008), hp(0.1, 0.7, -0.004)], 0.014, 0.003, 20);
-        rootTube(crown, [vp(0.36, 0.03), hp(0.4, 0.55, 0.012), hp(0.32, 0.74, 0.006), hp(0.24, 0.84, -0.004)], 0.014, 0.003, 20);
-        const knot = mesh(new THREE.SphereGeometry(0.05, 16, 12), woodMat);
-        const kp = vp(0, 0.022);
-        knot.position.copy(kp);
-        orient(knot, V3(1, 0, 0), HN(HP(0, 0.04)));
-        knot.rotateZ(Math.PI / 2);
-        knot.scale.set(0.9, 1.25, 0.6);
-        crown.add(knot);
-        leaf(crown, A[10], V3(0.2, 1, -0.3), V3(0.3, 0.2, 1), 0.12);
-        leaf(crown, at(0.06, -0.03, 0.38), V3(-0.5, 1, 0), V3(0, 0.2, 1), 0.1);
-        leaf(crown, at(0.33, -0.2, -0.16), V3(0.5, -0.6, -0.4), V3(0.4, 1, 0), 0.08);
+        const NE = 16;
+        for (let i = 1; i <= NE; i++) {
+          const l = i / NE;
+          P.push(E.clone().addScaledVector(D, 0.6 * l).add(V3(-0.03 * l * l, 0.16 * l * l, -0.04 * l * l)).addScaledVector(nE, 0.02 * Math.sin(l * 6)));
+          NN.push(nE.clone());
+        }
+        const cv = new THREE.CatmullRomCurve3(P);
+        const M = 90;
+        const R = 24;
+        const smp = Array.from({ length: M + 1 }, (_, k) => cv.getPoint(k / M));
+        const acc = [0];
+        for (let k = 1; k <= M; k++) acc.push(acc[k - 1] + smp[k].distanceTo(smp[k - 1]));
+        const total = acc[M];
+        const sOf = k => acc[k] / total;
+        const sE = (() => {
+          let best = 0;
+          let bd = 9;
+          smp.forEach((q, k) => {
+            const d = q.distanceTo(E);
+            if (d < bd) {
+              bd = d;
+              best = k;
+            }
+          });
+          return sOf(best);
+        })();
+        const pos = [];
+        const uv = [];
+        const idx = [];
+        const brRad = s => {
+          const tail = smooth(sE, 1, s);
+          return lerp(0.036, 0.005, Math.pow(tail, 0.85)) * (1 + 0.12 * Math.sin(s * 38) * smooth(0.25, 0.4, s));
+        };
+        for (let k = 0; k <= M; k++) {
+          const s = sOf(k);
+          const tq = cv.getTangent(k / M);
+          const f = (k / M) * (P.length - 1);
+          const i0 = Math.min(P.length - 2, Math.floor(f));
+          const n = NN[i0].clone().lerp(NN[i0 + 1], f - i0);
+          n.addScaledVector(tq, -n.dot(tq)).normalize();
+          const b = n.clone().cross(tq).normalize();
+          const m = smooth(BT - 0.04, BT + 0.2, s);
+          const ax = Math.min(1, Math.max(0, s / sE));
+          const w = 0.056 * lerp(1, 0.8, ax);
+          const h = 0.05;
+          const lo = -0.014;
+          const r = brRad(s);
+          const cy = lerp(h * 0.45, 0, smooth(sE, sE + 0.15, s));
+          for (let j = 0; j <= R; j++) {
+            const ph = (j / R) * TAU;
+            const c = Math.cos(ph);
+            const sn = Math.sin(ph);
+            const py0 = (h + lo) / 2 + ((h - lo) / 2) * Math.sign(sn) * Math.pow(Math.abs(sn), 1 / 3);
+            const px0 = w * Math.sign(c) * Math.pow(Math.abs(c), 1 / 3) * lerp(1, 0.78, (py0 - lo) / (h - lo));
+            const px = lerp(px0, r * c, m);
+            const py = lerp(py0, cy + r * sn, m);
+            pos.push(...smp[k].clone().addScaledVector(b, px).addScaledVector(n, py).toArray());
+            uv.push(s, j / R);
+          }
+        }
+        for (let k = 0; k < M; k++)
+          for (let j = 0; j < R; j++) {
+            const a = k * (R + 1) + j;
+            const c2 = a + R + 1;
+            idx.push(a, a + 1, c2, a + 1, c2 + 1, c2);
+          }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+        geo.setIndex(idx);
+        geo.computeVertexNormals();
+        crown.add(mesh(geo, brMat));
+        const at = s => cv.getPointAt(s);
+        const twig = (s0, dirs, r0, r1) => {
+          const p0 = at(s0);
+          const pts = [p0.clone()];
+          dirs.forEach(d => pts.push(pts[pts.length - 1].clone().add(d)));
+          return rootTube(crown, pts, r0, r1, 24);
+        };
+        const t1 = twig(0.66, [V3(0.02, 0.07, -0.02), V3(0.0, 0.1, -0.03), V3(-0.04, 0.09, -0.01), V3(-0.05, 0.06, 0.02)], 0.02, 0.003);
+        const t2 = twig(0.5, [V3(0.05, 0.0, -0.06), V3(0.05, -0.05, -0.07), V3(0.0, -0.08, -0.05), V3(-0.01, -0.06, -0.02)], 0.022, 0.003);
+        const t3 = twig(0.82, [V3(0.07, 0.02, 0.02), V3(0.07, -0.01, 0.03), V3(0.04, -0.03, 0.02)], 0.012, 0.002);
+        rootTube(crown, [hp(0.4, 0.45, 0.02), hp(0.38, 0.6, 0.012), hp(0.3, 0.75, 0.006), hp(0.22, 0.85, -0.004)], 0.014, 0.003, 24);
+        leaf(crown, at(1), V3(-0.2, 1, -0.2), V3(0.3, 0.2, 1), 0.12);
+        leaf(crown, t1.getPointAt(1), V3(-0.6, 1, 0), V3(0, 0.2, 1), 0.1);
+        leaf(crown, t2.getPointAt(1), V3(0.3, -0.7, -0.4), V3(0.4, 1, 0), 0.08);
+        leaf(crown, t3.getPointAt(1), V3(1, -0.2, 0.2), V3(0, 1, 0.3), 0.08);
+        leaf(crown, at(0.74), V3(0.6, 0.6, 0.3), V3(0, 0.3, 1), 0.08);
       }
 
       const pad = add(socket, new THREE.Group());
@@ -2004,6 +2142,7 @@ Pets.register({
           leafMat.color.setHex(shiny ? 0xd0a030 : 0x2c6e2e);
           vineMat.color.setHex(shiny ? 0x8a7020 : 0x2e6428);
           petalMat.color.setHex(shiny ? 0xffc890 : 0xf2e6f4);
+          paintBranch(shiny ? 0x9aa83a : 0x4e7a3e, shiny ? 1.45 : 1);
         },
         rest(S, t, motion) {
           S.hL.set(0.84, TIP + 0.64, 0.3).add(V3(0, Math.sin(t * 1.4 + 1.2) * 0.02 * motion, 0));
