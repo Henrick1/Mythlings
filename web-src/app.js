@@ -2420,6 +2420,8 @@
   }
 
   let battleUi = null;
+  let mapUi = null;
+  let mapRegion = null;
   function battleApi() {
     const pack = () => ({ team: Battle.team(state), battle: state.battle ? Battle.snapshot(state.battle) : null, inventory: Object.assign({}, state.inventory) });
     const commit = r => {
@@ -2441,8 +2443,12 @@
         commit(Battle.setMoves(state, uid, list));
         return pack();
       },
+      region: () => {
+        const r = mapRegion && window.Regions ? Regions.byId(mapRegion) : null;
+        return r ? r.name : null;
+      },
       start: async () => {
-        const r = Battle.start(state);
+        const r = Battle.start(state, Date.now(), Math.random, mapRegion);
         commit(r);
         return { ok: !!r.changed, reason: r.reason, battle: state.battle ? Battle.snapshot(state.battle) : null, events: r.events || [], inventory: Object.assign({}, state.inventory) };
       },
@@ -2483,9 +2489,42 @@
     return true;
   }
 
+  function openMap() {
+    if (!window.MapView || !window.Regions || !state || Game.needsStarter(state)) {
+      openBattle();
+      return;
+    }
+    if (!mapUi)
+      mapUi = MapView.mount($("map-view"), {
+        THREE: window.THREE,
+        Regions: window.Regions,
+        Types: window.PetTypes,
+        reduceMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+        onClose: () => closeMap(true),
+        onFight: id => {
+          mapRegion = id;
+          closeMap(false);
+          openBattle();
+        }
+      });
+    $("map-view").hidden = false;
+    if (habitat) habitat.stop();
+    mapUi.open();
+  }
+
+  function closeMap(resume) {
+    if (mapUi) mapUi.close();
+    $("map-view").hidden = true;
+    if (resume && habitat && !$("game-view").hidden) {
+      habitat.resize();
+      habitat.start();
+    }
+  }
+
   function closeBattle() {
     if (battleUi) battleUi.close();
     $("battle-view").hidden = true;
+    mapRegion = null;
     dropBattle();
     if (habitat && !$("game-view").hidden) {
       habitat.resize();
@@ -2496,6 +2535,7 @@
 
   function enterAuth(message) {
     if (battleUi && !$("battle-view").hidden) closeBattle();
+    if (!$("map-view").hidden) closeMap(false);
     clearTimeout(syncTimer);
     stopLive();
     $("password").value = "";
@@ -2738,7 +2778,7 @@
         render();
       });
     });
-    $("battle-btn").addEventListener("click", () => openBattle());
+    $("battle-btn").addEventListener("click", () => openMap());
     $("coins-btn").addEventListener("click", () => openShop());
     $("bag-shop").addEventListener("click", () => openShop());
     $("dex-btn").addEventListener("click", () => {
@@ -2867,11 +2907,14 @@
       await loadScript("lib/egg.js");
       await loadScriptSafe("lib/chest.js");
       await loadScript("lib/stage.js");
+      await loadScriptSafe("lib/ship.js");
       await loadScript("lib/habitat.js");
       await loadScript("lib/ui-icons.js");
+      await loadScriptSafe("lib/regions.js");
       await loadScript("lib/battle.js");
       await loadScriptSafe("lib/battle-stage.js");
       await loadScriptSafe("lib/battle-ui.js");
+      await loadScriptSafe("lib/map.js");
       await loadScript("pets-list.js");
     } catch (err) {
       let tries = 0;
