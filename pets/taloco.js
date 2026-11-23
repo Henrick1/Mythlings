@@ -233,7 +233,6 @@ Pets.register({
     if (!hotTex) hotMat.color.set(0xe8702a);
     if (!hotTex) hotMat.emissive.set(0xd84a10);
 
-    const clawMat = new THREE.MeshStandardMaterial({ color: 0x4a5058, roughness: 0.3, metalness: 0.55 });
     const darkSteel = new THREE.MeshStandardMaterial({ color: 0x5d646c, roughness: 0.38, metalness: 0.4 });
     const plateMat = new THREE.MeshStandardMaterial({ color: 0x8b9199, roughness: 0.4, metalness: 0.4 });
     const glassMat = new THREE.MeshStandardMaterial({ color: 0x9fb4c8, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.32, depthWrite: false });
@@ -661,7 +660,6 @@ Pets.register({
       th.add(tm);
     }
 
-    const armL = dyn(moltenMat);
     const fore = mesh(new THREE.LatheGeometry([V2(0.098, -0.11), V2(0.116, -0.108), V2(0.124, -0.09), V2(0.13, 0.0), V2(0.124, 0.08), V2(0.116, 0.104), V2(0.098, 0.108)], 36), plateMat);
     bodyG.add(fore);
     const foreRims = [0, 1].map(() => {
@@ -669,40 +667,18 @@ Pets.register({
       bodyG.add(r);
       return r;
     });
-    const handL = new THREE.Group();
-    bodyG.add(handL);
-    const palm = mesh(new THREE.SphereGeometry(0.125, 32, 24), hotMat);
-    palm.scale.set(1.05, 0.88, 1.1);
-    handL.add(palm);
-    const clawGeo = (() => {
-      const { g } = tubeGeo([V3(0, 0, 0), V3(0, 0.012, 0.06), V3(0, -0.01, 0.12), V3(0, -0.06, 0.17)], u => lerp(0.03, 0.002, Math.pow(u, 1.1)), 18, 10);
-      return g;
-    })();
-    const claws = [-1, 0, 1].map(c => {
-      const pv = new THREE.Group();
-      pv.position.set(c * 0.068, -0.02 - Math.abs(c) * 0.012, 0.096 - Math.abs(c) * 0.014);
-      pv.rotation.y = c * 0.26;
-      handL.add(pv);
-      const base = mesh(new THREE.SphereGeometry(0.036, 14, 10), hotMat);
-      base.scale.set(0.95, 0.85, 1.25);
-      pv.add(base);
-      const cl = mesh(clawGeo, clawMat);
-      cl.position.z = 0.018;
-      cl.scale.setScalar(1.15);
-      pv.add(cl);
-      return pv;
-    });
-    const thumb = new THREE.Group();
-    thumb.position.set(-0.108, -0.02, 0.04);
-    thumb.rotation.y = -1.0;
-    handL.add(thumb);
+    const socket = new THREE.Group();
+    socket.position.copy(shoulders[1]);
+    bodyG.add(socket);
     {
-      const base = mesh(new THREE.SphereGeometry(0.032, 14, 10), hotMat);
-      thumb.add(base);
-      const cl = mesh(clawGeo, clawMat);
-      cl.scale.setScalar(0.8);
-      cl.position.z = 0.012;
-      thumb.add(cl);
+      const r1 = mesh(new THREE.TorusGeometry(0.135, 0.022, 10, 40), darkSteel);
+      r1.rotation.y = Math.PI / 2;
+      r1.position.x = 0.03;
+      socket.add(r1);
+      const r2 = mesh(new THREE.TorusGeometry(0.1, 0.016, 8, 32), plateMat);
+      r2.rotation.y = Math.PI / 2;
+      r2.position.x = 0.1;
+      socket.add(r2);
     }
 
     const dropGeo = new THREE.LatheGeometry([V2(0.0001, -0.035), V2(0.018, -0.028), V2(0.026, -0.012), V2(0.022, 0.006), V2(0.012, 0.022), V2(0.004, 0.034), V2(0.0001, 0.038)], 16);
@@ -711,11 +687,6 @@ Pets.register({
       m.visible = false;
       big.add(m);
       return { m, off: k / 2, per: 2.6 + k * 0.6, cyc: -1, from: V3(0, 0, 0) };
-    });
-    const lumps = [0.22, 0.42].map((u, i) => {
-      const m = mesh(dropGeo, moltenMat, false);
-      bodyG.add(m);
-      return { m, u, k: [1.25, 1.05][i] };
     });
     const blobs = [0, 1, 2].map(k => {
       const m = mesh(new THREE.SphereGeometry(0.075 - k * 0.012, 16, 12), hotMat, false);
@@ -782,7 +753,6 @@ Pets.register({
     big.add(food);
 
     const REST_R = V3(-0.86, TIP + 0.56, 0.3);
-    const REST_L = V3(0.88, TIP + 0.5, 0.34);
     const L1 = 0.4;
     const L2 = 0.5;
 
@@ -842,12 +812,11 @@ Pets.register({
         let glow = 0;
         let trailK = 0;
         let pull = 0;
+        const chargeK = nm === "fling" ? smooth(0.04, 0.35, p) * (1 - smooth(0.4, 0.5, p)) : 0;
         let flash = 0;
-        let open = 0;
         let legK = 0;
         let lash = 0;
         const hR = REST_R.clone().add(V3(0, Math.sin(t * 1.4) * 0.02 * motion, 0));
-        const hL = REST_L.clone().add(V3(0, Math.sin(t * 1.4 + 1.2) * 0.025 * motion, 0));
         let holdR = null;
 
         if (nm === "jump") {
@@ -857,7 +826,6 @@ Pets.register({
           hover += -0.1 * c + 0.65 * air - 0.05 * land;
           squash = 1 - 0.08 * c + 0.05 * air - 0.07 * land;
           hR.lerp(V3(-0.713, TIP + 1.3, 0.132), air);
-          hL.lerp(V3(0.736, TIP + 1.26, 0.132), air);
           headPitch -= 0.2 * air;
           mouthK = 0.6 * air;
           legK = air;
@@ -873,25 +841,22 @@ Pets.register({
         } else if (nm === "swipe") {
           const wind = smooth(0.04, 0.3, p) * (1 - smooth(0.34, 0.44, p));
           const strike = smooth(0.34, 0.46, p) * (1 - smooth(0.7, 0.95, p));
-          hL.lerp(V3(0.92, TIP + 1.3, -0.308), wind);
-          hL.lerp(V3(-0.184, TIP + 0.72, 0.935), strike);
-          spinY = -0.45 * wind + 0.5 * strike;
+          hR.lerp(V3(-0.95, TIP + 1.25, -0.25), wind);
+          hR.lerp(V3(0.08, TIP + 1.02, 0.98), strike);
+          spinY = 0.45 * wind - 0.5 * strike;
           lean = 0.1 * strike - 0.05 * wind;
           trailK = p > 0.36 && p < 0.62 ? Math.sin(Math.PI * smooth(0.36, 0.62, p)) : 0;
           glow = 0.5 * wind + 0.6 * strike;
-          open = smooth(0.2, 0.34, p) * (1 - smooth(0.5, 0.7, p));
           mouthK = 0.5 * strike;
         } else if (nm === "fling") {
           const raise = smooth(0.04, 0.35, p) * (1 - smooth(0.4, 0.5, p));
           const throwK = smooth(0.4, 0.5, p) * (1 - smooth(0.72, 0.95, p));
-          hL.lerp(V3(0.529, TIP + 1.7, -0.264), raise);
-          hL.lerp(V3(0.322, TIP + 1.05, 0.946), throwK);
-          lean = -0.08 * raise + 0.14 * throwK;
-          spinY = -0.2 * raise + 0.25 * throwK;
-          hR.lerp(V3(-0.69, TIP + 0.9, 0.418), raise + throwK);
-          glow = 1.2 * raise + 0.6 * throwK;
-          open = smooth(0.42, 0.5, p) * (1 - smooth(0.7, 0.9, p));
-          headPitch += 0.12 * raise;
+          lean = -0.12 * raise + 0.16 * throwK;
+          hR.lerp(V3(-0.8, TIP + 1.1, -0.1), raise);
+          hR.lerp(V3(-0.75, TIP + 0.7, 0.3), throwK);
+          glow = 1.4 * raise + 0.6 * throwK;
+          flash = 0.8 * raise + 0.5 * throwK;
+          headPitch -= 0.15 * raise - 0.1 * throwK;
           mouthK = 0.7 * throwK;
           hover += 0.06 * raise;
         } else if (nm === "spin") {
@@ -899,7 +864,6 @@ Pets.register({
           spinY = smooth(0.08, 0.9, p) * TAU * 2;
           hover += 0.1 * k;
           hR.lerp(V3(-0.92, TIP + 1.02, 0.0), k);
-          hL.lerp(V3(0.92, TIP + 1.02, 0.0), k);
           lean = Math.sin(t * 9) * 0.04 * k;
           roll = Math.cos(t * 9) * 0.04 * k;
           lash = k;
@@ -909,12 +873,9 @@ Pets.register({
           pull = p > 0.18 && p < 0.78 ? smooth(0.18, 0.3, p) * (1 - smooth(0.7, 0.78, p)) : 0;
           const clench = smooth(0.74, 0.8, p) * (1 - smooth(0.9, 1, p));
           flash = p > 0.76 && p < 0.95 ? Math.sin(Math.PI * smooth(0.76, 0.95, p)) : 0;
-          hL.lerp(V3(0.483, TIP + 1.12, 0.77), up);
-          hL.add(V3(-0.04, 0.03, -0.06).multiplyScalar(clench));
-          hR.lerp(V3(-0.713, TIP + 0.88, 0.352), up * 0.5);
-          open = pull * (1 - clench);
-          headPitch += 0.2 * up;
-          headYaw += 0.3 * up;
+          hR.lerp(V3(-0.62, TIP + 1.0, 0.5), up);
+          hR.add(V3(0.04, 0.02, -0.05).multiplyScalar(clench));
+          headPitch += 0.12 * up;
           lean = 0.05 * up - 0.04 * flash;
           squash = 1 + 0.03 * flash;
           mouthK = 0.3 * pull;
@@ -994,37 +955,8 @@ Pets.register({
           handR.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(hx, hy, d));
           holdR = end.clone().addScaledVector(d, 0.11).addScaledVector(hy, 0.14);
         }
-        {
-          const A = shoulders[1];
-          const r = ik(A, hL, L1, L2, V3(0, -0.6, -0.4));
-          const pts = [A.clone(), A.clone().lerp(r.elbow, 0.5), r.elbow, r.elbow.clone().lerp(r.end, 0.5), r.end];
-          const rad = u => lerp(0.118, 0.1, u);
-          const c = flexTube(armL, pts, (u, v) => {
-            const a = v * TAU;
-            const free = 1;
-            const wob = 1 + (0.045 * Math.sin(a * 2 + u * 5 - t * 2.6) + 0.03 * Math.sin(a * 3 - u * 4 + t * 1.9)) * motion * free;
-            const sag = 1 + 0.12 * Math.max(0, -Math.sin(a)) * Math.sin(u * Math.PI) * free;
-            return rad(u) * wob * sag;
-          }, 48, 18);
-          const end = c.getPointAt(1);
-          const d = c.getTangentAt(1);
-          const { hx, hy } = frame(d);
-          handL.position.copy(end).addScaledVector(d, 0.05);
-          handL.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(hx, hy, d));
-          claws.forEach((pv, i) => {
-            pv.rotation.x = -0.12 - 0.4 * open + Math.sin(t * 2 + i) * 0.04 * motion;
-          });
-          thumb.rotation.x = -0.3 * open;
-          moltenMat.emissiveIntensity = 0.8 + 0.12 * Math.sin(t * 2.3) * motion + 0.5 * glow;
-          hotMat.emissiveIntensity = 0.6 + 0.5 * glow;
-          lumps.forEach((L, i) => {
-            const q = c.getPointAt(L.u);
-            const rr = rad(L.u);
-            const w = 1 + 0.2 * Math.sin(t * 2.4 + i * 2) * motion;
-            L.m.position.copy(q).add(V3(0, -rr * 0.86 - 0.02 * L.k * w, 0));
-            L.m.scale.set(L.k * 1.6, L.k * 1.8 * w, L.k * 1.6);
-          });
-        }
+        moltenMat.emissiveIntensity = 0.8 + 0.12 * Math.sin(t * 2.3) * motion + 0.5 * glow;
+        hotMat.emissiveIntensity = 0.6 + 0.5 * glow;
         if (moltenTex) moltenTex.offset.y = (t * 0.04) % 1;
         coreMat.emissiveIntensity = (1.0 + 0.8 * pull + 1.6 * flash) * (0.85 + 0.15 * Math.sin(t * 2.2));
         moltenMat.emissiveIntensity += 0.5 * pull + 0.8 * flash;
@@ -1033,12 +965,14 @@ Pets.register({
         trail.forEach(a => {
           a.visible = trailK > 0.02;
           if (!a.visible) return;
-          a.position.set(0.2, TIP + 1.2, 0.3);
-          a.rotation.set(-0.6, 0.0, -2.44);
+          a.position.set(-0.22, TIP + 1.28, 0.34);
+          a.rotation.set(-0.6, 0.0, Math.PI + 0.24);
           trailMat.opacity = 0.55 * trailK;
         });
 
-        const handBig = big.worldToLocal(handL.getWorldPosition(V3(0, 0, 0)));
+        const handBig = big.worldToLocal(handR.getWorldPosition(V3(0, 0, 0)));
+        const coreBig = big.worldToLocal(port.getWorldPosition(V3(0, 0, 0)));
+        const sockBig = big.worldToLocal(socket.localToWorld(V3(0.04, -0.13, 0.02)));
         drops.forEach(D => {
           const u = (t / D.per + D.off) % 1;
           const cyc = Math.floor(t / D.per + D.off);
@@ -1050,12 +984,12 @@ Pets.register({
           if (u < 0.62) {
             const g = smooth(0.0, 0.62, u);
             D.m.visible = g > 0.05;
-            D.m.position.copy(handBig).add(V3(0.0, -0.1 - 0.03 * g, 0.03));
+            D.m.position.copy(sockBig).add(V3(0.0, -0.01 - 0.03 * g, 0));
             D.m.scale.set(0.6 + 0.5 * g, 0.55 + 1.0 * g, 0.6 + 0.5 * g);
           } else {
             if (D.cyc !== cyc) {
               D.cyc = cyc;
-              D.from.copy(handBig).add(V3(0, -0.13, 0.03));
+              D.from.copy(sockBig).add(V3(0, -0.04, 0));
             }
             const f = (u - 0.62) / 0.38;
             const y = D.from.y - 4.5 * f * f * 0.38 * 0.38 * 4;
@@ -1071,33 +1005,33 @@ Pets.register({
           const f = nm === "fling" ? (p - st) / 0.4 : -1;
           b.visible = f > 0 && f < 1;
           if (!b.visible) return;
-          const from = V3(0.345, TIP + 1.35, 0.99);
-          const dir = V3(-0.15 + i * 0.15, 0, 1);
-          b.position.copy(from).addScaledVector(dir, f * 2.6);
-          b.position.y += Math.sin(f * Math.PI) * 0.5 - f * 1.0;
+          const dir = V3(-0.12 + i * 0.12, 0.02, 1);
+          b.position.copy(coreBig).addScaledVector(dir, 0.15 + f * 2.6);
+          b.position.y += Math.sin(f * Math.PI) * 0.35 - f * 0.8;
           b.scale.set(1, 1 + 0.6 * (1 - f), 1);
           b.rotation.x = f * 3;
         });
 
-        const sparkK = nm === "swipe" ? (p > 0.42 && p < 0.7 ? smooth(0.42, 0.7, p) : -1) : nm === "fling" ? (p > 0.5 && p < 0.8 ? smooth(0.5, 0.8, p) : -1) : -1;
+        const sparkK = nm === "swipe" ? (p > 0.42 && p < 0.7 ? smooth(0.42, 0.7, p) : -1) : nm === "fling" ? (p > 0.46 && p < 0.76 ? smooth(0.46, 0.76, p) : -1) : -1;
+        const sparkAt = nm === "fling" ? coreBig.clone().add(V3(0, 0, 0.12)) : handBig;
         sparks.forEach(sp => {
           sp.m.visible = sparkK >= 0;
           if (!sp.m.visible) return;
           const r = 0.1 + sparkK * 0.55 * sp.v;
-          sp.m.position.copy(handBig).add(V3(Math.cos(sp.a) * r, Math.sin(sp.a) * r * 0.8 - sparkK * sparkK * 0.3, Math.sin(sp.a * 2) * r * 0.4 + 0.1));
-          sp.m.lookAt(handBig);
+          sp.m.position.copy(sparkAt).add(V3(Math.cos(sp.a) * r, Math.sin(sp.a) * r * 0.8 - sparkK * sparkK * 0.3, Math.sin(sp.a * 2) * r * 0.4 + 0.1));
+          sp.m.lookAt(sparkAt);
           sparkMat.opacity = 1 - sparkK;
         });
 
         motes.forEach(M => {
-          M.m.visible = pull > 0.02;
+          M.m.visible = Math.max(pull, chargeK) > 0.02;
           if (!M.m.visible) return;
           const f = (t * 0.9 + M.off) % 1;
           const k = 1 - f;
           const ang = M.a + f * 2.4;
-          M.m.position.copy(handBig).add(V3(Math.cos(ang) * M.r * k, Math.sin(ang * 1.3) * M.r * 0.6 * k, Math.abs(Math.sin(ang)) * M.r * k + 0.1 * k));
+          M.m.position.copy(coreBig).add(V3(Math.cos(ang) * M.r * k, Math.sin(ang * 1.3) * M.r * 0.6 * k, Math.abs(Math.sin(ang)) * M.r * k + 0.1 * k));
           M.m.scale.setScalar(0.6 + 0.8 * k);
-          motesMat.opacity = 0.9 * pull;
+          motesMat.opacity = 0.9 * Math.max(pull, chargeK);
         });
 
         if (nm === "eat" && ph && holdR) {
