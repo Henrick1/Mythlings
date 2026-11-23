@@ -389,24 +389,49 @@ Pets.register({
       flow([[1.5, 0.99], [1.25, 0.97], [1.0, 0.935], [0.75, 0.9], [0.5, 0.86], [0.27, PY + 0.03]], u => (0.085 - 0.03 * u) * (1 + 0.16 * Math.sin(u * 17) + 0.1 * Math.sin(u * 31 + 1)), u => lerp(0.45, 1, u));
       flow([[0.98, 0.93], [1.02, 0.86], [0.98, 0.78], [1.01, 0.7]], u => 0.04 * (1 - Math.pow(u, 1.6)) + 0.004, u => lerp(0.55, 0.8, u));
       flow([[0.58, 0.87], [0.6, 0.8], [0.56, 0.73]], u => 0.032 * (1 - Math.pow(u, 1.6)) + 0.004, u => lerp(0.6, 0.85, u));
+      flow([[1.5, 1.0], [1.85, 1.0], [2.2, 0.965], [2.45, 0.9], [2.55, 0.82], [2.5, 0.74], [2.4, 0.68]], u => (0.075 - 0.035 * u) * (1 + 0.15 * Math.sin(u * 15 + 2) + 0.1 * Math.sin(u * 29)) * (1 - 0.6 * smooth(0.8, 1, u)) + 0.006, u => lerp(0.5, 0.85, u));
+      flow([[2.08, 0.975], [2.12, 0.9], [2.08, 0.82]], u => 0.03 * (1 - Math.pow(u, 1.6)) + 0.004, u => lerp(0.55, 0.8, u));
+      flow([[2.4, 0.925], [2.34, 0.86], [2.37, 0.79]], u => 0.026 * (1 - Math.pow(u, 1.6)) + 0.004, u => lerp(0.55, 0.75, u));
     }
 
     const legs = [-1, 1].map(s => {
       const g = new THREE.Group();
       g.position.set(s * 0.13, TIP + 0.44, 0.03);
       bodyG.add(g);
-      const { g: geo, c: lc } = tubeGeo([V3(0, 0, 0), V3(s * 0.08, -0.06, 0.05), V3(s * 0.13, -0.15, 0.09), V3(s * 0.155, -0.26, 0.05), V3(s * 0.165, -0.38, -0.01)], u => {
-        const knee = 0.012 * Math.exp(-Math.pow((u - 0.42) / 0.12, 2));
-        const r = u < 0.5 ? lerp(0.088, 0.072, u / 0.5) : 0.072 * (1 - Math.pow((u - 0.5) / 0.5, 1.5));
+      const radL = u => {
+        const knee = 0.012 * Math.exp(-Math.pow((u - 0.52) / 0.1, 2));
+        const r = u < 0.58 ? lerp(0.088, 0.072, u / 0.58) : 0.072 * (1 - Math.pow((u - 0.58) / 0.42, 1.5));
         return Math.max(0.003, r + knee);
-      }, 36, 16);
+      };
+      const { g: geo, c: lc } = tubeGeo([V3(-s * 0.08, 0.06, -0.02), V3(0, 0, 0), V3(s * 0.08, -0.06, 0.05), V3(s * 0.13, -0.15, 0.09), V3(s * 0.155, -0.26, 0.05), V3(s * 0.165, -0.38, -0.01)], radL, 40, 18);
       g.add(mesh(geo, steelMat));
-      const kp = lc.getPointAt(0.44);
-      const knee = mesh(new THREE.SphereGeometry(0.06, 18, 12), plateMat);
-      knee.scale.set(1, 1.1, 0.38);
-      knee.position.copy(kp).add(V3(s * 0.01, 0, 0.06));
-      knee.rotation.y = s * 0.3;
-      g.add(knee);
+      const front = u => {
+        const t = lc.getTangentAt(u);
+        const f = V3(s * 0.3, 0, 1);
+        return f.addScaledVector(t, -f.dot(t)).normalize();
+      };
+      const HIPU = 0.3;
+      const onLeg = (u, k = 0) => lc.getPointAt(u).addScaledVector(front(u), radL(u) + k);
+      {
+        const hip = mesh(new THREE.TorusGeometry(radL(HIPU) + 0.003, 0.012, 10, 32), darkSteel);
+        hip.position.copy(lc.getPointAt(HIPU));
+        hip.quaternion.setFromUnitVectors(V3(0, 0, 1), lc.getTangentAt(HIPU));
+        g.add(hip);
+        const groove = mesh(new THREE.TorusGeometry(radL(0.71) + 0.002, 0.009, 8, 28), darkSteel);
+        groove.position.copy(lc.getPointAt(0.71));
+        groove.quaternion.setFromUnitVectors(V3(0, 0, 1), lc.getTangentAt(0.71));
+        g.add(groove);
+      }
+      {
+        const cap = mesh(new THREE.SphereGeometry(0.058, 22, 16), plateMat);
+        cap.scale.set(1, 1.15, 0.42);
+        cap.position.copy(onLeg(0.52, -0.006));
+        cap.quaternion.setFromUnitVectors(V3(0, 0, 1), front(0.52));
+        g.add(cap);
+        const K = 16;
+        const us = Array.from({ length: K + 1 }, (_, i) => lerp(0.6, 0.94, i / K));
+        g.add(mesh(strip(us.map(u => onLeg(u, -0.004)), us.map(front), i => 0.028 * (1 - 0.85 * smooth(0.5, 1, i / K)) * (1 - 0.5 * (1 - smooth(0, 0.15, i / K))), i => 0.022 * (1 - 0.6 * smooth(0.6, 1, i / K))), plateMat));
+      }
       return g;
     });
 
