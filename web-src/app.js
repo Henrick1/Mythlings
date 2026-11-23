@@ -2497,6 +2497,10 @@
         commit(Battle.setMoves(state, uid, list));
         return pack();
       },
+      reorder: async order => {
+        commit(Game.reorderParty(state, order));
+        return pack();
+      },
       region: () => {
         const r = mapRegion && window.Regions ? Regions.byId(mapRegion) : null;
         return r ? { name: r.name, types: r.types.slice() } : null;
