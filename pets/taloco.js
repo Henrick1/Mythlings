@@ -554,9 +554,9 @@ Pets.register({
     {
       const path = [];
       const K = 20;
-      const X = 0.56;
-      const Y0 = 0.15;
-      const Y1 = 0.44;
+      const X = 0.52;
+      const Y0 = 0.04;
+      const Y1 = 0.5;
       for (let i = 0; i <= K; i++) path.push([lerp(-X, 0, i / K), lerp(Y1, Y0, i / K)]);
       for (let i = 1; i <= K; i++) path.push([lerp(0, X, i / K), lerp(Y0, Y1, i / K)]);
       const surf = path.map(([x, y]) => HP(x, y));
@@ -566,7 +566,7 @@ Pets.register({
       const blade = sgn => {
         const E = HP(sgn * X, Y1);
         const n = HN(E);
-        const D = V3(sgn, 0.66, -0.4).normalize();
+        const D = V3(sgn, 0.86, -0.38).normalize();
         const pts = [];
         for (let i = 1; i <= B; i++) pts.push(E.clone().addScaledVector(D, (LEN * i) / B));
         return { pts, n };
@@ -583,7 +583,7 @@ Pets.register({
       head.add(mesh(strip(pts, nrm, wf, hf), plateMat));
     }
     {
-      const th0 = Math.asin(0.3);
+      const th0 = Math.asin(0.12);
       const th1 = Math.PI - 0.5;
       const K = 40;
       const pts = [];
