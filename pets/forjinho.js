@@ -249,19 +249,12 @@ Pets.register({
     neckMesh.position.y = 0.04;
     neck.add(neckMesh);
     const plateMat = new THREE.MeshStandardMaterial({ color: 0x8b9199, roughness: 0.4, metalness: 0.4 });
-    const crest = (() => {
-      const P = (x, y) => V3(x * HW, y * HH, Math.sqrt(Math.max(0, 1 - x * x - y * y)) * HD);
-      const N = p => V3(p.x / (HW * HW), p.y / (HH * HH), p.z / (HD * HD)).normalize();
-      const path = [];
-      const K = 24;
-      for (let i = 0; i <= K; i++) path.push([lerp(-0.46, 0, i / K), lerp(0.87, 0.55, i / K)]);
-      for (let i = 1; i <= K; i++) path.push([lerp(0, 0.46, i / K), lerp(0.55, 0.87, i / K)]);
-      const pts = path.map(([x, y]) => P(x, y));
+    const strip = (pts, nrm, wf, hf) => {
       const pos = [];
       const idx = [];
       const M = pts.length;
       pts.forEach((p, i) => {
-        const n = N(p);
+        const n = nrm[i];
         const tIn = p.clone().sub(pts[Math.max(0, i - 1)]);
         const tOut = pts[Math.min(M - 1, i + 1)].clone().sub(p);
         if (tIn.lengthSq() < 1e-10) tIn.copy(tOut);
@@ -271,9 +264,8 @@ Pets.register({
         const t = tIn.clone().add(tOut).normalize();
         const b = n.clone().cross(t).normalize();
         const bIn = n.clone().cross(tIn).normalize();
-        const ax = Math.abs(path[i][0]) / 0.46;
-        const w = (0.046 * lerp(1, 0.7, ax) * (1 - 0.92 * smooth(0.62, 1, ax))) / Math.max(0.35, b.dot(bIn));
-        const h = 0.02 * (1 - 0.6 * smooth(0.7, 1, ax));
+        const w = wf(i) / Math.max(0.35, b.dot(bIn));
+        const h = hf(i);
         const lo = -0.012;
         pos.push(...p.clone().addScaledVector(n, h).addScaledVector(b, w * 0.78).toArray());
         pos.push(...p.clone().addScaledVector(n, h).addScaledVector(b, -w * 0.78).toArray());
@@ -296,8 +288,63 @@ Pets.register({
       const ng = g.toNonIndexed();
       ng.computeVertexNormals();
       return ng;
-    })();
-    head.add(mesh(crest, plateMat));
+    };
+    const vPath = (x0, y0, y1, K) => {
+      const path = [];
+      for (let i = 0; i <= K; i++) path.push([lerp(-x0, 0, i / K), lerp(y1, y0, i / K)]);
+      for (let i = 1; i <= K; i++) path.push([lerp(0, x0, i / K), lerp(y0, y1, i / K)]);
+      return path;
+    };
+    {
+      const P = (x, y) => V3(x * HW, y * HH, Math.sqrt(Math.max(0, 1 - x * x - y * y)) * HD);
+      const N = p => V3(p.x / (HW * HW), p.y / (HH * HH), p.z / (HD * HD)).normalize();
+      const path = vPath(0.46, 0.55, 0.87, 24);
+      const pts = path.map(([x, y]) => P(x, y));
+      const ax = i => Math.abs(path[i][0]) / 0.46;
+      const crest = strip(pts, pts.map(N), i => 0.046 * lerp(1, 0.7, ax(i)) * (1 - 0.92 * smooth(0.62, 1, ax(i))), i => 0.02 * (1 - 0.6 * smooth(0.7, 1, ax(i))));
+      head.add(mesh(crest, plateMat));
+    }
+    {
+      const TP = (a, y) => {
+        const r = rOf(y);
+        return V3(Math.sin(a) * r, y, -Math.cos(a) * r * ZS);
+      };
+      const TN = (a, y) => {
+        const dr = (rOf(y + 0.01) - rOf(y - 0.01)) / 0.02;
+        return V3(Math.sin(a), -dr, -Math.cos(a) / ZS).normalize();
+      };
+      [[0.74, 0.5], [0.64, 0.42], [0.54, 0.34]].forEach(([y0, x0]) => {
+        const path = vPath(x0, y0, y0 + 0.07, 14);
+        const ax = i => Math.abs(path[i][0]) / x0;
+        const g = strip(path.map(([a, y]) => TP(a, y)), path.map(([a, y]) => TN(a, y)), i => 0.026 * (1 - 0.9 * smooth(0.6, 1, ax(i))), i => 0.014 * (1 - 0.6 * smooth(0.7, 1, ax(i))));
+        torso.add(mesh(g, plateMat));
+      });
+    }
+    const coreMat = new THREE.MeshStandardMaterial({ color: 0x4a525c, emissive: 0x39414b, emissiveIntensity: 0.3, roughness: 0.35, metalness: 0.3, flatShading: true });
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x1b1f26, roughness: 0.1, metalness: 0.2, transparent: true, opacity: 0.32, depthWrite: false });
+    const darkSteel = new THREE.MeshStandardMaterial({ color: 0x6a7179, roughness: 0.4, metalness: 0.35 });
+    {
+      const PY = 0.6;
+      const pr = rOf(PY) * ZS;
+      const slope = ((rOf(PY + 0.02) - rOf(PY - 0.02)) / 0.04) * ZS;
+      const port = new THREE.Group();
+      port.position.set(0, PY, pr - 0.004);
+      port.rotation.x = Math.atan(slope);
+      torso.add(port);
+      port.add(mesh(new THREE.TorusGeometry(0.072, 0.017, 10, 36), darkSteel));
+      const socket = mesh(new THREE.CircleGeometry(0.072, 36), new THREE.MeshStandardMaterial({ color: 0x23272d, roughness: 0.6, metalness: 0.2 }), false);
+      socket.position.z = 0.006;
+      port.add(socket);
+      const core = mesh(new THREE.IcosahedronGeometry(0.046, 1), coreMat, false);
+      core.position.z = 0.012;
+      core.scale.set(1, 1, 0.42);
+      port.add(core);
+      const glass = mesh(new THREE.SphereGeometry(0.07, 28, 14, 0, TAU, 0, Math.PI / 2), glassMat, false);
+      glass.rotation.x = Math.PI / 2;
+      glass.scale.set(1, 0.5, 1);
+      glass.renderOrder = 2;
+      port.add(glass);
+    }
     const eyes = [-1, 1].map(s => {
       const g = new THREE.Group();
       const n = onHead(0.36 * s, 0.02, 1);
