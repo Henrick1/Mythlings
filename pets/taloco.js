@@ -539,6 +539,8 @@ Pets.register({
     const HD = 0.33;
     const HP = (x, y) => V3(x * HW, y * HH, Math.sqrt(Math.max(0, 1 - x * x - y * y)) * HD);
     const HN = p => V3(p.x / (HW * HW), p.y / (HH * HH), p.z / (HD * HD)).normalize();
+    let browFull = null;
+    let browHalf = null;
     const neck = new THREE.Group();
     neck.position.set(0, TIP + 1.2, 0);
     bodyG.add(neck);
@@ -580,7 +582,12 @@ Pets.register({
       const ax = i => (i < B || i >= M - B ? 1 : Math.abs(path[i - B][0]) / X);
       const wf = i => (0.056 * lerp(1, 0.8, ax(i))) * (1 - 0.94 * Math.pow(out(i), 1.2));
       const hf = i => 0.05 * (1 - 0.45 * out(i));
-      head.add(mesh(strip(pts, nrm, wf, hf), plateMat));
+      browFull = mesh(strip(pts, nrm, wf, hf), plateMat);
+      head.add(browFull);
+      const H = B + K + 2;
+      browHalf = mesh(strip(pts.slice(0, H), nrm.slice(0, H), wf, hf), plateMat);
+      browHalf.visible = false;
+      head.add(browHalf);
     }
     {
       const th0 = Math.asin(0.12);
@@ -1573,7 +1580,598 @@ Pets.register({
       };
     })();
 
-    const KITS = { steel: hammerKit, fire: swordKit, water: tridentKit };
+    const woodTex = canvas(256, 256, (g, W, H) => {
+      g.fillStyle = "#6e4a2c";
+      g.fillRect(0, 0, W, H);
+      for (let k = 0; k < 80; k++) {
+        const y0 = rnd() * H;
+        const amp = 1.5 + rnd() * 5;
+        const cyc = 1 + Math.floor(rnd() * 3);
+        const ph = rnd() * TAU;
+        const dark = rnd() > 0.42;
+        g.strokeStyle = dark ? "rgba(38,22,10," + (0.22 + rnd() * 0.35) + ")" : "rgba(176,132,86," + (0.1 + rnd() * 0.2) + ")";
+        g.lineWidth = 1 + rnd() * 2.6;
+        g.beginPath();
+        for (let x = 0; x <= W; x += 4) {
+          const y = y0 + amp * Math.sin((x / W) * TAU * cyc + ph);
+          if (x) g.lineTo(x, y);
+          else g.moveTo(x, y);
+        }
+        g.stroke();
+      }
+      for (let k = 0; k < 6; k++) {
+        const x = rnd() * W;
+        const y = rnd() * H;
+        const rx = 6 + rnd() * 8;
+        [-W, 0, W].forEach(dx => {
+          for (let j = 0; j < 4; j++) {
+            g.strokeStyle = "rgba(40,22,10," + (0.5 - j * 0.1) + ")";
+            g.lineWidth = 1.5;
+            g.beginPath();
+            g.ellipse(x + dx, y, rx + j * 4, (rx + j * 4) * 0.45, 0, 0, TAU);
+            g.stroke();
+          }
+        });
+      }
+    });
+    if (woodTex) woodTex.wrapT = THREE.RepeatWrapping;
+    const woodMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: woodTex, roughness: 0.82, metalness: 0.0 });
+    if (!woodTex) woodMat.color.set(0x6e4a2c);
+    const leafMat = new THREE.MeshStandardMaterial({ color: 0x2c6e2e, roughness: 0.6, metalness: 0.0, side: THREE.DoubleSide });
+    const vineMat = new THREE.MeshStandardMaterial({ color: 0x2e6428, roughness: 0.7, metalness: 0.0 });
+    const petalMat = new THREE.MeshStandardMaterial({ color: 0xf2e6f4, roughness: 0.5, metalness: 0.0, side: THREE.DoubleSide });
+    const stringMat = new THREE.MeshBasicMaterial({ color: 0xc8ffd8 });
+    const orient = (o, Y, Z) => {
+      const z = Z.clone().normalize();
+      const y = Y.clone().addScaledVector(z, -Y.dot(z)).normalize();
+      const x = y.clone().cross(z).normalize();
+      o.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+      return o;
+    };
+    const leafGeo = (w, fold, curl) => {
+      const sh = new THREE.Shape();
+      sh.moveTo(0, 0);
+      sh.bezierCurveTo(w, 0.22, w * 0.85, 0.68, 0, 1);
+      sh.bezierCurveTo(-w * 0.85, 0.68, -w, 0.22, 0, 0);
+      const g = new THREE.ShapeGeometry(sh, 10);
+      const q = g.attributes.position;
+      for (let i = 0; i < q.count; i++) {
+        const x = q.getX(i);
+        const v = q.getY(i);
+        q.setZ(i, Math.abs(x) * fold + curl * v * v);
+      }
+      g.computeVertexNormals();
+      return g;
+    };
+    const LEAF = leafGeo(0.36, 0.3, 0.2);
+    const PETAL = leafGeo(0.5, 0.14, 0.5);
+    const leaf = (parent, pos, along, nrm, s) => {
+      const m = mesh(LEAF, leafMat, false);
+      m.position.copy(pos);
+      orient(m, along, nrm);
+      m.scale.setScalar(s);
+      parent.add(m);
+      return m;
+    };
+    const flower = (parent, pos, nrm, s) => {
+      const g = new THREE.Group();
+      g.position.copy(pos);
+      orient(g, Math.abs(nrm.y) < 0.9 ? V3(0, 1, 0) : V3(1, 0, 0), nrm);
+      g.scale.setScalar(s);
+      parent.add(g);
+      [[0, 1], [TAU / 10, 0.68]].forEach(([off, k]) => {
+        for (let i = 0; i < 5; i++) {
+          const pm = mesh(PETAL, petalMat, false);
+          pm.rotation.z = off + (i * TAU) / 5;
+          pm.scale.setScalar(k);
+          pm.position.z = (1 - k) * 0.12;
+          g.add(pm);
+        }
+      });
+      const c = mesh(new THREE.SphereGeometry(0.17, 12, 8), coreMat, false);
+      c.position.z = 0.12;
+      c.scale.set(1, 1, 0.6);
+      g.add(c);
+      return g;
+    };
+    const rootTube = (parent, pts, r0, r1, n = 40, m = woodMat, rf = null) => {
+      const { g, c } = tubeGeo(pts, u => Math.max(0.002, (rf ? rf(u) : lerp(r0, r1, Math.pow(u, 0.9))) * (1 + 0.12 * Math.sin(u * 23 + r0 * 50))), n, 9);
+      parent.add(mesh(g, m));
+      return c;
+    };
+
+    const bowKit = (() => {
+      const K = makeKit();
+      const { add } = K;
+      const arm = dyn(moltenMat);
+      K.parts.push(arm);
+      const vine = dyn(vineMat);
+      K.parts.push(vine);
+      const vineLeaves = [0, 1, 2, 3].map(() => add(bodyG, mesh(LEAF, leafMat, false)));
+      const bow = add(bodyG, new THREE.Group());
+      const NY = 0.86;
+      const NZ = -0.225;
+      const AX = -0.07;
+      {
+        const riser = tubeGeo([V3(0, -0.27, -0.012), V3(0, -0.13, 0.024), V3(0, 0, 0.04), V3(0, 0.13, 0.024), V3(0, 0.27, -0.012)], u => 0.034 + 0.012 * Math.sin(Math.PI * u), 30, 14).g;
+        riser.scale(1.25, 1, 1);
+        bow.add(mesh(riser, castMat));
+        const bladeGeo = (() => {
+          const sh = new THREE.Shape();
+          sh.moveTo(0, 0);
+          sh.bezierCurveTo(0.42, 0.25, 0.3, 0.7, 0, 1);
+          sh.bezierCurveTo(0.08, 0.6, 0.06, 0.25, 0, 0);
+          const g = new THREE.ExtrudeGeometry(sh, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.03, bevelSegments: 1, curveSegments: 10 });
+          g.translate(0, 0, -0.025);
+          return g;
+        })();
+        [-1, 1].forEach(sg => {
+          const lp = [V3(0, 0.18, 0.0), V3(0, 0.38, -0.045), V3(0, 0.58, -0.12), V3(0, 0.75, -0.19), V3(0, 0.87, -0.215), V3(0, 0.95, -0.17), V3(0, 0.99, -0.09)].map(p => V3(0, p.y * sg, p.z));
+          const lr = u => lerp(0.032, 0.012, smooth(0, 0.85, u));
+          const { g: lg, c: lc } = tubeGeo(lp, lr, 60, 14);
+          lg.scale(1.7, 1, 1);
+          bow.add(mesh(lg, woodMat));
+          const fer = [0, 0.04, 0.08, 0.12, 0.16].map(u => lc.getPointAt(u));
+          const fg = tubeGeo(fer, u => 0.044 - 0.01 * u + 0.006 * Math.sin(u * Math.PI), 16, 14).g;
+          fg.scale(1.45, 1, 1);
+          bow.add(mesh(fg, castMat));
+          const inl = Array.from({ length: 13 }, (_, i) => {
+            const u = lerp(0.14, 0.86, i / 12);
+            const p = lc.getPointAt(u);
+            const tg = lc.getTangentAt(u);
+            const bk = V3(1, 0, 0).cross(tg).multiplyScalar(sg);
+            return p.addScaledVector(bk, lr(u) * 0.92);
+          });
+          bow.add(mesh(tubeGeo(inl, u => 0.008 * (1 - 0.6 * smooth(0.8, 1, u)), 30, 6).g, castMat));
+          const tip = tubeGeo([V3(0, sg * 0.985, -0.1), V3(0, sg * 1.02, -0.02), V3(0, sg * 1.01, 0.06), V3(0, sg * 0.965, 0.085), V3(0, sg * 0.94, 0.05)], u => lerp(0.014, 0.004, u), 24, 8).g;
+          tip.scale(1.3, 1, 1);
+          bow.add(mesh(tip, castMat));
+          const bl = mesh(bladeGeo, castMat);
+          bl.position.copy(lc.getPointAt(0.05)).add(V3(0, 0, 0.03));
+          orient(bl, lc.getTangentAt(0.05).add(V3(0, 0, 0.55)), V3(1, 0, 0));
+          bl.scale.set(0.11, 0.3, 0.16);
+          bow.add(bl);
+          const vp = [];
+          const vo = [];
+          for (let i = 0; i <= 40; i++) {
+            const u = lerp(0.18, 0.84, i / 40);
+            const tg = lc.getTangentAt(u);
+            const nx = V3(1, 0, 0);
+            const b = tg.clone().cross(nx);
+            const ph = u * TAU * 2.4 + (sg > 0 ? 0 : 1.3);
+            const o = nx.multiplyScalar(Math.cos(ph)).addScaledVector(b, Math.sin(ph));
+            const p = o.clone().multiplyScalar(lr(u) + 0.006);
+            p.x *= 1.7;
+            vp.push(lc.getPointAt(u).add(p));
+            vo.push(o);
+          }
+          bow.add(mesh(tubeGeo(vp, () => 0.007, 80, 6).g, vineMat));
+          [10, 22, 34].forEach((i, k) => leaf(bow, vp[i], lc.getTangentAt(lerp(0.18, 0.84, i / 40)).multiplyScalar(sg * (k % 2 ? -1 : 1)).add(vo[i].clone().multiplyScalar(0.4)), vo[i], 0.075));
+        });
+        const gem = mesh(new THREE.OctahedronGeometry(0.03, 0), coreMat, false);
+        gem.position.set(0, 0.17, 0.062);
+        gem.scale.set(0.8, 1.4, 0.6);
+        bow.add(gem);
+        const fist = mesh(new THREE.SphereGeometry(0.09, 22, 16), moltenMat);
+        fist.scale.set(1.05, 1.3, 1.0);
+        fist.position.z = -0.045;
+        bow.add(fist);
+        const fgeo = new THREE.TorusGeometry(0.064, 0.025, 10, 24, Math.PI * 1.45);
+        fgeo.rotateX(Math.PI / 2);
+        fgeo.rotateY(0.707);
+        [-0.075, -0.025, 0.025, 0.075].forEach(y => {
+          const f = mesh(fgeo, moltenMat);
+          f.position.set(0, y, 0.022);
+          f.scale.set(1.12, 1, 1);
+          bow.add(f);
+        });
+        const th = mesh(new THREE.SphereGeometry(0.036, 12, 10), moltenMat);
+        th.position.set(0.05, 0.1, 0.02);
+        th.scale.set(0.9, 0.8, 1.5);
+        bow.add(th);
+        const drip = mesh(dropGeo, moltenMat, false);
+        drip.position.set(0, -0.14, -0.05);
+        drip.scale.set(1.2, 1.5, 1.2);
+        bow.add(drip);
+      }
+      const segGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
+      segGeo.translate(0, 0.5, 0);
+      const str = [0, 1].map(() => {
+        const m = mesh(segGeo, stringMat, false);
+        bow.add(m);
+        return m;
+      });
+      const seg = (m, a, b) => {
+        const d = b.clone().sub(a);
+        m.position.copy(a);
+        m.quaternion.setFromUnitVectors(V3(0, 1, 0), d.clone().normalize());
+        m.scale.set(0.011, d.length(), 0.011);
+      };
+      const ARROW = 1.07;
+      const shaftGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.9, 8);
+      shaftGeo.rotateX(Math.PI / 2);
+      shaftGeo.translate(0, 0, 0.45);
+      const headGeo = new THREE.ConeGeometry(0.036, 0.17, 4);
+      headGeo.rotateX(Math.PI / 2);
+      headGeo.scale(1, 0.32, 1);
+      headGeo.translate(0, 0, 0.985);
+      const mkArrow = () => {
+        const g = new THREE.Group();
+        g.add(mesh(shaftGeo, stringMat, false), mesh(headGeo, castMat, false));
+        const nk = mesh(new THREE.SphereGeometry(0.018, 10, 8), castMat, false);
+        g.add(nk);
+        [0, Math.PI / 2].forEach(r => {
+          const h = new THREE.Group();
+          h.rotation.z = r;
+          const l = mesh(LEAF, leafMat, false);
+          l.rotation.x = Math.PI / 2;
+          l.position.z = 0.02;
+          l.scale.set(0.13, 0.17, 0.13);
+          h.add(l);
+          g.add(h);
+        });
+        g.visible = false;
+        return g;
+      };
+      const nocked = mkArrow();
+      bow.add(nocked);
+      const flyers = Array.from({ length: 6 }, () => {
+        const a = mkArrow();
+        big.add(a);
+        return a;
+      });
+      const thorns = new THREE.Group();
+      thorns.visible = false;
+      big.add(thorns);
+      const spikes = Array.from({ length: 7 }, (_, k) => {
+        const a = (k / 6) * TAU + 0.3;
+        const r = k ? 0.3 + (k % 3) * 0.09 : 0;
+        const h = k ? 0.55 + (k % 2) * 0.25 : 1.0;
+        const lx = k ? Math.cos(a) * 0.28 : 0.04;
+        const lz = k ? Math.sin(a) * 0.28 : -0.04;
+        const o = new THREE.Group();
+        o.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
+        thorns.add(o);
+        const pts = [V3(0, -0.12, 0), V3(lx * 0.15, h * 0.35, lz * 0.15), V3(lx * 0.55, h * 0.7, lz * 0.55), V3(lx, h, lz)];
+        const base = k ? 0.075 : 0.115;
+        const { g, c } = tubeGeo(pts, u => Math.max(0.003, base * (1 - Math.pow(u, 0.85))), 24, 10);
+        o.add(mesh(g, woodMat));
+        [0.3, 0.48, 0.66].forEach((u, j) => {
+          const tg = c.getTangentAt(u);
+          const side = V3(Math.cos(a + j * 2.1), 0, Math.sin(a + j * 2.1));
+          side.addScaledVector(tg, -side.dot(tg)).normalize();
+          const tn = mesh(new THREE.ConeGeometry(0.022, 0.1, 5), castMat);
+          tn.position.copy(c.getPointAt(u)).addScaledVector(side, base * (1 - Math.pow(u, 0.85)) + 0.03);
+          tn.quaternion.setFromUnitVectors(V3(0, 1, 0), side.clone().addScaledVector(tg, 0.6).normalize());
+          o.add(tn);
+        });
+        return o;
+      });
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(1, 0.05, 6, 48), trailMat);
+      ring.rotation.x = Math.PI / 2;
+      ring.visible = false;
+      big.add(ring);
+
+      const crown = add(head, new THREE.Group());
+      {
+        const VX = 0.52;
+        const VY0 = 0.04;
+        const VY1 = 0.5;
+        const vp = (x, off) => {
+          const p = HP(x, lerp(VY0, VY1, x / VX));
+          return p.addScaledVector(HN(p), off);
+        };
+        const hp = (x, y, off) => {
+          const p = HP(x, y);
+          return p.addScaledVector(HN(p), off);
+        };
+        const E = HP(VX, VY1);
+        const nE = HN(E);
+        const D = V3(1, 0.86, -0.38).normalize();
+        const up = V3(0, 1, 0);
+        const at = (d, n, u) => E.clone().addScaledVector(D, d).addScaledVector(nE, n).addScaledVector(up, u);
+        const A = [vp(-0.03, 0.024), vp(0.1, 0.034), vp(0.22, 0.038), vp(0.34, 0.04), vp(0.46, 0.042), at(0.08, 0.04, 0), at(0.2, 0.035, -0.005), at(0.32, 0.025, 0.02), at(0.44, 0.005, 0.05), at(0.55, -0.02, 0.1), at(0.6, -0.05, 0.17)];
+        const cA = rootTube(crown, A, 0.044, 0.004, 80, woodMat, u => (u < 0.45 ? 0.044 : lerp(0.044, 0.004, Math.pow((u - 0.45) / 0.55, 0.9))));
+        rootTube(crown, [at(0.15, 0.035, 0), at(0.22, 0.03, -0.04), at(0.3, -0.03, -0.1), at(0.34, -0.12, -0.15), at(0.33, -0.2, -0.16)], 0.022, 0.003, 24);
+        rootTube(crown, [at(0.1, 0.035, 0), at(0.15, 0.04, 0.09), at(0.16, 0.02, 0.2), at(0.12, -0.01, 0.31), at(0.06, -0.03, 0.38)], 0.024, 0.003, 24);
+        const helix = [];
+        for (let i = 0; i <= 30; i++) {
+          const u = lerp(0.0, 0.62, i / 30);
+          const p = cA.getPointAt(u);
+          const tg = cA.getTangentAt(u);
+          const n = HN(p.clone());
+          const b = tg.clone().cross(n).normalize();
+          const nn = b.clone().cross(tg).normalize();
+          const ph = u * TAU * 3.2;
+          helix.push(p.addScaledVector(nn, 0.028 * Math.cos(ph)).addScaledVector(b, 0.028 * Math.sin(ph)));
+        }
+        rootTube(crown, helix, 0.013, 0.005, 60);
+        rootTube(crown, [vp(0.2, 0.02), hp(0.45, 0.33, 0.02), hp(0.66, 0.18, 0.018), hp(0.8, -0.02, 0.015), hp(0.86, -0.28, 0.01), hp(0.8, -0.52, -0.004)], 0.017, 0.003, 40);
+        rootTube(crown, [vp(0.16, 0.025), hp(0.17, 0.36, 0.015), hp(0.14, 0.56, 0.008), hp(0.1, 0.7, -0.004)], 0.014, 0.003, 20);
+        rootTube(crown, [vp(0.36, 0.03), hp(0.4, 0.55, 0.012), hp(0.32, 0.74, 0.006), hp(0.24, 0.84, -0.004)], 0.014, 0.003, 20);
+        const knot = mesh(new THREE.SphereGeometry(0.05, 16, 12), woodMat);
+        const kp = vp(0, 0.022);
+        knot.position.copy(kp);
+        orient(knot, V3(1, 0, 0), HN(HP(0, 0.04)));
+        knot.rotateZ(Math.PI / 2);
+        knot.scale.set(0.9, 1.25, 0.6);
+        crown.add(knot);
+        leaf(crown, A[10], V3(0.2, 1, -0.3), V3(0.3, 0.2, 1), 0.12);
+        leaf(crown, at(0.06, -0.03, 0.38), V3(-0.5, 1, 0), V3(0, 0.2, 1), 0.1);
+        leaf(crown, at(0.33, -0.2, -0.16), V3(0.5, -0.6, -0.4), V3(0.4, 1, 0), 0.08);
+      }
+
+      const pad = add(socket, new THREE.Group());
+      {
+        pad.position.set(0.02, 0.03, 0);
+        pad.rotation.z = -0.35;
+        [0, 1, 2].forEach(i => {
+          const sh = mesh(new THREE.SphereGeometry(0.21 - i * 0.035, 32, 12, 0, TAU, 0, Math.PI * 0.37), i === 1 ? castMat : woodMat);
+          sh.scale.set(1, 0.72, 1.06);
+          sh.position.set(0.03 * i, -0.045 * i, 0);
+          pad.add(sh);
+        });
+        for (let k = 0; k < 13; k++) {
+          const a = lerp(-Math.PI * 0.62, Math.PI * 0.62, k / 12);
+          const rx = Math.cos(a);
+          const rz = Math.sin(a);
+          leaf(pad, V3(0.06 + rx * 0.13, -0.075, rz * 0.15), V3(rx, -0.8, rz * 1.1), V3(rx * 0.7, 1, rz * 0.7), 0.12 + 0.02 * (k % 2));
+        }
+        rootTube(pad, [V3(-0.13, 0.06, -0.17), V3(-0.02, 0.15, -0.09), V3(0.04, 0.165, 0.03), V3(0.02, 0.12, 0.15), V3(-0.05, 0.02, 0.22), V3(-0.12, -0.1, 0.23)], 0.022, 0.008, 40);
+        rootTube(pad, [V3(0.1, 0.12, -0.12), V3(0.16, 0.08, -0.02), V3(0.15, 0.05, 0.1), V3(0.1, 0.0, 0.18)], 0.016, 0.004, 24);
+        const tw = rootTube(pad, [V3(0.0, 0.13, -0.02), V3(0.04, 0.25, -0.05), V3(0.02, 0.37, -0.03), V3(0.06, 0.47, -0.01), V3(0.05, 0.54, 0.02)], 0.026, 0.004, 30);
+        const tw2 = rootTube(pad, [V3(0.035, 0.29, -0.05), V3(0.11, 0.36, -0.07), V3(0.17, 0.41, -0.06), V3(0.21, 0.44, -0.03)], 0.014, 0.003, 16);
+        leaf(pad, tw.getPointAt(1), V3(0.1, 1, 0.2), V3(0.2, 0, 1), 0.11);
+        leaf(pad, tw.getPointAt(0.62), V3(-0.8, 0.6, 0.2), V3(0, 0.2, 1), 0.1);
+        leaf(pad, tw2.getPointAt(1), V3(0.8, 0.5, 0.1), V3(0, 0.3, 1), 0.1);
+        leaf(pad, tw.getPointAt(0.42), V3(0.6, 0.6, 0.4), V3(-0.3, 0, 1), 0.08);
+        flower(pad, V3(0.02, 0.135, 0.14), V3(0.05, 0.6, 0.8), 0.075);
+      }
+
+      const chest = add(torso, new THREE.Group());
+      {
+        const on = (ctrl, r0, r1, off = 0.012) => {
+          const c = new THREE.SplineCurve(ctrl.map(([a, y]) => V2(a, y)));
+          const sp = c.getSpacedPoints(30);
+          const pts = sp.map(q => TP(q.x, q.y).addScaledVector(TN(q.x, q.y), off));
+          rootTube(chest, pts, r0, r1, 48);
+          return { sp, pts };
+        };
+        const R1 = on([[1.42, 1.08], [1.18, 1.03], [0.92, 0.995], [0.66, 0.985], [0.44, 0.975], [0.27, 0.958]], 0.03, 0.008);
+        on([[1.2, 1.035], [1.27, 0.88], [1.32, 0.72], [1.33, 0.56], [1.38, 0.43]], 0.022, 0.004);
+        on([[0.8, 0.99], [0.7, 1.07], [0.58, 1.13], [0.46, 1.165]], 0.016, 0.003);
+        on([[1.0, 1.0], [0.98, 0.9], [1.02, 0.8]], 0.014, 0.003);
+        [[6, 1], [11, -1], [17, 1], [23, -1]].forEach(([i, s]) => {
+          const q = R1.sp[i];
+          const n = TN(q.x, q.y);
+          const tg = R1.pts[i + 1].clone().sub(R1.pts[i - 1]).normalize();
+          leaf(chest, R1.pts[i], tg.multiplyScalar(-0.6).add(V3(0, s, 0)), n, 0.1);
+        });
+        const fq = R1.sp[14];
+        flower(chest, R1.pts[14].clone().addScaledVector(TN(fq.x, fq.y), 0.02), TN(fq.x, fq.y), 0.07);
+      }
+
+      const wreath = add(port, new THREE.Group());
+      {
+        const R = 0.158;
+        const zf = x => 0.012 - 0.8 * x * x;
+        const a0 = -1.75;
+        const a1 = 1.95;
+        const pts = [];
+        for (let i = 0; i <= 30; i++) {
+          const a = lerp(a0, a1, i / 30);
+          const x = Math.cos(a) * R;
+          pts.push(V3(x, Math.sin(a) * R, zf(x)));
+        }
+        rootTube(wreath, pts, 0.015, 0.009, 48);
+        for (let k = 0; k < 10; k++) {
+          const a = lerp(a0 + 0.2, a1 - 0.15, k / 9);
+          const s = k % 2 ? 1 : -1;
+          const rd = V3(Math.cos(a), Math.sin(a), 0);
+          const tg = V3(-Math.sin(a), Math.cos(a), 0);
+          const x = Math.cos(a) * (R + 0.01 * s);
+          leaf(wreath, V3(x, Math.sin(a) * (R + 0.01 * s), zf(x) + 0.008), tg.clone().addScaledVector(rd, 0.7 * s), V3(0, 0, 1).addScaledVector(rd, 0.25), 0.08);
+        }
+        flower(wreath, V3(Math.cos(0.75) * R, Math.sin(0.75) * R, zf(Math.cos(0.75) * R) + 0.02), V3(0.15, 0.1, 1), 0.06);
+      }
+
+      let dir = V3(0, 0, 1);
+      const want = V3(0, 0, 1);
+      const upv = V3(0, 1, 0);
+      const wantUp = V3(0, 1, 0);
+      const TH = 1.15;
+      const AIM = V3(Math.sin(TH), 0, Math.cos(TH));
+      const ANC = V3(0.12, TIP + 1.2, 0.36);
+      const G1 = ANC.clone().addScaledVector(AIM, 0.85);
+      const SKY = V3(Math.sin(0.4) * Math.cos(0.96), Math.sin(0.96), Math.cos(0.4) * Math.cos(0.96));
+      const G2 = V3(0.9, TIP + 1.6, 0.3);
+      const TGT = V3(0, 0, 3.2);
+      const hideFx = () => {
+        flyers.forEach(f => (f.visible = false));
+        thorns.visible = false;
+        ring.visible = false;
+      };
+      return {
+        set: on => {
+          K.set(on);
+          if (browFull) browFull.visible = !on;
+          if (browHalf) browHalf.visible = on;
+          nocked.visible = false;
+          if (!on) hideFx();
+        },
+        style(shiny) {
+          plateMat.color.setHex(shiny ? 0x9aa83a : 0x4e7a3e);
+          woodMat.color.setHex(shiny ? 0xead2a4 : 0xffffff);
+          leafMat.color.setHex(shiny ? 0xd0a030 : 0x2c6e2e);
+          vineMat.color.setHex(shiny ? 0x8a7020 : 0x2e6428);
+          petalMat.color.setHex(shiny ? 0xffc890 : 0xf2e6f4);
+        },
+        rest(S, t, motion) {
+          S.hL.set(0.84, TIP + 0.64, 0.3).add(V3(0, Math.sin(t * 1.4 + 1.2) * 0.02 * motion, 0));
+          want.set(1, 0, 0.35);
+          wantUp.set(0, 1, 0);
+          S.headPitch -= 0.05;
+          S.spinY -= 0.06;
+          S.bowDraw = 0;
+          S.bowHand = false;
+          S.nock = false;
+          S.shot = -1;
+          S.rain = -1;
+          S.thornK = -1;
+        },
+        act(nm, p, S) {
+          if (nm === "swipe") {
+            const k = smooth(0.03, 0.22, p) * (1 - smooth(0.66, 0.92, p));
+            const reach = smooth(0.08, 0.18, p) * (1 - smooth(0.36, 0.44, p));
+            const draw = smooth(0.16, 0.34, p) * (1 - smooth(0.355, 0.375, p));
+            S.hL.lerp(G1, k);
+            want.lerp(AIM, k);
+            S.spinY += -TH * k;
+            S.headYaw += 0.95 * k;
+            S.headPitch += 0.06 * k;
+            S.lean += 0.04 * k;
+            S.hR.lerp(G1.clone().addScaledVector(AIM, -(0.24 + 0.61 * draw)), reach);
+            S.hR.lerp(V3(-0.08, TIP + 1.08, 0.46), smooth(0.36, 0.42, p) * (1 - smooth(0.58, 0.85, p)));
+            S.bowDraw = draw;
+            S.bowHand = true;
+            S.nock = p > 0.14 && p < 0.362;
+            S.shot = p >= 0.36 && p < 0.47 ? (p - 0.36) / 0.11 : -1;
+            S.sparkK = p > 0.46 && p < 0.72 ? smooth(0.46, 0.72, p) : -1;
+            S.glow = 0.4 * k + 0.8 * draw;
+            S.impact = p > 0.36 && p < 0.5 ? 1 - smooth(0.36, 0.5, p) : 0;
+            S.mouthK = 0.3 * draw;
+            return true;
+          }
+          if (nm === "fling") {
+            const k = smooth(0.03, 0.24, p) * (1 - smooth(0.7, 0.95, p));
+            const draw = smooth(0.12, 0.38, p) * (1 - smooth(0.395, 0.415, p));
+            S.hL.lerp(G2, k);
+            want.lerp(SKY, k);
+            S.spinY += -0.4 * k;
+            S.lean += -0.12 * k;
+            S.headYaw += 0.3 * k;
+            S.headPitch += -0.25 * k;
+            S.hR.lerp(V3(-0.72, TIP + 1.62, 0.32), smooth(0.08, 0.3, p) * (1 - smooth(0.44, 0.56, p)));
+            S.hR.lerp(V3(-0.5, TIP + 1.15, 0.75), smooth(0.46, 0.58, p) * (1 - smooth(0.82, 0.96, p)));
+            S.bowDraw = draw;
+            S.bowHand = false;
+            S.nock = p > 0.14 && p < 0.4;
+            S.shot = p >= 0.4 && p < 0.52 ? (p - 0.4) / 0.12 : -1;
+            S.rain = p >= 0.48 && p < 0.8 ? (p - 0.48) / 0.14 : -1;
+            S.thornK = p >= 0.58 && p < 0.97 ? (p - 0.58) / 0.39 : -1;
+            S.sparkK = S.thornK >= 0 && S.thornK < 0.5 ? S.thornK * 2 : -1;
+            S.glow = 1.2 * draw + 0.6 * k;
+            S.flash = 0.8 * draw;
+            S.mouthK = 0.7 * draw + 0.5 * smooth(0.4, 0.5, p) * (1 - smooth(0.7, 0.9, p));
+            S.hover += 0.12 * k;
+            S.legK = 0.4 * k;
+            return true;
+          }
+          if (nm === "spin") {
+            S.hL.lerp(V3(0.95, TIP + 0.85, 0.1), S.spinK);
+            want.lerp(V3(0.3, 0, 1), S.spinK);
+          }
+          if (nm === "jump") {
+            S.hL.lerp(V3(0.8, TIP + 1.05, 0.25), S.air);
+            want.lerp(V3(0.15, 0.1, 1), S.air);
+          }
+          return false;
+        },
+        arm(S, t, motion) {
+          dir.lerp(want.clone().normalize(), 0.5).normalize();
+          upv.lerp(wantUp, 0.5).normalize();
+          const rad = u => lerp(0.125, 0.09, smooth(0.3, 0.9, u));
+          const c = moltenArm(arm, shoulders[1], S.hL, t, motion, rad, 0.7);
+          const vp = [];
+          const vo = [];
+          const N = 40;
+          for (let i = 0; i <= N; i++) {
+            const u = lerp(0.12, 0.93, i / N);
+            const T = c.getTangentAt(u);
+            const nn = V3(0, 1, 0).cross(T);
+            if (nn.lengthSq() < 1e-4) nn.set(1, 0, 0);
+            nn.normalize();
+            const bb = T.clone().cross(nn);
+            const ph = u * TAU * 2.2;
+            const o = nn.multiplyScalar(Math.cos(ph)).addScaledVector(bb, Math.sin(ph));
+            vp.push(c.getPointAt(u).addScaledVector(o, rad(u) * 1.02 + 0.006));
+            vo.push(o);
+          }
+          flexTube(vine, vp, () => 0.012, 64, 6);
+          [8, 17, 26, 35].forEach((i, k) => {
+            const L = vineLeaves[k];
+            L.position.copy(vp[i]);
+            orient(L, c.getTangentAt(lerp(0.12, 0.93, i / N)).multiplyScalar(k % 2 ? 1 : -1).addScaledVector(vo[i], 0.5), vo[i]);
+            L.scale.setScalar(0.09);
+          });
+          const end = c.getPointAt(1).addScaledVector(c.getTangentAt(1), 0.06);
+          const z = dir.clone();
+          const y = upv.clone().addScaledVector(z, -upv.dot(z)).normalize();
+          const x = y.clone().cross(z).normalize();
+          bow.position.copy(end);
+          bow.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+          bow.updateMatrix();
+          const sp = V3(0, 0, NZ);
+          if (S.bowHand) {
+            handR.updateMatrix();
+            const hp = handR.position.clone().applyMatrix4(bow.matrix.clone().invert());
+            sp.lerp(hp, Math.min(1, S.bowDraw * 4));
+          } else sp.z -= 0.46 * S.bowDraw;
+          seg(str[0], V3(0, NY, NZ), sp);
+          seg(str[1], V3(0, -NY, NZ), sp);
+          nocked.visible = !!S.nock;
+          if (nocked.visible) {
+            const d = V3(AX, 0.02, 0.05).sub(sp).normalize();
+            nocked.position.copy(sp);
+            nocked.quaternion.setFromUnitVectors(V3(0, 0, 1), d);
+          }
+          bow.updateMatrixWorld(true);
+        },
+        fx(S, nm, p) {
+          const toBig = v => big.worldToLocal(bow.localToWorld(v.clone()));
+          const o = toBig(V3(AX, 0.02, NZ - 0.42));
+          const d = toBig(V3(AX, 0.02, 1)).sub(toBig(V3(AX, 0.02, 0))).normalize();
+          const dist = nm === "fling" ? 3.6 : 3.7;
+          const F0 = flyers[0];
+          F0.visible = S.shot >= 0;
+          if (F0.visible) {
+            F0.position.copy(o).addScaledVector(d, S.shot * dist);
+            F0.quaternion.setFromUnitVectors(V3(0, 0, 1), d);
+          }
+          flyers.slice(1).forEach((F, i) => {
+            const f = S.rain >= 0 ? Math.min(1, S.rain * 1.3 - i * 0.07) : -1;
+            F.visible = f >= 0;
+            if (!F.visible) return;
+            const ang = (i / 5) * TAU + 0.5;
+            const rr = 0.2 + (i % 2) * 0.24;
+            const ground = TGT.clone().add(V3(Math.cos(ang) * rr, 0.05, Math.sin(ang) * rr));
+            const from = ground.clone().add(V3(-0.3, 3.2, -0.7));
+            const fd = ground.clone().sub(from).normalize();
+            F.position.copy(from.lerp(ground, f)).addScaledVector(fd, -ARROW * 0.85);
+            F.quaternion.setFromUnitVectors(V3(0, 0, 1), fd);
+          });
+          thorns.visible = S.thornK >= 0;
+          ring.visible = S.thornK >= 0;
+          if (thorns.visible) {
+            const f = S.thornK;
+            thorns.position.copy(TGT);
+            const rise = smooth(0, 0.2, f) * (1 - smooth(0.75, 1, f));
+            spikes.forEach((sk, i) => {
+              const r = Math.min(1, Math.max(0, rise * 1.2 - (i ? 0.05 + i * 0.02 : 0)));
+              sk.scale.set(0.5 + 0.5 * r, Math.max(0.001, r), 0.5 + 0.5 * r);
+            });
+            ring.position.set(TGT.x, 0.04, TGT.z);
+            ring.scale.set(0.3 + f * 1.6, 0.3 + f * 1.6, 1 + f);
+            S.trailOpacity = 0.75 * (1 - f);
+          }
+          if (nm === "swipe" && S.sparkK >= 0) return o.clone().addScaledVector(d, dist + ARROW);
+          if (nm === "fling" && S.sparkK >= 0) return TGT.clone().add(V3(0, 0.35, 0));
+          return toBig(V3(0, 0, 0));
+        }
+      };
+    })();
+
+    const KITS = { steel: hammerKit, fire: swordKit, water: tridentKit, grass: bowKit };
     let kitNow = hammerKit;
 
     const food = berry();
@@ -1606,6 +2204,7 @@ Pets.register({
       trailMat.color.copy(hotC);
       sparkMat.color.copy(rimC);
       motesMat.color.copy(rimC);
+      stringMat.color.copy(rimC);
       kitNow = KITS[coreType || "steel"] || null;
       Object.values(KITS).forEach(k => k.set(k === kitNow));
       restyle();
