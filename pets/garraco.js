@@ -239,9 +239,9 @@ Pets.register({
     const glassMat = new THREE.MeshStandardMaterial({ color: 0x9fb4c8, roughness: 0.08, metalness: 0.1, transparent: true, opacity: 0.32, depthWrite: false });
     const coreMat = new THREE.MeshStandardMaterial({ color: 0x8a3a14, emissive: 0xff7a20, emissiveIntensity: 1, roughness: 0.3, metalness: 0.2, flatShading: true });
     const GLOW = {
-      fire: 0xff6a1e, water: 0x3a9cff, grass: 0x5ad83a, electric: 0xffd81e, ice: 0x7ae8ff, fighting: 0xff3a2a,
-      poison: 0xc050ff, ground: 0xe8a848, flying: 0xa898ff, psychic: 0xff4aa0, bug: 0xb8e020, rock: 0xd8b040,
-      ghost: 0x9060ff, dragon: 0x6a4aff, dark: 0xc02a5a, steel: 0x9db8e0, light: 0xfff0a0
+      fire: 0xff6a1e, water: 0x1e8cff, grass: 0x18d060, electric: 0xffd400, ice: 0x48f8ff, fighting: 0xff2626,
+      poison: 0xe020f0, ground: 0xc8902a, flying: 0xc0b0ff, psychic: 0xff3c78, bug: 0x9ad000, rock: 0x806650,
+      ghost: 0xa64cff, dragon: 0x4020ff, dark: 0x40284c, steel: 0x8ea0b8, light: 0xfff4c0
     };
     let coreType = null;
 
