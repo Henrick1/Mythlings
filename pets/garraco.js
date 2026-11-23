@@ -6,6 +6,8 @@ Pets.register({
   types: ["steel"],
   variants: "types",
   stage: 2,
+  evolvesTo: "taloco",
+  evolveLevel: 36,
   move: "fly",
   description: "O metal derretido do braço escorreu pelo peito até chegar ao núcleo. Quando derrota alguém com a Garra Coletora, ele guarda o tipo do derrotado ali dentro, e todo o metal derretido muda para a cor roubada. As pernas começaram a brotar, mas ainda não servem para andar.",
   actions: {
