@@ -300,6 +300,8 @@
   let labMove = false;
   let labIdle = true;
   let labDying = false;
+  let labShiny = false;
+  let labCore = null;
 
   const LAB_NAMES = {
     arco: "Arco voltaico", attack: "Ataque", beam: "Raio", blast: "Explosão", bless: "Bênção", bloom: "Florescer", bow: "Reverência", bubble: "Bolhas", choque: "Choque", claw: "Garra", count: "Contar", crawl: "Rastejar", cross: "Cruzar", curl: "Enrolar", curto: "Curto-circuito", dance: "Dança", eat: "Comer", eclipse: "Eclipse", flare: "Labareda", flex: "Flexionar", fly: "Voar", frost: "Nevasca", fume: "Fumaça", gills: "Guelras", hide: "Esconder", jet: "Jato", jump: "Pulo", kick: "Chute", lanterns: "Lanternas", lift: "Levantar", open: "Abrir", peek: "Espiar", psy: "Psíquico", puff: "Baforada", pulse: "Pulso", punch: "Soco", reign: "Reinar", ring: "Tocar", roar: "Rugido", roll: "Rolar", root: "Enraizar", scan: "Escanear", shadow: "Sombra", shine: "Brilho", sink: "Afundar", slam: "Pancada", sneeze: "Espirro", spark: "Faísca", spin: "Giro", splash: "Respingo", spread: "Espalhar", stomp: "Pisada", swim: "Nadar", tangle: "Embolar", toxic: "Tóxico", unwind: "Desenrolar", wag: "Abanar", wobble: "Tremida", zap: "Faísca"
@@ -337,10 +339,40 @@
   function labPick(id) {
     ensurePets([id]).then(() => {
       if (!lab || $("lab-select").value !== id) return;
-      lab.setPet(id);
+      labCore = null;
+      lab.setCore(null);
+      lab.setPet(id, labShiny);
       lab.setStatus({ hunger: 100, life: 100, dying: labDying });
+      renderLabVariants();
       renderLabActions();
     });
+  }
+
+  function renderLabVariants() {
+    const sel = $("lab-variant");
+    const def = window.Pets && Pets.find($("lab-select").value);
+    sel.replaceChildren();
+    sel.hidden = !(def && def.variants === "types" && window.PetTypes);
+    if (sel.hidden) return;
+    const base = def.types[0];
+    const add = (v, label) => {
+      const op = document.createElement("option");
+      op.value = v;
+      op.textContent = label;
+      sel.append(op);
+    };
+    add("", "Variante: " + PetTypes.INFO[base].name + " (padrão)");
+    Object.keys(PetTypes.INFO)
+      .filter(t => t !== base)
+      .forEach(t => add(t, "Variante: " + PetTypes.INFO[t].name));
+    sel.value = labCore || "";
+  }
+
+  function labSetShiny(on) {
+    labShiny = on;
+    labToggle($("lab-normal"), !on);
+    labToggle($("lab-shiny"), on);
+    if (lab) lab.setPet($("lab-select").value, labShiny);
   }
 
   function labToggle(btn, on) {
@@ -398,6 +430,12 @@
       labIdle = !labIdle;
       labToggle($("lab-idle"), labIdle);
       if (lab) lab.setIdle(labIdle);
+    });
+    $("lab-normal").addEventListener("click", () => labSetShiny(false));
+    $("lab-shiny").addEventListener("click", () => labSetShiny(true));
+    $("lab-variant").addEventListener("change", e => {
+      labCore = e.target.value || null;
+      if (lab) lab.setCore(labCore);
     });
     $("lab-dying").addEventListener("click", () => {
       labDying = !labDying;

@@ -4,6 +4,7 @@ Pets.register({
   name: "Garraço",
   color: "#7f878f",
   types: ["steel"],
+  variants: "types",
   stage: 2,
   move: "fly",
   description: "O metal derretido do braço escorreu pelo peito até chegar ao núcleo. Quando derrota alguém com a Garra Coletora, ele guarda o tipo do derrotado ali dentro, e todo o metal derretido muda para a cor roubada. As pernas começaram a brotar, mas ainda não servem para andar.",
@@ -178,14 +179,13 @@ Pets.register({
     };
     const moltenTex = texOf(moltenCv);
     const hotTex = texOf(hotCv);
-    const DEFAULT_PAL = { deep: [185, 48, 12], hot: [255, 150, 46], rim: [255, 190, 80], gam: [1, 2, 2] };
     const palOf = hex => {
       const c = [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
       const mix = (k, w) => c.map(v => lerp(v, 255, w) * k);
       return { deep: mix(0.62, 0), hot: mix(1, 0.35), rim: mix(1, 0.62), gam: [1.4, 1.4, 1.4] };
     };
     const css = (c, a) => "rgba(" + c.map(v => Math.round(Math.min(255, v))).join(",") + "," + a + ")";
-    let pal = DEFAULT_PAL;
+    let pal = null;
     const paint = () => {
       if (moltenCv) {
         const g = moltenCv.getContext("2d");
@@ -226,7 +226,6 @@ Pets.register({
         hotTex.needsUpdate = true;
       }
     };
-    paint();
     const moltenMat = new THREE.MeshStandardMaterial({ color: 0x9a9a9a, map: moltenTex, emissive: 0xffffff, emissiveMap: moltenTex, emissiveIntensity: 0.7, roughness: 0.45, metalness: 0.1 });
     if (!moltenTex) moltenMat.color.set(0xff7a1e);
     if (!moltenTex) moltenMat.emissive.set(0xc04010);
@@ -242,7 +241,7 @@ Pets.register({
     const GLOW = {
       fire: 0xff6a1e, water: 0x3a9cff, grass: 0x5ad83a, electric: 0xffd81e, ice: 0x7ae8ff, fighting: 0xff3a2a,
       poison: 0xc050ff, ground: 0xe8a848, flying: 0xa898ff, psychic: 0xff4aa0, bug: 0xb8e020, rock: 0xd8b040,
-      ghost: 0x9060ff, dragon: 0x6a4aff, dark: 0xc02a5a, steel: 0xcfe4ff, light: 0xfff0a0
+      ghost: 0x9060ff, dragon: 0x6a4aff, dark: 0xc02a5a, steel: 0x9db8e0, light: 0xfff0a0
     };
     let coreType = null;
 
@@ -685,7 +684,7 @@ Pets.register({
     const L2 = 0.44;
 
     const applyCore = () => {
-      pal = coreType ? palOf(GLOW[coreType]) : DEFAULT_PAL;
+      pal = palOf(GLOW[coreType || "steel"]);
       paint();
       const hotC = new THREE.Color().setRGB(pal.hot[0] / 255, pal.hot[1] / 255, pal.hot[2] / 255);
       const deepC = new THREE.Color().setRGB(pal.deep[0] / 255, pal.deep[1] / 255, pal.deep[2] / 255);
@@ -703,6 +702,18 @@ Pets.register({
       motesMat.color.copy(rimC);
     };
 
+    applyCore();
+    root.traverse(o => {
+      if (o.material) [].concat(o.material).forEach(m => m.userData.varHue === undefined && (m.userData.varHue = 0));
+    });
+    let shinyOn = false;
+    const shine = () => {
+      shinyOn = true;
+      steelMat.color.setHex(0xf6d68e);
+      plateMat.color.setHex(0xc89a48);
+      darkSteel.color.setHex(0x7a5a2c);
+    };
+
     return {
       root,
       setCore(type) {
@@ -711,6 +722,7 @@ Pets.register({
       },
       update(s) {
         const { t, pointer, blink, lookYaw, lookPitch, action, motion } = s;
+        if (root.userData.variant && !shinyOn) shine();
         const nm = action ? action.name : null;
         const p = action ? action.p : 0;
         const ph = nm === "eat" ? eatPhase(p) : null;
