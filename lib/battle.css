@@ -1407,3 +1407,102 @@
     width: 360px;
   }
 }
+
+.bt-region {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0 16px 10px;
+  padding: 8px 12px;
+  background: var(--b-plate);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.bt-region .bt-types {
+  margin: 0;
+}
+
+.bt-lobby .bt-team {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 176px;
+  align-content: start;
+  gap: 10px;
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 4px 16px 16px;
+}
+
+.bt-lobby .bt-card {
+  height: auto;
+  padding: 0 12px 12px;
+}
+
+.bt-lobby .bt-card .bt-art {
+  top: 4px;
+  width: 116px;
+  height: 116px;
+}
+
+.bt-lobby .bt-card b {
+  font-size: 17px;
+}
+
+.bt-card-types {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bt-tchip {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+
+@media (min-width: 560px) {
+  .bt-lobby .bt-team {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 980px) and (min-height: 520px) {
+  .bt-region {
+    margin-left: 24px;
+    margin-right: 24px;
+  }
+
+  .bt-lobby .bt-team {
+    padding-left: 24px;
+    padding-right: 24px;
+    grid-auto-rows: 200px;
+  }
+
+  .bt-lobby .bt-card .bt-art {
+    width: 136px;
+    height: 136px;
+  }
+}
+
+.bt.bt-insp {
+  display: block;
+  height: auto;
+  overflow: visible;
+  background: transparent;
+  flex: none;
+}
+
+.bt-insp .bt-passive {
+  margin-top: 0;
+}

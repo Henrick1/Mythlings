@@ -1998,6 +1998,53 @@
     } else art.dataset.sp = "";
   }
 
+  const INSP_ICO = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 20V12M10 20V5M15 20v-9M20 20V8"/></svg>';
+  function inspBtn(p) {
+    if (!window.Battle || !window.BattleUI || !BattleUI.detail) return null;
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "insp-btn";
+    b.innerHTML = INSP_ICO;
+    b.setAttribute("aria-label", "Ver detalhes de " + p.name);
+    b.addEventListener("click", e => {
+      e.stopPropagation();
+      openInspect(p);
+    });
+    return b;
+  }
+
+  function openInspect(p) {
+    const uid = p.id;
+    if (!state.owned.includes(uid)) return;
+    $("inspect-title").lastChild.textContent = p.name;
+    const top = $("inspect-top");
+    top.replaceChildren();
+    const art = petArt(p, "insp-art");
+    const plate = document.createElement("div");
+    plate.className = "insp-plate";
+    const lv = document.createElement("span");
+    lv.className = "insp-lv";
+    lv.innerHTML = "Nv <b>" + Game.levelOf(state, uid) + "</b>";
+    plate.append(lv, typeTags(Battle.row(state, uid).types));
+    top.append(art, plate);
+    BattleUI.detail($("inspect-body"), {
+      Battle,
+      Types: window.PetTypes,
+      row: Battle.row(state, uid),
+      setMoves: async (id, list) => {
+        const r = Battle.setMoves(state, id, list);
+        if (r.changed) {
+          saveState();
+          scheduleSync();
+        }
+        return Battle.row(state, id);
+      }
+    });
+    const d = $("inspect-sheet");
+    if (!d.open) d.showModal();
+    $("inspect-body").scrollTop = 0;
+  }
+
   let releaseId = null;
   function moreBtn(p) {
     if (!Game.canRelease(state, p.id)) return null;
@@ -2061,6 +2108,11 @@
       const wrap = document.createElement("div");
       wrap.className = "item-wrap";
       wrap.append(el);
+      const insp = inspBtn(p);
+      if (insp) {
+        wrap.classList.add("has-insp");
+        wrap.append(insp);
+      }
       const more = moreBtn(p);
       if (more) wrap.append(more);
       partyList.append(wrap);
@@ -2145,6 +2197,8 @@
           render();
         });
         bar.append(btn);
+        const insp = inspBtn(sel);
+        if (insp) bar.append(insp);
         const more = moreBtn(sel);
         if (more) {
           more.classList.add("inline");
@@ -2445,7 +2499,7 @@
       },
       region: () => {
         const r = mapRegion && window.Regions ? Regions.byId(mapRegion) : null;
-        return r ? r.name : null;
+        return r ? { name: r.name, types: r.types.slice() } : null;
       },
       start: async () => {
         const r = Battle.start(state, Date.now(), Math.random, mapRegion);
