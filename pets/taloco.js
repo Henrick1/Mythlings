@@ -777,15 +777,44 @@ Pets.register({
 
     const castMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: castTex, emissive: 0xffffff, emissiveMap: castGlowTex, emissiveIntensity: 0.9, roughness: 0.32, metalness: 0.55 });
     if (!moltenTex) castMat.color.set(0x6e757d);
-    const hammerKit = (() => {
+    const REST_R = V3(-0.86, TIP + 0.56, 0.3);
+    const REST_L = V3(0.64, TIP + 0.2, 0.2);
+    const L1 = 0.4;
+    const L2 = 0.5;
+    const PLATE = 0x8b9199;
+    const PLATE_SHINY = 0xc89a48;
+
+    const makeKit = () => {
       const parts = [];
       const add = (parent, m) => {
         parent.add(m);
         parts.push(m);
         return m;
       };
+      const set = on => parts.forEach(m => (m.visible = on));
+      return { parts, add, set };
+    };
+    const moltenArm = (m, A, target, t, motion, rad, rigidFrom = 0.5) => {
+      const r = ik(A, target, L1, L2, V3(0, -0.5, -0.5));
+      const pts = [A.clone(), A.clone().lerp(r.elbow, 0.5), r.elbow, r.elbow.clone().lerp(r.end, 0.5), r.end];
+      return flexTube(m, pts, (u, v) => {
+        const a = v * TAU;
+        const free = 1 - smooth(rigidFrom, rigidFrom + 0.12, u);
+        const wob = 1 + (0.045 * Math.sin(a * 2 + u * 5 - t * 2.6) + 0.03 * Math.sin(a * 3 - u * 4 + t * 1.9)) * motion * free;
+        const sag = 1 + 0.1 * Math.max(0, -Math.sin(a)) * Math.sin(u * Math.PI) * free;
+        return rad(u) * wob * sag;
+      }, 48, 18);
+    };
+    const onHeadRing = (y, a) => {
+      const r = Math.sqrt(1 - y * y);
+      return V3(Math.sin(a) * r * HW, y * HH, Math.cos(a) * r * HD);
+    };
+
+    const hammerKit = (() => {
+      const K = makeKit();
+      const { add } = K;
       const arm = dyn(moltenMat);
-      parts.push(arm);
+      K.parts.push(arm);
       const grips = [0.66, 0.76, 0.86].map(() => add(bodyG, mesh(new THREE.TorusGeometry(1, 0.16, 8, 28), castMat)));
       const hammer = add(bodyG, new THREE.Group());
       const hamIn = new THREE.Group();
@@ -819,20 +848,12 @@ Pets.register({
       }
       const crown = add(head, new THREE.Group());
       {
-        const K = 30;
+        const N = 30;
         const pts = [];
-        for (let i = 0; i <= K; i++) {
-          const a = lerp(Math.PI * 0.52, Math.PI * 1.48, i / K);
-          const y = 0.42;
-          const r = Math.sqrt(1 - y * y);
-          pts.push(V3(Math.sin(a) * r * HW, y * HH, Math.cos(a) * r * HD));
-        }
-        crown.add(mesh(strip(pts, pts.map(HN), i => 0.03 * (1 - 0.7 * smooth(0.85, 1, Math.abs(i / K - 0.5) * 2)), i => 0.026), castMat));
+        for (let i = 0; i <= N; i++) pts.push(onHeadRing(0.42, lerp(Math.PI * 0.52, Math.PI * 1.48, i / N)));
+        crown.add(mesh(strip(pts, pts.map(HN), i => 0.03 * (1 - 0.7 * smooth(0.85, 1, Math.abs(i / N - 0.5) * 2)), i => 0.026), castMat));
         [0.62, 0.81, 1.0, 1.19, 1.38].forEach((f, i) => {
-          const a = Math.PI * f;
-          const y = 0.42;
-          const r = Math.sqrt(1 - y * y);
-          const pnt = V3(Math.sin(a) * r * HW, y * HH, Math.cos(a) * r * HD);
+          const pnt = onHeadRing(0.42, Math.PI * f);
           const n = HN(pnt);
           const len = i === 2 ? 0.3 : i === 1 || i === 3 ? 0.24 : 0.17;
           const sp = mesh(new THREE.ConeGeometry(0.036, len, 5), castMat);
@@ -868,20 +889,384 @@ Pets.register({
       wave.rotation.x = Math.PI / 2;
       wave.visible = false;
       big.add(wave);
-      const set = on => parts.forEach(m => (m.visible = on));
-      return { arm, grips, hammer, wave, set };
+      return {
+        set: on => {
+          K.set(on);
+          if (!on) wave.visible = false;
+        },
+        style() {},
+        rest() {},
+        act(nm, p, S) {
+          if (nm === "swipe") {
+            const wind = smooth(0.04, 0.32, p) * (1 - smooth(0.34, 0.42, p));
+            const strike = smooth(0.34, 0.44, p) * (1 - smooth(0.72, 0.95, p));
+            S.hL.lerp(V3(0.42, TIP + 1.95, -0.32), wind);
+            S.hL.lerp(V3(0.22, TIP + 0.5, 0.95), strike);
+            S.lean = -0.1 * wind + 0.18 * strike;
+            S.spinY = 0.15 * wind - 0.2 * strike;
+            S.trailK = p > 0.34 && p < 0.56 ? Math.sin(Math.PI * smooth(0.34, 0.56, p)) : 0;
+            S.glow = 0.5 * wind + 0.7 * strike;
+            S.impact = p > 0.43 && p < 0.6 ? 1 - smooth(0.43, 0.6, p) : 0;
+            S.swingK = smooth(0.02, 0.18, p) * (1 - smooth(0.82, 0.98, p));
+            S.sparkK = p > 0.42 && p < 0.7 ? smooth(0.42, 0.7, p) : -1;
+            S.headPitch += 0.15 * strike;
+            S.mouthK = 0.6 * strike;
+            return true;
+          }
+          if (nm === "fling") {
+            const raise = smooth(0.04, 0.36, p) * (1 - smooth(0.4, 0.48, p));
+            const slam = smooth(0.4, 0.48, p) * (1 - smooth(0.78, 0.98, p));
+            S.hL.lerp(V3(0.3, TIP + 2.0, 0.05), raise);
+            S.hL.lerp(V3(0.3, TIP - 0.05, 0.85), slam);
+            S.hR.lerp(V3(-0.82, TIP + 1.2, 0.2), raise);
+            S.lean = -0.14 * raise + 0.3 * slam;
+            S.hover += 0.18 * raise - 0.12 * slam;
+            S.squash = 1 + 0.05 * raise - 0.06 * slam;
+            S.glow = 1.2 * raise + 0.8 * slam;
+            S.flash = 0.6 * raise + 0.6 * slam;
+            S.waveK = p > 0.46 && p < 0.92 ? smooth(0.46, 0.92, p) : -1;
+            S.impact = p > 0.46 && p < 0.66 ? 1 - smooth(0.46, 0.66, p) : 0;
+            S.swingK = smooth(0.02, 0.18, p) * (1 - smooth(0.82, 0.98, p));
+            S.sparkK = p > 0.46 && p < 0.76 ? smooth(0.46, 0.76, p) : -1;
+            S.headPitch += 0.2 * slam - 0.1 * raise;
+            S.mouthK = 0.8 * slam;
+            S.legK = 0.5 * raise;
+            return true;
+          }
+          if (nm === "spin") S.hL.lerp(V3(0.95, TIP + 0.95, 0.0), S.spinK);
+          if (nm === "jump") S.hL.lerp(V3(0.8, TIP + 0.9, 0.2), S.air);
+          return false;
+        },
+        arm(S, t, motion) {
+          const rad = u => lerp(0.125, 0.082, smooth(0.35, 0.7, u));
+          const c = moltenArm(arm, shoulders[1], S.hL, t, motion, rad);
+          [0.66, 0.76, 0.86].forEach((u, i) => {
+            grips[i].position.copy(c.getPointAt(u));
+            grips[i].quaternion.setFromUnitVectors(V3(0, 0, 1), c.getTangentAt(u));
+            grips[i].scale.setScalar(rad(u) + 0.006);
+          });
+          const end = c.getPointAt(1);
+          const d = c.getTangentAt(1);
+          const { hx, hy } = frame(d);
+          hammer.position.copy(end).addScaledVector(d, 0.19);
+          hammer.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(hx, hy, d));
+          hammer.rotateZ((Math.PI / 2) * (1 - S.swingK));
+        },
+        fx(S, nm) {
+          const at = big.worldToLocal(hammer.getWorldPosition(V3(0, 0, 0)));
+          if (nm === "swipe")
+            trail.forEach((a, i) => {
+              a.position.copy(shoulders[1]);
+              a.rotation.set(0, Math.PI / 2, 0.75 + i * 0.05);
+              a.scale.setScalar(1.15 + i * 0.05);
+            });
+          wave.visible = S.waveK >= 0;
+          if (wave.visible) {
+            wave.position.set(at.x, 0.04, at.z);
+            wave.scale.set(0.2 + S.waveK * 1.6, 0.2 + S.waveK * 1.6, 1 + S.waveK);
+            S.trailOpacity = 0.7 * (1 - S.waveK);
+          }
+          return at;
+        },
+        hide() {
+          wave.visible = false;
+        }
+      };
     })();
-    const REST_L = V3(0.64, TIP + 0.2, 0.2);
-    let kitOn = true;
+
+    const redMat = new THREE.MeshStandardMaterial({ color: 0xb3241b, roughness: 0.42, metalness: 0.25 });
+    const clothMat = new THREE.MeshStandardMaterial({ color: 0x9c1c16, roughness: 0.85, metalness: 0.0, side: THREE.DoubleSide });
+    const flameMat = new THREE.MeshBasicMaterial({ color: 0xff5a14, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending });
+    const flameCore = new THREE.MeshBasicMaterial({ color: 0xffd060, transparent: true, opacity: 0.9, depthWrite: false, blending: THREE.AdditiveBlending });
+    const flameGeo = new THREE.LatheGeometry([V2(0.0001, 0), V2(0.04, 0.03), V2(0.05, 0.09), V2(0.038, 0.17), V2(0.018, 0.25), V2(0.0001, 0.31)], 10);
+
+    const swordKit = (() => {
+      const K = makeKit();
+      const { add } = K;
+      const arm = dyn(moltenMat);
+      K.parts.push(arm);
+      const wraps = [0.7, 0.8, 0.9].map(() => add(bodyG, mesh(new THREE.TorusGeometry(1, 0.18, 8, 28), redMat)));
+      const sword = add(bodyG, new THREE.Group());
+      const BL = 1.3;
+      const halfW = u => (u < 0.06 ? 0.062 : u < 0.1 ? lerp(0.062, 0.098, (u - 0.06) / 0.04) : u < 0.8 ? lerp(0.098, 0.084, (u - 0.1) / 0.7) : 0.084 * (1 - Math.pow((u - 0.8) / 0.2, 1.3)));
+      {
+        const sh = new THREE.Shape();
+        const N = 24;
+        sh.moveTo(-0.062, 0);
+        for (let i = 1; i <= N; i++) {
+          const u = i / N;
+          sh.lineTo(-halfW(u) - 0.0001, u * BL);
+        }
+        for (let i = N - 1; i >= 0; i--) {
+          const u = i / N;
+          sh.lineTo(halfW(u) + 0.0001, u * BL);
+        }
+        sh.lineTo(-0.062, 0);
+        const g = new THREE.ExtrudeGeometry(sh, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.014, bevelSegments: 1, curveSegments: 4 });
+        g.translate(0, 0, -0.015);
+        g.rotateX(Math.PI / 2);
+        sword.add(mesh(g, castMat));
+        [-1, 1].forEach(sg => {
+          const fu = mesh(new THREE.BoxGeometry(0.02, 0.006, BL * 0.62), darkSteel);
+          fu.position.set(0, sg * 0.03, BL * 0.42);
+          sword.add(fu);
+        });
+        const guard = mesh(new THREE.BoxGeometry(0.34, 0.08, 0.07), redMat);
+        guard.position.z = -0.01;
+        sword.add(guard);
+        [-1, 1].forEach(sg => {
+          const tip = mesh(new THREE.ConeGeometry(0.045, 0.17, 6), castMat);
+          tip.position.set(sg * 0.2, 0, 0.05);
+          tip.rotation.set(Math.PI / 2, 0, 0);
+          tip.rotateZ(sg * 0.6);
+          sword.add(tip);
+          const curl = mesh(flameGeo, castMat);
+          curl.scale.setScalar(0.55);
+          curl.position.set(sg * 0.16, 0, 0.02);
+          curl.rotation.set(Math.PI / 2, 0, -sg * 0.9);
+          sword.add(curl);
+        });
+        const gem = mesh(new THREE.OctahedronGeometry(0.035, 0), coreMat, false);
+        gem.position.set(0, 0.045, -0.01);
+        gem.scale.set(1, 0.6, 1);
+        sword.add(gem);
+      }
+      const flames = [];
+      for (let i = 0; i < 18; i++) {
+        const sg = i % 2 ? 1 : -1;
+        const u = 0.1 + (Math.floor(i / 2) / 8) * 0.84;
+        const o = add(sword, new THREE.Group());
+        const outer = mesh(flameGeo, flameMat, false);
+        const inner = mesh(flameGeo, flameCore, false);
+        inner.scale.setScalar(0.55);
+        inner.position.y = 0.01;
+        o.add(outer, inner);
+        flames.push({ o, u, sg, ph: i * 1.7 });
+      }
+      const crescent = new THREE.Mesh(new THREE.TorusGeometry(0.75, 0.07, 8, 40, Math.PI * 0.9), flameMat);
+      crescent.visible = false;
+      big.add(crescent);
+      const plume = add(head, new THREE.Group());
+      {
+        [[-0.55, 0.62, 0.22, -0.35], [0, 0.5, 0.3, 0], [0.55, 0.62, 0.22, 0.35]].forEach(([a, y, len, tilt]) => {
+          const pnt = onHeadRing(y, Math.PI + a);
+          const n = HN(pnt);
+          const f = mesh(flameGeo, redMat);
+          f.scale.set(1.3, len / 0.31 * 1.6, 1.3);
+          f.position.copy(pnt).addScaledVector(n, -0.01);
+          f.quaternion.setFromUnitVectors(V3(0, 1, 0), n.clone().add(V3(tilt, 1.4, -0.6)).normalize());
+          plume.add(f);
+        });
+        const N = 30;
+        const pts = [];
+        for (let i = 0; i <= N; i++) pts.push(onHeadRing(0.36, lerp(Math.PI * 0.5, Math.PI * 1.5, i / N)));
+        plume.add(mesh(strip(pts, pts.map(HN), i => 0.034 * (1 - 0.7 * smooth(0.85, 1, Math.abs(i / N - 0.5) * 2)), i => 0.024), redMat));
+      }
+      const emblem = add(port, new THREE.Group());
+      for (let k = 0; k < 5; k++) {
+        const a = Math.PI / 2 + ((k - 2) * Math.PI) / 4.2;
+        const f = mesh(flameGeo, redMat);
+        f.scale.set(0.9, 0.62, 0.5);
+        f.position.set(Math.cos(a) * 0.12, Math.sin(a) * 0.12, -0.01);
+        f.rotation.z = a - Math.PI / 2;
+        emblem.add(f);
+      }
+      const baldric = add(torso, new THREE.Group());
+      {
+        const N = 40;
+        const ctrl = [[-1.25, 1.12], [-0.8, 0.92], [-0.35, 0.7], [0.2, 0.5], [0.75, 0.36], [1.25, 0.28]];
+        const c = new THREE.SplineCurve(ctrl.map(([a, y]) => V2(a, y)));
+        const sp = c.getSpacedPoints(N);
+        baldric.add(mesh(strip(sp.map(q => TP(q.x, q.y)), sp.map(q => TN(q.x, q.y)), () => 0.05, () => 0.026), clothMat));
+        [0.25, 0.55, 0.8].forEach(u => {
+          const q = c.getPointAt(u);
+          const st = mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.02, 12), castMat);
+          st.position.copy(TP(q.x, q.y)).addScaledVector(TN(q.x, q.y), 0.03);
+          st.quaternion.setFromUnitVectors(V3(0, 1, 0), TN(q.x, q.y));
+          baldric.add(st);
+        });
+      }
+      const sash = add(torso, new THREE.Group());
+      {
+        const tor = mesh(new THREE.TorusGeometry(rOf(0.06) + 0.026, 0.03, 10, 44), clothMat);
+        tor.rotation.x = Math.PI / 2;
+        tor.scale.set(1, ZS, 1);
+        tor.position.y = 0.06;
+        sash.add(tor);
+      }
+      const tails = [-1, 1].map(sg => {
+        const m = dyn(clothMat);
+        K.parts.push(m);
+        return { m, sg };
+      });
+      const pad = add(socket, new THREE.Group());
+      {
+        pad.position.set(0.02, 0.03, 0);
+        pad.rotation.z = -0.35;
+        [0, 1, 2].forEach(i => {
+          const sh = mesh(new THREE.SphereGeometry(0.2 - i * 0.03, 32, 12, 0, TAU, 0, Math.PI * 0.36), i === 1 ? castMat : redMat);
+          sh.scale.set(1, 0.7, 1.05);
+          sh.position.set(0.03 * i, -0.045 * i, 0);
+          pad.add(sh);
+        });
+        const f = mesh(flameGeo, castMat);
+        f.scale.setScalar(0.8);
+        f.position.set(0.02, 0.12, 0);
+        f.rotation.z = -0.3;
+        pad.add(f);
+      }
+      const slashQ = (() => {
+        const A = V3(0.51, 1.47, -0.53).normalize();
+        const B = V3(-1.56, -0.71, 1.23).normalize();
+        const n = A.clone().cross(B).normalize();
+        const y = n.clone().cross(A).normalize();
+        return new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(A, y, n));
+      })();
+      let dir = V3(0, -1, 0);
+      const want = V3(0, -1, 0);
+      return {
+        set: on => {
+          K.set(on);
+          if (!on) crescent.visible = false;
+        },
+        style(shiny) {
+          plateMat.color.setHex(shiny ? 0xc0402a : 0xa8231b);
+        },
+        rest(S, t, motion) {
+          S.hL.set(0.5, TIP + 0.62, 0.5).add(V3(0, Math.sin(t * 1.4 + 1.2) * 0.02 * motion, 0));
+          want.set(-0.35, -0.62, 0.7);
+          S.hR.set(-0.6, TIP + 0.98, 0.5).add(V3(0, Math.sin(t * 1.4) * 0.015 * motion, 0));
+          S.lean += 0.1;
+          S.spinY -= 0.22;
+          S.headPitch += 0.14;
+          S.headYaw += 0.16;
+          S.legK = 0.25;
+        },
+        act(nm, p, S, t) {
+          if (nm === "swipe") {
+            const wind = smooth(0.04, 0.3, p) * (1 - smooth(0.34, 0.42, p));
+            const strike = smooth(0.34, 0.46, p) * (1 - smooth(0.72, 0.95, p));
+            S.hL.lerp(V3(0.66, TIP + 1.72, -0.12), wind);
+            want.lerp(V3(0.35, 0.85, -0.45), wind);
+            S.hL.lerp(V3(-0.28, TIP + 0.72, 0.78), strike);
+            want.lerp(V3(-0.8, -0.4, 0.45), strike);
+            S.spinY += 0.35 * wind - 0.6 * strike;
+            S.lean += -0.06 * wind + 0.12 * strike;
+            S.trailK = p > 0.34 && p < 0.6 ? Math.sin(Math.PI * smooth(0.34, 0.6, p)) : 0;
+            S.glow = 0.6 * wind + 0.8 * strike;
+            S.impact = p > 0.4 && p < 0.6 ? 1 - smooth(0.4, 0.6, p) : 0;
+            S.burn = 0.6 * wind + 1.0 * strike;
+            S.mouthK = 0.6 * strike;
+            return true;
+          }
+          if (nm === "fling") {
+            const raise = smooth(0.04, 0.36, p) * (1 - smooth(0.4, 0.48, p));
+            const cut = smooth(0.4, 0.5, p) * (1 - smooth(0.78, 0.98, p));
+            S.hL.lerp(V3(0.3, TIP + 1.95, 0.2), raise);
+            want.lerp(V3(0.05, 1, 0.1), raise);
+            S.hL.lerp(V3(0.18, TIP + 0.72, 0.92), cut);
+            want.lerp(V3(-0.05, -0.55, 0.85), cut);
+            S.hR.lerp(V3(-0.8, TIP + 1.15, 0.1), raise);
+            S.spinY += 0.22 * raise - 0.1 * cut;
+            S.lean += -0.12 * raise + 0.18 * cut;
+            S.hover += 0.12 * raise;
+            S.glow = 1.4 * raise + 0.8 * cut;
+            S.flash = 0.8 * raise + 0.5 * cut;
+            S.burn = 1.6 * raise + 0.8 * cut;
+            S.waveK = p > 0.46 && p < 0.95 ? smooth(0.46, 0.95, p) : -1;
+            S.headPitch += 0.12 * cut - 0.12 * raise;
+            S.mouthK = 0.8 * cut;
+            return true;
+          }
+          if (nm === "spin") {
+            S.hL.lerp(V3(0.92, TIP + 1.0, 0.1), S.spinK);
+            want.lerp(V3(1, 0.05, 0.1), S.spinK);
+            S.burn = S.spinK;
+          }
+          if (nm === "jump") {
+            S.hL.lerp(V3(0.62, TIP + 1.5, -0.1), S.air);
+            want.lerp(V3(0.3, 0.9, -0.3), S.air);
+          }
+          return false;
+        },
+        arm(S, t, motion) {
+          const rad = u => lerp(0.125, 0.086, smooth(0.35, 0.72, u));
+          const c = moltenArm(arm, shoulders[1], S.hL, t, motion, rad, 0.55);
+          [0.7, 0.8, 0.9].forEach((u, i) => {
+            wraps[i].position.copy(c.getPointAt(u));
+            wraps[i].quaternion.setFromUnitVectors(V3(0, 0, 1), c.getTangentAt(u));
+            wraps[i].scale.setScalar(rad(u) + 0.008);
+          });
+          const end = c.getPointAt(1);
+          dir.lerp(want.clone().normalize(), 0.5).normalize();
+          const z = dir.clone();
+          let x = V3(0, 1, 0).cross(z);
+          if (x.lengthSq() < 1e-3) x = V3(1, 0, 0);
+          x.normalize();
+          const y = z.clone().cross(x).normalize();
+          sword.position.copy(end).addScaledVector(c.getTangentAt(1), 0.04);
+          sword.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+          sword.updateMatrixWorld(true);
+          const inv = new THREE.Quaternion().copy(sword.getWorldQuaternion(new THREE.Quaternion())).invert();
+          const upL = V3(0, 1, 0).applyQuaternion(inv);
+          const q = new THREE.Quaternion().setFromUnitVectors(V3(0, 1, 0), upL);
+          flames.forEach(F => {
+            const fl = 0.75 + 0.25 * Math.sin(t * 11 + F.ph) + 0.12 * Math.sin(t * 23 + F.ph * 2);
+            const big2 = 0.8 + 0.7 * (S.burn || 0);
+            F.o.position.set(F.sg * (halfW(F.u) + 0.008), 0, F.u * BL);
+            F.o.quaternion.copy(q);
+            F.o.scale.set(0.9 * big2, fl * big2 * lerp(1.1, 0.7, F.u), 0.9 * big2);
+          });
+          flameMat.opacity = 0.75 + 0.15 * Math.sin(t * 17);
+          tails.forEach(T => {
+            const base = TP(1.15 + T.sg * 0.16, 0.05).add(V3(0, TIP, 0));
+            const sw = Math.sin(t * 1.6 + T.sg) * 0.05 * motion;
+            const pts = [base, base.clone().add(V3(T.sg * 0.03 + sw, -0.18, 0.06)), base.clone().add(V3(T.sg * 0.05 + sw * 2, -0.38, 0.05)), base.clone().add(V3(T.sg * 0.06 + sw * 3, -0.56, 0.02))];
+            flexTube(T.m, pts, u => 0.034 * (1 - 0.3 * u), 16, 6);
+          });
+        },
+        fx(S, nm, p) {
+          const tipBig = big.worldToLocal(sword.localToWorld(V3(0, 0, BL * 0.7)));
+          if (nm === "swipe")
+            trail.forEach((a, i) => {
+              a.position.copy(shoulders[1]);
+              a.quaternion.copy(slashQ);
+              a.scale.setScalar(1.7 + i * 0.08);
+            });
+          crescent.visible = S.waveK >= 0;
+          if (crescent.visible) {
+            const f = S.waveK;
+            const sc = 0.6 + f * 0.9;
+            crescent.position.set(0.15 - 0.75 * sc, 1.15 + 0.15 * f, 0.6 + f * 2.8);
+            crescent.rotation.set(0, 0, -Math.PI * 0.45);
+            crescent.scale.setScalar(sc);
+            crescent.material.opacity = 0.9 * (1 - f);
+          }
+          S.sparkK = nm === "swipe" ? (p > 0.4 && p < 0.7 ? smooth(0.4, 0.7, p) : -1) : nm === "fling" ? (p > 0.46 && p < 0.76 ? smooth(0.46, 0.76, p) : -1) : -1;
+          return tipBig;
+        },
+        hide() {
+          crescent.visible = false;
+        }
+      };
+    })();
+
+    const KITS = { steel: hammerKit, fire: swordKit };
+    let kitNow = hammerKit;
 
     const food = berry();
     food.visible = false;
     big.add(food);
 
-    const REST_R = V3(-0.86, TIP + 0.56, 0.3);
-    const L1 = 0.4;
-    const L2 = 0.5;
-
+    let shinyOn = false;
+    const restyle = () => {
+      steelMat.color.setHex(shinyOn ? 0xf6d68e : 0xffffff);
+      plateMat.color.setHex(shinyOn ? PLATE_SHINY : PLATE);
+      darkSteel.color.setHex(shinyOn ? 0x7a5a2c : 0x5d646c);
+      castMat.color.setHex(shinyOn ? 0xf0c880 : 0xffffff);
+      redMat.color.setHex(shinyOn ? 0xc8402a : 0xb3241b);
+      if (kitNow) kitNow.style(shinyOn);
+    };
     const applyCore = () => {
       pal = palOf(GLOW[coreType || "steel"]);
       paint();
@@ -897,24 +1282,17 @@ Pets.register({
         hotMat.emissive.copy(deepC);
       }
       trailMat.color.copy(hotC);
-      kitOn = !coreType || coreType === "steel";
-      hammerKit.set(kitOn);
       sparkMat.color.copy(rimC);
       motesMat.color.copy(rimC);
+      kitNow = KITS[coreType || "steel"] || null;
+      Object.values(KITS).forEach(k => k.set(k === kitNow));
+      restyle();
     };
 
     applyCore();
     root.traverse(o => {
       if (o.material) [].concat(o.material).forEach(m => m.userData.varHue === undefined && (m.userData.varHue = 0));
     });
-    let shinyOn = false;
-    const shine = () => {
-      shinyOn = true;
-      steelMat.color.setHex(0xf6d68e);
-      plateMat.color.setHex(0xc89a48);
-      darkSteel.color.setHex(0x7a5a2c);
-      castMat.color.setHex(0xf0c880);
-    };
 
     return {
       root,
@@ -924,143 +1302,129 @@ Pets.register({
       },
       update(s) {
         const { t, pointer, blink, lookYaw, lookPitch, action, motion } = s;
-        if (root.userData.variant && !shinyOn) shine();
+        if (root.userData.variant && !shinyOn) {
+          shinyOn = true;
+          restyle();
+        }
         const nm = action ? action.name : null;
         const p = action ? action.p : 0;
         const ph = nm === "eat" ? eatPhase(p) : null;
+        const K = kitNow;
 
-        let hover = Math.sin(t * 1.2) * 0.04 * motion;
-        let lean = Math.sin(t * 0.7) * 0.025 * motion;
-        let roll = Math.sin(t * 0.9) * 0.02 * motion;
-        let spinY = 0;
-        let squash = 1;
-        let headYaw = lookYaw * 0.5;
-        let headPitch = -lookPitch * 0.3;
-        let headRoll = 0;
-        let mouthK = 0;
-        let glow = 0;
-        let trailK = 0;
-        let pull = 0;
-        const chargeK = nm === "fling" ? smooth(0.04, 0.35, p) * (1 - smooth(0.4, 0.5, p)) : 0;
-        let flash = 0;
-        let legK = 0;
-        let lash = 0;
-        const hR = REST_R.clone().add(V3(0, Math.sin(t * 1.4) * 0.02 * motion, 0));
-        const hL = REST_L.clone().add(V3(0, Math.sin(t * 1.4 + 1.2) * 0.02 * motion, 0));
-        let waveK = -1;
-        let swingK = 0;
-        let impact = 0;
+        const S = {
+          hover: Math.sin(t * 1.2) * 0.04 * motion,
+          lean: Math.sin(t * 0.7) * 0.025 * motion,
+          roll: Math.sin(t * 0.9) * 0.02 * motion,
+          spinY: 0,
+          squash: 1,
+          headYaw: lookYaw * 0.5,
+          headPitch: -lookPitch * 0.3,
+          headRoll: 0,
+          mouthK: 0,
+          glow: 0,
+          trailK: 0,
+          trailOpacity: null,
+          pull: 0,
+          flash: 0,
+          legK: 0,
+          lash: 0,
+          impact: 0,
+          swingK: 0,
+          waveK: -1,
+          sparkK: -1,
+          burn: 0,
+          air: 0,
+          spinK: 0,
+          hR: REST_R.clone().add(V3(0, Math.sin(t * 1.4) * 0.02 * motion, 0)),
+          hL: REST_L.clone().add(V3(0, Math.sin(t * 1.4 + 1.2) * 0.02 * motion, 0))
+        };
+        if (K) K.rest(S, t, motion);
+        const chargeK = nm === "fling" && !K ? smooth(0.04, 0.35, p) * (1 - smooth(0.4, 0.5, p)) : 0;
         let holdR = null;
 
         if (nm === "jump") {
           const c = smooth(0.02, 0.2, p) * (1 - smooth(0.2, 0.3, p));
           const air = Math.sin(Math.PI * smooth(0.22, 0.8, p));
           const land = p > 0.78 ? Math.sin(Math.PI * smooth(0.78, 1, p)) : 0;
-          hover += -0.1 * c + 0.65 * air - 0.05 * land;
-          squash = 1 - 0.08 * c + 0.05 * air - 0.07 * land;
-          hR.lerp(V3(-0.713, TIP + 1.3, 0.132), air);
-          hL.lerp(V3(0.8, TIP + 0.9, 0.2), air);
-          headPitch -= 0.2 * air;
-          mouthK = 0.6 * air;
-          legK = air;
+          S.air = air;
+          S.hover += -0.1 * c + 0.65 * air - 0.05 * land;
+          S.squash = 1 - 0.08 * c + 0.05 * air - 0.07 * land;
+          S.hR.lerp(V3(-0.713, TIP + 1.3, 0.132), air);
+          S.headPitch -= 0.2 * air;
+          S.mouthK = 0.6 * air;
+          S.legK = Math.max(S.legK, air);
         } else if (nm === "eat" && ph) {
           const reach = smooth(0.0, 0.22, p) * (1 - smooth(0.88, 1, p));
           const bring = smooth(0.3, 0.46, p) * (1 - smooth(0.86, 0.98, p));
-          hR.lerp(V3(-0.529, TIP + 1.0, 0.682), reach);
-          hR.lerp(V3(-0.16, TIP + 1.19, 0.44), bring);
-          headPitch += 0.15 * reach * (1 - bring);
-          headYaw += -0.22 * reach * (1 - bring);
-          mouthK = bring * (0.35 + 0.65 * ph.chew) * (1 - smooth(0.8, 0.9, p));
-          if (p > 0.88) mouthK = 0;
-        } else if (nm === "swipe" && kitOn) {
-          const wind = smooth(0.04, 0.32, p) * (1 - smooth(0.34, 0.42, p));
-          const strike = smooth(0.34, 0.44, p) * (1 - smooth(0.72, 0.95, p));
-          hL.lerp(V3(0.42, TIP + 1.95, -0.32), wind);
-          hL.lerp(V3(0.22, TIP + 0.5, 0.95), strike);
-          lean = -0.1 * wind + 0.18 * strike;
-          spinY = 0.15 * wind - 0.2 * strike;
-          trailK = p > 0.34 && p < 0.56 ? Math.sin(Math.PI * smooth(0.34, 0.56, p)) : 0;
-          glow = 0.5 * wind + 0.7 * strike;
-          impact = p > 0.43 && p < 0.6 ? 1 - smooth(0.43, 0.6, p) : 0;
-          swingK = smooth(0.02, 0.18, p) * (1 - smooth(0.82, 0.98, p));
-          headPitch += 0.15 * strike;
-          mouthK = 0.6 * strike;
-        } else if (nm === "fling" && kitOn) {
-          const raise = smooth(0.04, 0.36, p) * (1 - smooth(0.4, 0.48, p));
-          const slam = smooth(0.4, 0.48, p) * (1 - smooth(0.78, 0.98, p));
-          hL.lerp(V3(0.3, TIP + 2.0, 0.05), raise);
-          hL.lerp(V3(0.3, TIP - 0.05, 0.85), slam);
-          hR.lerp(V3(-0.82, TIP + 1.2, 0.2), raise);
-          lean = -0.14 * raise + 0.3 * slam;
-          hover += 0.18 * raise - 0.12 * slam;
-          squash = 1 + 0.05 * raise - 0.06 * slam;
-          glow = 1.2 * raise + 0.8 * slam;
-          flash = 0.6 * raise + 0.6 * slam;
-          waveK = p > 0.46 && p < 0.92 ? smooth(0.46, 0.92, p) : -1;
-          impact = p > 0.46 && p < 0.66 ? 1 - smooth(0.46, 0.66, p) : 0;
-          swingK = smooth(0.02, 0.18, p) * (1 - smooth(0.82, 0.98, p));
-          headPitch += 0.2 * slam - 0.1 * raise;
-          mouthK = 0.8 * slam;
-          legK = 0.5 * raise;
-        } else if (nm === "swipe") {
-          const wind = smooth(0.04, 0.3, p) * (1 - smooth(0.34, 0.44, p));
-          const strike = smooth(0.34, 0.46, p) * (1 - smooth(0.7, 0.95, p));
-          hR.lerp(V3(-0.95, TIP + 1.25, -0.25), wind);
-          hR.lerp(V3(0.08, TIP + 1.02, 0.98), strike);
-          spinY = 0.45 * wind - 0.5 * strike;
-          lean = 0.1 * strike - 0.05 * wind;
-          trailK = p > 0.36 && p < 0.62 ? Math.sin(Math.PI * smooth(0.36, 0.62, p)) : 0;
-          glow = 0.5 * wind + 0.6 * strike;
-          mouthK = 0.5 * strike;
-        } else if (nm === "fling") {
-          const raise = smooth(0.04, 0.35, p) * (1 - smooth(0.4, 0.5, p));
-          const throwK = smooth(0.4, 0.5, p) * (1 - smooth(0.72, 0.95, p));
-          lean = -0.12 * raise + 0.16 * throwK;
-          hR.lerp(V3(-0.8, TIP + 1.1, -0.1), raise);
-          hR.lerp(V3(-0.75, TIP + 0.7, 0.3), throwK);
-          glow = 1.4 * raise + 0.6 * throwK;
-          flash = 0.8 * raise + 0.5 * throwK;
-          headPitch -= 0.15 * raise - 0.1 * throwK;
-          mouthK = 0.7 * throwK;
-          hover += 0.06 * raise;
+          S.hR.lerp(V3(-0.529, TIP + 1.0, 0.682), reach);
+          S.hR.lerp(V3(-0.16, TIP + 1.19, 0.44), bring);
+          S.headPitch += 0.15 * reach * (1 - bring) - S.headPitch * bring * 0.8;
+          S.headYaw += -0.22 * reach * (1 - bring) - S.headYaw * bring * 0.8;
+          S.mouthK = bring * (0.35 + 0.65 * ph.chew) * (1 - smooth(0.8, 0.9, p));
+          if (p > 0.88) S.mouthK = 0;
         } else if (nm === "spin") {
           const k = smooth(0.0, 0.15, p) * (1 - smooth(0.85, 1, p));
-          spinY = smooth(0.08, 0.9, p) * TAU * 2;
-          hover += 0.1 * k;
-          hR.lerp(V3(-0.92, TIP + 1.02, 0.0), k);
-          hL.lerp(V3(0.95, TIP + 0.95, 0.0), k);
-          lean = Math.sin(t * 9) * 0.04 * k;
-          roll = Math.cos(t * 9) * 0.04 * k;
-          lash = k;
-          legK = 0.6 * k;
+          S.spinK = k;
+          S.spinY = S.spinY * (1 - k) + smooth(0.08, 0.9, p) * TAU * 2;
+          S.hover += 0.1 * k;
+          S.hR.lerp(V3(-0.92, TIP + 1.02, 0.0), k);
+          S.lean = S.lean * (1 - k) + Math.sin(t * 9) * 0.04 * k;
+          S.roll = Math.cos(t * 9) * 0.04 * k;
+          S.lash = k;
+          S.legK = Math.max(S.legK, 0.6 * k);
         } else if (nm === "absorb") {
           const up = smooth(0.0, 0.18, p) * (1 - smooth(0.88, 1, p));
-          pull = p > 0.18 && p < 0.78 ? smooth(0.18, 0.3, p) * (1 - smooth(0.7, 0.78, p)) : 0;
+          S.pull = p > 0.18 && p < 0.78 ? smooth(0.18, 0.3, p) * (1 - smooth(0.7, 0.78, p)) : 0;
           const clench = smooth(0.74, 0.8, p) * (1 - smooth(0.9, 1, p));
-          flash = p > 0.76 && p < 0.95 ? Math.sin(Math.PI * smooth(0.76, 0.95, p)) : 0;
-          hR.lerp(V3(-0.62, TIP + 1.0, 0.5), up);
-          hR.add(V3(0.04, 0.02, -0.05).multiplyScalar(clench));
-          headPitch += 0.12 * up;
-          lean = 0.05 * up - 0.04 * flash;
-          squash = 1 + 0.03 * flash;
-          mouthK = 0.3 * pull;
+          S.flash = p > 0.76 && p < 0.95 ? Math.sin(Math.PI * smooth(0.76, 0.95, p)) : 0;
+          S.hR.lerp(V3(-0.62, TIP + 1.0, 0.5), up);
+          S.hR.add(V3(0.04, 0.02, -0.05).multiplyScalar(clench));
+          S.headPitch += 0.12 * up;
+          S.lean += 0.05 * up - 0.04 * S.flash;
+          S.squash = 1 + 0.03 * S.flash;
+          S.mouthK = 0.3 * S.pull;
+        }
+        const handled = K ? K.act(nm, p, S, t) : false;
+        if (!handled && nm === "swipe") {
+          const wind = smooth(0.04, 0.3, p) * (1 - smooth(0.34, 0.44, p));
+          const strike = smooth(0.34, 0.46, p) * (1 - smooth(0.7, 0.95, p));
+          S.hR.lerp(V3(-0.95, TIP + 1.25, -0.25), wind);
+          S.hR.lerp(V3(0.08, TIP + 1.02, 0.98), strike);
+          S.spinY = 0.45 * wind - 0.5 * strike;
+          S.lean = 0.1 * strike - 0.05 * wind;
+          S.trailK = p > 0.36 && p < 0.62 ? Math.sin(Math.PI * smooth(0.36, 0.62, p)) : 0;
+          S.glow = 0.5 * wind + 0.6 * strike;
+          S.sparkK = p > 0.42 && p < 0.7 ? smooth(0.42, 0.7, p) : -1;
+          S.mouthK = 0.5 * strike;
+        } else if (!handled && nm === "fling") {
+          const raise = smooth(0.04, 0.35, p) * (1 - smooth(0.4, 0.5, p));
+          const throwK = smooth(0.4, 0.5, p) * (1 - smooth(0.72, 0.95, p));
+          S.lean = -0.12 * raise + 0.16 * throwK;
+          S.hR.lerp(V3(-0.8, TIP + 1.1, -0.1), raise);
+          S.hR.lerp(V3(-0.75, TIP + 0.7, 0.3), throwK);
+          S.glow = 1.4 * raise + 0.6 * throwK;
+          S.flash = 0.8 * raise + 0.5 * throwK;
+          S.sparkK = p > 0.46 && p < 0.76 ? smooth(0.46, 0.76, p) : -1;
+          S.headPitch -= 0.15 * raise - 0.1 * throwK;
+          S.mouthK = 0.7 * throwK;
+          S.hover += 0.06 * raise;
         }
 
-        bodyG.position.y = hover;
-        bodyG.rotation.set(lean, spinY, roll);
-        bodyG.scale.set(1 / Math.sqrt(squash), squash, 1 / Math.sqrt(squash));
-        neck.rotation.set(headPitch * 0.35, headYaw * 0.3, headRoll * 0.3);
-        head.rotation.set(headPitch * 0.65, headYaw * 0.7, headRoll * 0.7);
-        mouth.scale.set(1, lerp(0.05, 1, mouthK), 1);
-        mouth.visible = mouthK > 0.03;
-        smile.visible = mouthK < 0.25;
+        bodyG.position.y = S.hover;
+        bodyG.rotation.set(S.lean, S.spinY, S.roll);
+        bodyG.scale.set(1 / Math.sqrt(S.squash), S.squash, 1 / Math.sqrt(S.squash));
+        neck.rotation.set(S.headPitch * 0.35, S.headYaw * 0.3, S.headRoll * 0.3);
+        head.rotation.set(S.headPitch * 0.65, S.headYaw * 0.7, S.headRoll * 0.7);
+        mouth.scale.set(1, lerp(0.05, 1, S.mouthK), 1);
+        mouth.visible = S.mouthK > 0.03;
+        smile.visible = S.mouthK < 0.25;
         legs.forEach((g, i) => {
           const sgn = i ? 1 : -1;
-          g.rotation.set(Math.sin(t * 1.3 + i * 1.7) * 0.07 * motion - 0.25 * legK, 0, sgn * (Math.sin(t * 1.1 + i) * 0.04 * motion + 0.15 * legK));
+          g.rotation.set(Math.sin(t * 1.3 + i * 1.7) * 0.07 * motion - 0.25 * S.legK, 0, sgn * (Math.sin(t * 1.1 + i) * 0.04 * motion + 0.15 * S.legK));
         });
         {
           const sw = k => Math.sin(t * 1.3 - k * 0.7) * 0.07 * k * motion;
-          const L = lash;
+          const L = S.lash;
           const pts = [
             V3(0, TIP + 0.1, 0),
             V3(sw(0.4), TIP - 0.12, -0.04),
@@ -1102,7 +1466,7 @@ Pets.register({
 
         {
           const A = shoulders[0];
-          const r = ik(A, hR, L1, L2, V3(0, -0.6, -0.4));
+          const r = ik(A, S.hR, L1, L2, V3(0, -0.6, -0.4));
           const pts = [A.clone(), A.clone().lerp(r.elbow, 0.5), r.elbow, r.elbow.clone().lerp(r.end, 0.5), r.end];
           const c = flexTube(armR, pts, u => 0.095 + 0.012 * Math.sin(u * Math.PI));
           fore.position.copy(c.getPointAt(0.78));
@@ -1112,7 +1476,6 @@ Pets.register({
             R.position.copy(c.getPointAt(u));
             R.quaternion.setFromUnitVectors(V3(0, 0, 1), c.getTangentAt(u));
           });
-
           const end = c.getPointAt(1);
           const d = c.getTangentAt(1);
           const { hx, hy } = frame(d);
@@ -1120,63 +1483,34 @@ Pets.register({
           handR.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(hx, hy, d));
           holdR = end.clone().addScaledVector(d, 0.11).addScaledVector(hy, 0.14);
         }
-        if (kitOn) {
-          const A = shoulders[1];
-          const r = ik(A, hL, L1, L2, V3(0, -0.5, -0.5));
-          const pts = [A.clone(), A.clone().lerp(r.elbow, 0.5), r.elbow, r.elbow.clone().lerp(r.end, 0.5), r.end];
-          const rad = u => lerp(0.125, 0.082, smooth(0.35, 0.7, u));
-          const c = flexTube(hammerKit.arm, pts, (u, v) => {
-            const a = v * TAU;
-            const free = 1 - smooth(0.5, 0.62, u);
-            const wob = 1 + (0.045 * Math.sin(a * 2 + u * 5 - t * 2.6) + 0.03 * Math.sin(a * 3 - u * 4 + t * 1.9)) * motion * free;
-            const sag = 1 + 0.1 * Math.max(0, -Math.sin(a)) * Math.sin(u * Math.PI) * free;
-            return rad(u) * wob * sag;
-          }, 48, 18);
-          [0.66, 0.76, 0.86].forEach((u, i) => {
-            const g = hammerKit.grips[i];
-            g.position.copy(c.getPointAt(u));
-            g.quaternion.setFromUnitVectors(V3(0, 0, 1), c.getTangentAt(u));
-            g.scale.setScalar(rad(u) + 0.006);
-          });
-          const end = c.getPointAt(1);
-          const d = c.getTangentAt(1);
-          const { hx, hy } = frame(d);
-          hammerKit.hammer.position.copy(end).addScaledVector(d, 0.19);
-          hammerKit.hammer.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(hx, hy, d));
-          hammerKit.hammer.rotateZ((Math.PI / 2) * (1 - swingK));
-        }
-        moltenMat.emissiveIntensity = 0.8 + 0.12 * Math.sin(t * 2.3) * motion + 0.5 * glow;
-        castMat.emissiveIntensity = 0.9 + 0.5 * glow + 1.2 * impact;
-        hotMat.emissiveIntensity = 0.6 + 0.5 * glow;
+        if (K) K.arm(S, t, motion);
+        moltenMat.emissiveIntensity = 0.8 + 0.12 * Math.sin(t * 2.3) * motion + 0.5 * S.glow;
+        castMat.emissiveIntensity = 0.9 + 0.5 * S.glow + 1.2 * S.impact;
+        hotMat.emissiveIntensity = 0.6 + 0.5 * S.glow;
         if (moltenTex) moltenTex.offset.y = (t * 0.04) % 1;
-        coreMat.emissiveIntensity = (1.0 + 0.8 * pull + 1.6 * flash) * (0.85 + 0.15 * Math.sin(t * 2.2));
-        moltenMat.emissiveIntensity += 0.5 * pull + 0.8 * flash;
-        hotMat.emissiveIntensity += 0.5 * pull + 0.8 * flash;
-
-        trail.forEach((a, i) => {
-          a.visible = trailK > 0.02;
-          if (!a.visible) return;
-          if (kitOn && nm === "swipe") {
-            a.position.copy(shoulders[1]);
-            a.rotation.set(0, Math.PI / 2, 0.75 + i * 0.05);
-            a.scale.setScalar(1.15 + i * 0.05);
-            trailMat.opacity = 0.55 * trailK;
-            return;
-          }
-          a.scale.setScalar(1);
-          a.position.set(-0.22, TIP + 1.28, 0.34);
-          a.rotation.set(-0.6, 0.0, Math.PI + 0.24);
-          trailMat.opacity = 0.55 * trailK;
-        });
+        coreMat.emissiveIntensity = (1.0 + 0.8 * S.pull + 1.6 * S.flash) * (0.85 + 0.15 * Math.sin(t * 2.2));
+        moltenMat.emissiveIntensity += 0.5 * S.pull + 0.8 * S.flash;
+        hotMat.emissiveIntensity += 0.5 * S.pull + 0.8 * S.flash;
 
         const handBig = big.worldToLocal(handR.getWorldPosition(V3(0, 0, 0)));
         const coreBig = big.worldToLocal(port.getWorldPosition(V3(0, 0, 0)));
         const sockBig = big.worldToLocal(socket.localToWorld(V3(0.04, -0.13, 0.02)));
+        trail.forEach(a => {
+          a.scale.setScalar(1);
+          a.position.set(-0.22, TIP + 1.28, 0.34);
+          a.rotation.set(-0.6, 0.0, Math.PI + 0.24);
+        });
+        const kitAt = K ? K.fx(S, nm, p, t) : null;
+        trail.forEach(a => {
+          a.visible = S.trailK > 0.02;
+        });
+        trailMat.opacity = S.trailOpacity !== null ? S.trailOpacity : 0.55 * S.trailK;
+
         drops.forEach(D => {
           const u = (t / D.per + D.off) % 1;
           const cyc = Math.floor(t / D.per + D.off);
           if (u < 0.62) D.cyc = -1;
-          if (nm === "spin" || nm === "absorb") {
+          if (K || nm === "spin" || nm === "absorb") {
             D.m.visible = false;
             return;
           }
@@ -1201,7 +1535,7 @@ Pets.register({
 
         blobs.forEach((b, i) => {
           const st = 0.47 + i * 0.03;
-          const f = nm === "fling" && !kitOn ? (p - st) / 0.4 : -1;
+          const f = nm === "fling" && !K ? (p - st) / 0.4 : -1;
           b.visible = f > 0 && f < 1;
           if (!b.visible) return;
           const dir = V3(-0.12 + i * 0.12, 0.02, 1);
@@ -1211,33 +1545,25 @@ Pets.register({
           b.rotation.x = f * 3;
         });
 
-        const sparkK = nm === "swipe" ? (p > 0.42 && p < 0.7 ? smooth(0.42, 0.7, p) : -1) : nm === "fling" ? (p > 0.46 && p < 0.76 ? smooth(0.46, 0.76, p) : -1) : -1;
-        const hamBig = big.worldToLocal(hammerKit.hammer.getWorldPosition(V3(0, 0, 0)));
-        const sparkAt = kitOn && (nm === "swipe" || nm === "fling") ? hamBig : nm === "fling" ? coreBig.clone().add(V3(0, 0, 0.12)) : handBig;
-        hammerKit.wave.visible = kitOn && waveK >= 0;
-        if (hammerKit.wave.visible) {
-          hammerKit.wave.position.set(hamBig.x, 0.04, hamBig.z);
-          hammerKit.wave.scale.set(0.2 + waveK * 1.6, 0.2 + waveK * 1.6, 1 + waveK);
-          trailMat.opacity = 0.7 * (1 - waveK);
-        }
+        const sparkAt = kitAt || (nm === "fling" ? coreBig.clone().add(V3(0, 0, 0.12)) : handBig);
         sparks.forEach(sp => {
-          sp.m.visible = sparkK >= 0;
+          sp.m.visible = S.sparkK >= 0;
           if (!sp.m.visible) return;
-          const r = 0.1 + sparkK * 0.55 * sp.v;
-          sp.m.position.copy(sparkAt).add(V3(Math.cos(sp.a) * r, Math.sin(sp.a) * r * 0.8 - sparkK * sparkK * 0.3, Math.sin(sp.a * 2) * r * 0.4 + 0.1));
+          const r = 0.1 + S.sparkK * 0.55 * sp.v;
+          sp.m.position.copy(sparkAt).add(V3(Math.cos(sp.a) * r, Math.sin(sp.a) * r * 0.8 - S.sparkK * S.sparkK * 0.3, Math.sin(sp.a * 2) * r * 0.4 + 0.1));
           sp.m.lookAt(sparkAt);
-          sparkMat.opacity = 1 - sparkK;
+          sparkMat.opacity = 1 - S.sparkK;
         });
 
         motes.forEach(M => {
-          M.m.visible = Math.max(pull, chargeK) > 0.02;
+          M.m.visible = Math.max(S.pull, chargeK) > 0.02;
           if (!M.m.visible) return;
           const f = (t * 0.9 + M.off) % 1;
           const k = 1 - f;
           const ang = M.a + f * 2.4;
           M.m.position.copy(coreBig).add(V3(Math.cos(ang) * M.r * k, Math.sin(ang * 1.3) * M.r * 0.6 * k, Math.abs(Math.sin(ang)) * M.r * k + 0.1 * k));
           M.m.scale.setScalar(0.6 + 0.8 * k);
-          motesMat.opacity = 0.9 * Math.max(pull, chargeK);
+          motesMat.opacity = 0.9 * Math.max(S.pull, chargeK);
         });
 
         if (nm === "eat" && ph && holdR) {
