@@ -5,6 +5,8 @@ Pets.register({
   color: "#8d949c",
   types: ["steel"],
   move: "fly",
+  evolvesTo: "garraco",
+  evolveLevel: 16,
   description: "Um golenzinho de aço que ganhou vida com o braço esquerdo ainda derretido. O metal nunca chegou a esfriar e vive pingando gotas incandescentes por onde ele passa. Não tem pernas: flutua sobre a ponta do corpo, gira feito pião quando fica contente e cutuca tudo que encontra com o outro bracinho.",
   actions: {
     jump: { duration: 1.2 },

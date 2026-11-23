@@ -250,6 +250,7 @@ function applyState(s) {
   xp = s.xp;
   xpNext = s.xpNext;
   if (ready) setPet(s.species, s.variant);
+  if (ready && current && PetKit.core) PetKit.core(current.pet, s.core);
   renderStats();
 }
 

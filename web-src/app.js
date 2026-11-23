@@ -1084,6 +1084,7 @@
       habitat.select(null);
       habitat.hide(id, true);
     }
+    stage.setCore(Game.coreOf(state));
     stage.setPet(Game.speciesOf(state), isVariant(state.pet));
     wrap.classList.add("evolving");
     stage.resize();
@@ -2222,7 +2223,7 @@
   }
 
   function habitatRows(v) {
-    return v.party.filter(p => !p.away && hasPet(p.species)).map(p => ({ uid: p.id, species: p.species, variant: !!p.variant, name: (meta[p.species] && meta[p.species].name) || p.name, hunger: p.hunger, life: p.life, joy: p.joy, dying: p.dying }));
+    return v.party.filter(p => !p.away && hasPet(p.species)).map(p => ({ uid: p.id, species: p.species, variant: !!p.variant, core: p.core || null, name: (meta[p.species] && meta[p.species].name) || p.name, hunger: p.hunger, life: p.life, joy: p.joy, dying: p.dying }));
   }
 
   function renderHabitat(v, info) {
