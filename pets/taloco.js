@@ -1308,6 +1308,39 @@ Pets.register({
       return g;
     };
 
+    const moltenGrip = (len, rs, rc, sd) => {
+      const g = new THREE.Group();
+      const N = 9;
+      const pts = Array.from({ length: N }, (_, i) => V3(0, 0, lerp(-len / 2, len / 2, i / (N - 1))));
+      const sleeve = tubeGeo(pts, (u, v) => {
+        const a = v * TAU;
+        const b = Math.pow(Math.sin(Math.PI * u), 2.2);
+        const n = 1 + (0.13 * Math.sin(a * 3 + u * 7 + sd) + 0.08 * Math.sin(a * 5 - u * 11 + sd * 2)) * b;
+        return (rs + 0.002 + (rc - rs) * b * (0.85 + 0.15 * Math.sin(u * 9 + sd))) * n;
+      }, 40, 20).g;
+      g.add(mesh(sleeve, moltenMat));
+      [[0.4, 1, 0.12], [2.3, -1, 0.1], [3.6, 1, 0.08], [5.1, -1, 0.14], [1.3, -1, 0.06]].forEach(([a0, sg, l], k) => {
+        const z0 = sg * len * 0.3;
+        const rv = Array.from({ length: 6 }, (_, i) => {
+          const f = i / 5;
+          const a = a0 + sd * 0.1 + 0.2 * f * (k % 2 ? 1 : -1);
+          const r = rs + 0.002;
+          return V3(Math.cos(a) * r, Math.sin(a) * r, z0 + sg * (len * 0.2 + l * f));
+        });
+        g.add(mesh(tubeGeo(rv, u => lerp(0.017, 0.011, u), 16, 8).g, moltenMat));
+        const bead = mesh(new THREE.SphereGeometry(0.014, 12, 10), moltenMat, false);
+        bead.position.copy(rv[5]);
+        bead.scale.set(1, 1, 1.3);
+        g.add(bead);
+      });
+      const drip = mesh(dropGeo, moltenMat, false);
+      drip.position.set(0.02, -0.01, -len / 2 - 0.035);
+      drip.rotation.x = Math.PI / 2;
+      drip.scale.set(1.2, 1.7, 1.2);
+      g.add(drip);
+      return g;
+    };
+
     const tridentKit = (() => {
       const K = makeKit();
       const { add } = K;
@@ -1329,26 +1362,8 @@ Pets.register({
         knob.position.z = -0.88;
         knob.scale.set(1, 1, 0.8);
         tri.add(knob);
-        const grip = new THREE.Group();
+        const grip = moltenGrip(0.44, 0.047, 0.11, 1.3);
         tri.add(grip);
-        const fist = mesh(new THREE.SphereGeometry(0.105, 24, 16), moltenMat);
-        fist.scale.set(1.05, 0.95, 1.35);
-        fist.position.set(-0.02, 0, 0);
-        grip.add(fist);
-        [-0.09, -0.03, 0.03, 0.09].forEach((z, i) => {
-          const f = mesh(new THREE.TorusGeometry(0.075, 0.028, 10, 24, Math.PI * 1.45), moltenMat);
-          f.position.z = z;
-          f.rotation.z = -Math.PI * 0.2 + i * 0.05;
-          grip.add(f);
-        });
-        const thumbG = mesh(new THREE.SphereGeometry(0.04, 12, 10), moltenMat);
-        thumbG.position.set(0.05, 0.07, 0.12);
-        thumbG.scale.set(1, 0.8, 1.6);
-        grip.add(thumbG);
-        const drip = mesh(dropGeo, moltenMat, false);
-        drip.position.set(0, -0.12, -0.04);
-        drip.scale.set(1.3, 1.6, 1.3);
-        grip.add(drip);
         [-0.6, 0.42, 1.02].forEach((z, i) => {
           const r = mesh(new THREE.TorusGeometry(0.052, i === 2 ? 0.02 : 0.013, 8, 24), i === 2 ? castMat : plateMat);
           r.position.z = z;
@@ -1752,27 +1767,11 @@ Pets.register({
         gem.position.set(0, 0.17, 0.062);
         gem.scale.set(0.8, 1.4, 0.6);
         bow.add(gem);
-        const fist = mesh(new THREE.SphereGeometry(0.09, 22, 16), moltenMat);
-        fist.scale.set(1.05, 1.3, 1.0);
-        fist.position.z = -0.045;
-        bow.add(fist);
-        const fgeo = new THREE.TorusGeometry(0.064, 0.025, 10, 24, Math.PI * 1.45);
-        fgeo.rotateX(Math.PI / 2);
-        fgeo.rotateY(0.707);
-        [-0.075, -0.025, 0.025, 0.075].forEach(y => {
-          const f = mesh(fgeo, moltenMat);
-          f.position.set(0, y, 0.022);
-          f.scale.set(1.12, 1, 1);
-          bow.add(f);
-        });
-        const th = mesh(new THREE.SphereGeometry(0.036, 12, 10), moltenMat);
-        th.position.set(0.05, 0.1, 0.02);
-        th.scale.set(0.9, 0.8, 1.5);
-        bow.add(th);
-        const drip = mesh(dropGeo, moltenMat, false);
-        drip.position.set(0, -0.14, -0.05);
-        drip.scale.set(1.2, 1.5, 1.2);
-        bow.add(drip);
+        const grip = moltenGrip(0.44, 0.05, 0.11, 2.1);
+        grip.rotation.x = -Math.PI / 2;
+        grip.position.z = 0.03;
+        grip.scale.set(1.15, 1, 1);
+        bow.add(grip);
       }
       const segGeo = new THREE.CylinderGeometry(1, 1, 1, 6, 1, true);
       segGeo.translate(0, 0.5, 0);
