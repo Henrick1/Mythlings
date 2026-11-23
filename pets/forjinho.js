@@ -248,6 +248,56 @@ Pets.register({
     const neckMesh = mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.16, 24), steelMat);
     neckMesh.position.y = 0.04;
     neck.add(neckMesh);
+    const plateMat = new THREE.MeshStandardMaterial({ color: 0x8b9199, roughness: 0.4, metalness: 0.4 });
+    const crest = (() => {
+      const P = (x, y) => V3(x * HW, y * HH, Math.sqrt(Math.max(0, 1 - x * x - y * y)) * HD);
+      const N = p => V3(p.x / (HW * HW), p.y / (HH * HH), p.z / (HD * HD)).normalize();
+      const path = [];
+      const K = 24;
+      for (let i = 0; i <= K; i++) path.push([lerp(-0.46, 0, i / K), lerp(0.87, 0.55, i / K)]);
+      for (let i = 1; i <= K; i++) path.push([lerp(0, 0.46, i / K), lerp(0.55, 0.87, i / K)]);
+      const pts = path.map(([x, y]) => P(x, y));
+      const pos = [];
+      const idx = [];
+      const M = pts.length;
+      pts.forEach((p, i) => {
+        const n = N(p);
+        const tIn = p.clone().sub(pts[Math.max(0, i - 1)]);
+        const tOut = pts[Math.min(M - 1, i + 1)].clone().sub(p);
+        if (tIn.lengthSq() < 1e-10) tIn.copy(tOut);
+        if (tOut.lengthSq() < 1e-10) tOut.copy(tIn);
+        tIn.normalize();
+        tOut.normalize();
+        const t = tIn.clone().add(tOut).normalize();
+        const b = n.clone().cross(t).normalize();
+        const bIn = n.clone().cross(tIn).normalize();
+        const ax = Math.abs(path[i][0]) / 0.46;
+        const w = (0.046 * lerp(1, 0.7, ax) * (1 - 0.92 * smooth(0.62, 1, ax))) / Math.max(0.35, b.dot(bIn));
+        const h = 0.02 * (1 - 0.6 * smooth(0.7, 1, ax));
+        const lo = -0.012;
+        pos.push(...p.clone().addScaledVector(n, h).addScaledVector(b, w * 0.78).toArray());
+        pos.push(...p.clone().addScaledVector(n, h).addScaledVector(b, -w * 0.78).toArray());
+        pos.push(...p.clone().addScaledVector(n, lo).addScaledVector(b, -w).toArray());
+        pos.push(...p.clone().addScaledVector(n, lo).addScaledVector(b, w).toArray());
+      });
+      for (let i = 0; i < M - 1; i++) {
+        const a = i * 4;
+        const c = a + 4;
+        for (let k = 0; k < 4; k++) {
+          const k2 = (k + 1) % 4;
+          idx.push(a + k, a + k2, c + k, a + k2, c + k2, c + k);
+        }
+      }
+      const e = (M - 1) * 4;
+      idx.push(0, 2, 1, 0, 3, 2, e, e + 1, e + 2, e, e + 2, e + 3);
+      const g = new THREE.BufferGeometry();
+      g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+      g.setIndex(idx);
+      const ng = g.toNonIndexed();
+      ng.computeVertexNormals();
+      return ng;
+    })();
+    head.add(mesh(crest, plateMat));
     const eyes = [-1, 1].map(s => {
       const g = new THREE.Group();
       const n = onHead(0.36 * s, 0.02, 1);
