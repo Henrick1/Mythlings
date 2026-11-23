@@ -1310,14 +1310,39 @@ Pets.register({
       const tri = add(bodyG, new THREE.Group());
       const TL = 1.6;
       {
-        const g = new THREE.LatheGeometry([V2(0.097, -0.1), V2(0.104, -0.06), V2(0.098, -0.02), V2(0.08, 0.03), V2(0.06, 0.07), V2(0.05, 0.1)], 28);
-        g.rotateX(Math.PI / 2);
-        tri.add(mesh(g, castMat));
-        const shaft = new THREE.CylinderGeometry(0.044, 0.05, 0.95, 14);
+        const shaft = new THREE.CylinderGeometry(0.044, 0.048, 1.92, 14);
         shaft.rotateX(Math.PI / 2);
-        shaft.translate(0, 0, 0.56);
+        shaft.translate(0, 0, 0.07);
         tri.add(mesh(shaft, castMat));
-        [0.32, 0.72, 1.02].forEach((z, i) => {
+        const butt = mesh(new THREE.ConeGeometry(0.05, 0.16, 10), castMat);
+        butt.rotation.x = -Math.PI / 2;
+        butt.position.z = -0.97;
+        tri.add(butt);
+        const knob = mesh(new THREE.SphereGeometry(0.058, 14, 10), castMat);
+        knob.position.z = -0.88;
+        knob.scale.set(1, 1, 0.8);
+        tri.add(knob);
+        const grip = new THREE.Group();
+        tri.add(grip);
+        const fist = mesh(new THREE.SphereGeometry(0.105, 24, 16), moltenMat);
+        fist.scale.set(1.05, 0.95, 1.35);
+        fist.position.set(-0.02, 0, 0);
+        grip.add(fist);
+        [-0.09, -0.03, 0.03, 0.09].forEach((z, i) => {
+          const f = mesh(new THREE.TorusGeometry(0.075, 0.028, 10, 24, Math.PI * 1.45), moltenMat);
+          f.position.z = z;
+          f.rotation.z = -Math.PI * 0.2 + i * 0.05;
+          grip.add(f);
+        });
+        const thumbG = mesh(new THREE.SphereGeometry(0.04, 12, 10), moltenMat);
+        thumbG.position.set(0.05, 0.07, 0.12);
+        thumbG.scale.set(1, 0.8, 1.6);
+        grip.add(thumbG);
+        const drip = mesh(dropGeo, moltenMat, false);
+        drip.position.set(0, -0.12, -0.04);
+        drip.scale.set(1.3, 1.6, 1.3);
+        grip.add(drip);
+        [-0.6, 0.42, 1.02].forEach((z, i) => {
           const r = mesh(new THREE.TorusGeometry(0.052, i === 2 ? 0.02 : 0.013, 8, 24), i === 2 ? castMat : plateMat);
           r.position.z = z;
           tri.add(r);
@@ -1447,8 +1472,8 @@ Pets.register({
           memMat.color.setHex(shiny ? 0x7ae0e0 : 0x3aa8e0);
         },
         rest(S, t, motion) {
-          S.hL.set(0.84, TIP + 0.56, 0.34).add(V3(0, Math.sin(t * 1.4 + 1.2) * 0.02 * motion, 0));
-          want.set(0.2, 1, 0.16);
+          S.hL.set(0.86, TIP + 0.58, 0.36).add(V3(0, Math.sin(t * 1.4 + 1.2) * 0.02 * motion, 0));
+          want.set(0.08, 1, 0.1);
           S.hR.set(-0.8, TIP + 0.62, 0.32).add(V3(0, Math.sin(t * 1.4) * 0.015 * motion, 0));
           S.lean -= 0.02;
           S.spinY -= 0.08;
@@ -1458,10 +1483,10 @@ Pets.register({
           if (nm === "swipe") {
             const wind = smooth(0.04, 0.3, p) * (1 - smooth(0.34, 0.42, p));
             const strike = smooth(0.34, 0.44, p) * (1 - smooth(0.72, 0.95, p));
-            S.hL.lerp(V3(0.6, TIP + 0.9, -0.4), wind);
-            want.lerp(V3(-0.12, 0.04, 1), wind);
-            S.hL.lerp(V3(0.22, TIP + 0.98, 0.85), strike);
-            want.lerp(V3(-0.12, 0.0, 1), strike);
+            S.hL.lerp(V3(0.78, TIP + 0.88, -0.25), wind);
+            want.lerp(V3(-0.18, 0.05, 1), wind);
+            S.hL.lerp(V3(0.45, TIP + 0.95, 0.75), strike);
+            want.lerp(V3(-0.18, 0.0, 1), strike);
             S.spinY += 0.25 * wind - 0.3 * strike;
             S.lean += -0.05 * wind + 0.14 * strike;
             S.glow = 0.5 * wind + 0.7 * strike;
@@ -1474,10 +1499,10 @@ Pets.register({
           if (nm === "fling") {
             const raise = smooth(0.04, 0.36, p) * (1 - smooth(0.4, 0.48, p));
             const plunge = smooth(0.4, 0.5, p) * (1 - smooth(0.8, 0.98, p));
-            S.hL.lerp(V3(0.35, TIP + 1.75, 0.2), raise);
+            S.hL.lerp(V3(0.55, TIP + 1.5, 0.25), raise);
             want.lerp(V3(0.0, 1, 0.05), raise);
-            S.hL.lerp(V3(0.3, TIP + 1.0, 0.75), plunge);
-            want.lerp(V3(-0.05, -1, 0.35), plunge);
+            S.hL.lerp(V3(0.42, TIP + 1.05, 0.62), plunge);
+            want.lerp(V3(-0.05, -1, 0.3), plunge);
             S.hR.lerp(V3(-0.8, TIP + 1.2, 0.15), raise);
             S.hover += 0.2 * raise - 0.06 * plunge;
             S.lean += -0.1 * raise + 0.2 * plunge;
@@ -1490,29 +1515,20 @@ Pets.register({
             return true;
           }
           if (nm === "spin") {
-            S.hL.lerp(V3(0.92, TIP + 1.0, 0.1), S.spinK);
-            want.lerp(V3(1, 0.05, 0.1), S.spinK);
+            S.hL.lerp(V3(0.95, TIP + 0.75, 0.1), S.spinK);
+            want.lerp(V3(0.25, 1, 0.1), S.spinK);
           }
           if (nm === "jump") {
-            S.hL.lerp(V3(0.62, TIP + 1.4, 0.1), S.air);
-            want.lerp(V3(0.15, 1, 0.2), S.air);
+            S.hL.lerp(V3(0.8, TIP + 1.1, 0.2), S.air);
+            want.lerp(V3(0.1, 1, 0.15), S.air);
           }
           return false;
         },
         arm(S, t, motion) {
-          const A = shoulders[1];
-          const r = ik(A, S.hL, L1, L2, V3(0, -0.5, -0.5));
           dir.lerp(want.clone().normalize(), 0.5).normalize();
-          const stubEnd = r.elbow.clone().addScaledVector(dir, 0.2);
-          const pts = [A.clone(), A.clone().lerp(r.elbow, 0.5), r.elbow.clone().addScaledVector(dir, -0.02), r.elbow.clone().addScaledVector(dir, 0.1), stubEnd];
-          const rad = u => lerp(0.125, 0.092, smooth(0.35, 0.65, u));
-          const c = flexTube(arm, pts, (u, v) => {
-            const a = v * TAU;
-            const free = 1 - smooth(0.5, 0.62, u);
-            const wob = 1 + (0.045 * Math.sin(a * 2 + u * 5 - t * 2.6) + 0.03 * Math.sin(a * 3 - u * 4 + t * 1.9)) * motion * free;
-            const sag = 1 + 0.1 * Math.max(0, -Math.sin(a)) * Math.sin(u * Math.PI) * free;
-            return rad(u) * wob * sag;
-          }, 48, 18);
+          const rad = u => lerp(0.125, 0.092, smooth(0.3, 0.9, u));
+          const c = moltenArm(arm, shoulders[1], S.hL, t, motion, rad, 0.7);
+          const stubEnd = c.getPointAt(1).addScaledVector(c.getTangentAt(1), 0.06);
           [0.74, 0.86].forEach((u, i) => {
             wraps[i].position.copy(c.getPointAt(u));
             wraps[i].quaternion.setFromUnitVectors(V3(0, 0, 1), c.getTangentAt(u));
@@ -1523,7 +1539,7 @@ Pets.register({
           if (x.lengthSq() < 1e-3) x = V3(1, 0, 0);
           x.normalize();
           const y = z.clone().cross(x).normalize();
-          tri.position.copy(stubEnd).addScaledVector(dir, 0.02);
+          tri.position.copy(stubEnd);
           tri.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
           jet.visible = S.jetK >= 0;
           if (jet.visible) {
