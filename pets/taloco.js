@@ -1190,21 +1190,30 @@ Pets.register({
           return false;
         },
         arm(S, t, motion) {
-          const rad = u => lerp(0.125, 0.086, smooth(0.35, 0.72, u));
-          const c = moltenArm(arm, shoulders[1], S.hL, t, motion, rad, 0.55);
-          [0.7, 0.8, 0.9].forEach((u, i) => {
+          const A = shoulders[1];
+          const r = ik(A, S.hL, L1, L2, V3(0, -0.5, -0.5));
+          dir.lerp(want.clone().normalize(), 0.5).normalize();
+          const stubEnd = r.elbow.clone().addScaledVector(dir, 0.2);
+          const pts = [A.clone(), A.clone().lerp(r.elbow, 0.5), r.elbow.clone().addScaledVector(dir, -0.02), r.elbow.clone().addScaledVector(dir, 0.1), stubEnd];
+          const rad = u => lerp(0.125, 0.092, smooth(0.35, 0.65, u));
+          const c = flexTube(arm, pts, (u, v) => {
+            const a = v * TAU;
+            const free = 1 - smooth(0.5, 0.62, u);
+            const wob = 1 + (0.045 * Math.sin(a * 2 + u * 5 - t * 2.6) + 0.03 * Math.sin(a * 3 - u * 4 + t * 1.9)) * motion * free;
+            const sag = 1 + 0.1 * Math.max(0, -Math.sin(a)) * Math.sin(u * Math.PI) * free;
+            return rad(u) * wob * sag;
+          }, 48, 18);
+          [0.72, 0.82, 0.92].forEach((u, i) => {
             wraps[i].position.copy(c.getPointAt(u));
             wraps[i].quaternion.setFromUnitVectors(V3(0, 0, 1), c.getTangentAt(u));
             wraps[i].scale.setScalar(rad(u) + 0.008);
           });
-          const end = c.getPointAt(1);
-          dir.lerp(want.clone().normalize(), 0.5).normalize();
           const z = dir.clone();
           let x = V3(0, 1, 0).cross(z);
           if (x.lengthSq() < 1e-3) x = V3(1, 0, 0);
           x.normalize();
           const y = z.clone().cross(x).normalize();
-          sword.position.copy(end).addScaledVector(c.getTangentAt(1), 0.04);
+          sword.position.copy(stubEnd).addScaledVector(dir, 0.02);
           sword.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
           sword.updateMatrixWorld(true);
           const inv = new THREE.Quaternion().copy(sword.getWorldQuaternion(new THREE.Quaternion())).invert();
