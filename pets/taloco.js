@@ -541,6 +541,7 @@ Pets.register({
     const HN = p => V3(p.x / (HW * HW), p.y / (HH * HH), p.z / (HD * HD)).normalize();
     let browFull = null;
     let browHalf = null;
+    let crestM = null;
     const neck = new THREE.Group();
     neck.position.set(0, TIP + 1.2, 0);
     bodyG.add(neck);
@@ -601,7 +602,8 @@ Pets.register({
         pts.push(V3(0, Math.sin(th) * HH, Math.cos(th) * HD));
         hs.push(0.035 + 0.1 * Math.pow(Math.sin(Math.PI * Math.min(1, u * 1.25)), 0.8) * (1 - smooth(0.75, 1, u)));
       }
-      head.add(mesh(strip(pts, pts.map(HN), i => 0.036 * (1 - 0.6 * smooth(0.8, 1, i / K)), i => hs[i], 0.5), plateMat));
+      crestM = mesh(strip(pts, pts.map(HN), i => 0.036 * (1 - 0.6 * smooth(0.8, 1, i / K)), i => hs[i], 0.5), plateMat);
+      head.add(crestM);
     }
     {
       const K = 20;
@@ -2131,8 +2133,6 @@ Pets.register({
       return {
         set: on => {
           K.set(on);
-          if (browFull) browFull.visible = !on;
-          if (browHalf) browHalf.visible = on;
           nocked.visible = false;
           if (!on) hideFx();
         },
@@ -2567,99 +2567,185 @@ Pets.register({
         }
       }
 
+      const finGeo = (() => {
+        const sh = new THREE.Shape();
+        sh.moveTo(-0.5, 0);
+        sh.bezierCurveTo(-0.3, 0.35, 0.1, 0.75, 0.55, 1.0);
+        sh.bezierCurveTo(0.35, 0.6, 0.45, 0.3, 0.5, 0);
+        sh.lineTo(-0.5, 0);
+        const g = new THREE.ExtrudeGeometry(sh, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.06, bevelSize: 0.05, bevelSegments: 1, curveSegments: 10 });
+        g.translate(0, 0, -0.025);
+        return g;
+      })();
+      const fin = (parent, at, tg, n, w, h, m = plateMat) => {
+        const f = mesh(finGeo, m);
+        const z = tg.clone().cross(n).normalize();
+        const y = z.clone().cross(tg).normalize();
+        f.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(tg.clone().normalize(), y, z));
+        f.position.copy(at);
+        f.scale.set(w, h, 0.25);
+        parent.add(f);
+        return f;
+      };
       const horns = add(head, new THREE.Group());
       {
-        const base1 = onHeadRing(0.45, 1.95);
-        const n1 = HN(base1.clone());
-        const h1 = [base1.clone().addScaledVector(n1, -0.03), base1.clone().addScaledVector(n1, 0.06).add(V3(0.05, 0.05, -0.04)), base1.clone().add(V3(0.17, 0.16, -0.16)), base1.clone().add(V3(0.2, 0.3, -0.3)), base1.clone().add(V3(0.15, 0.42, -0.4)), base1.clone().add(V3(0.08, 0.47, -0.42))];
-        horns.add(mesh(tubeGeo(h1, u => Math.max(0.004, lerp(0.065, 0.005, Math.pow(u, 0.85)) * (1 + 0.12 * Math.max(0, Math.sin(u * 40)) * (1 - u))), 48, 12).g, castMat));
-        const ring1 = mesh(new THREE.TorusGeometry(0.062, 0.016, 8, 24), plateMat);
-        ring1.position.copy(base1).addScaledVector(n1, 0.012);
-        ring1.quaternion.setFromUnitVectors(V3(0, 0, 1), n1);
-        horns.add(ring1);
-        const base2 = onHeadRing(-0.05, 2.25);
+        const VX = 0.52;
+        const VY0 = 0.04;
+        const VY1 = 0.5;
+        const E = HP(VX, VY1);
+        const nE = HN(E);
+        const P = [];
+        const NN = [];
+        for (let i = 0; i <= 16; i++) {
+          const x = lerp(-0.01, VX, i / 16);
+          const p = HP(x, lerp(VY0, VY1, x / VX));
+          P.push(p);
+          NN.push(HN(p));
+        }
+        [[0.05, 0.04, -0.02], [0.1, 0.09, -0.06], [0.13, 0.15, -0.13], [0.14, 0.21, -0.22], [0.12, 0.26, -0.31], [0.08, 0.29, -0.37]].forEach(([x, y, z]) => {
+          P.push(E.clone().add(V3(x, y, z)));
+          NN.push(nE.clone());
+        });
+        const cv = new THREE.CatmullRomCurve3(P);
+        const M = 90;
+        const R = 22;
+        const smp = Array.from({ length: M + 1 }, (_, k) => cv.getPoint(k / M));
+        const acc = [0];
+        for (let k = 1; k <= M; k++) acc.push(acc[k - 1] + smp[k].distanceTo(smp[k - 1]));
+        const sE = 16 / (P.length - 1);
+        const pos = [];
+        const uv = [];
+        const idx = [];
+        for (let k = 0; k <= M; k++) {
+          const s = k / M;
+          const tq = cv.getTangent(s);
+          const f = s * (P.length - 1);
+          const i0 = Math.min(P.length - 2, Math.floor(f));
+          const n = NN[i0].clone().lerp(NN[i0 + 1], f - i0);
+          n.addScaledVector(tq, -n.dot(tq)).normalize();
+          const b = n.clone().cross(tq).normalize();
+          const m = smooth(sE - 0.12, sE + 0.06, s);
+          const ax = Math.min(1, s / sE);
+          const w = 0.056 * lerp(1, 0.8, ax);
+          const h = 0.05;
+          const lo = -0.014;
+          const tail = smooth(sE, 1, s);
+          const r = lerp(0.045, 0.004, Math.pow(tail, 0.85)) * (1 + 0.1 * Math.max(0, Math.sin(s * 70)) * smooth(sE, sE + 0.05, s));
+          const cy = lerp(h * 0.45, 0, smooth(sE, sE + 0.1, s));
+          for (let j = 0; j <= R; j++) {
+            const ph = (j / R) * TAU;
+            const c = Math.cos(ph);
+            const sn = Math.sin(ph);
+            const py0 = (h + lo) / 2 + ((h - lo) / 2) * Math.sign(sn) * Math.pow(Math.abs(sn), 1 / 3);
+            const px0 = w * Math.sign(c) * Math.pow(Math.abs(c), 1 / 3) * lerp(1, 0.78, (py0 - lo) / (h - lo));
+            pos.push(...smp[k].clone().addScaledVector(b, lerp(px0, r * c, m)).addScaledVector(n, lerp(py0, cy + r * sn, m)).toArray());
+            uv.push(s, j / R);
+          }
+        }
+        for (let k = 0; k < M; k++)
+          for (let j = 0; j < R; j++) {
+            const a = k * (R + 1) + j;
+            const c2 = a + R + 1;
+            idx.push(a, a + 1, c2, a + 1, c2 + 1, c2);
+          }
+        const geo = new THREE.BufferGeometry();
+        geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2));
+        geo.setIndex(idx);
+        geo.computeVertexNormals();
+        horns.add(mesh(geo, plateMat));
+        const base2 = onHeadRing(0.05, 2.2);
         const n2 = HN(base2.clone());
         const h2 = [base2.clone().addScaledVector(n2, -0.02), base2.clone().addScaledVector(n2, 0.05).add(V3(0.02, 0.0, -0.04)), base2.clone().add(V3(0.08, 0.03, -0.17)), base2.clone().add(V3(0.08, 0.09, -0.27)), base2.clone().add(V3(0.05, 0.14, -0.31))];
-        horns.add(mesh(tubeGeo(h2, u => Math.max(0.004, lerp(0.04, 0.004, Math.pow(u, 0.85))), 32, 10).g, castMat));
-        [0.15, -0.15, -0.42, -0.66].forEach((y, i) => {
-          const p = onHeadRing(y, Math.PI);
-          const n = HN(p.clone());
-          const sp = mesh(new THREE.ConeGeometry(0.03, 0.13 - i * 0.015, 4), castMat);
-          sp.position.copy(p).addScaledVector(n, 0.04);
-          sp.quaternion.setFromUnitVectors(V3(0, 1, 0), n.clone().add(V3(0, 0.6, 0)).normalize());
-          sp.scale.set(1, 1, 0.45);
+        horns.add(mesh(tubeGeo(h2, u => Math.max(0.004, lerp(0.04, 0.004, Math.pow(u, 0.85)) * (1 + 0.1 * Math.max(0, Math.sin(u * 40)) * (1 - u))), 32, 10).g, plateMat));
+        const fo = onHeadRing(-0.25, 1.72);
+        for (let k = 0; k < 7; k++) {
+          const ph = lerp(0.7, -0.8, k / 6);
+          const d = V3(0.35, Math.sin(ph), -Math.cos(ph)).normalize();
+          const len = 0.17 + 0.1 * Math.sin(Math.PI * (k / 6));
+          const sp = mesh(new THREE.ConeGeometry(1, 1, 4), k % 2 ? castMat : plateMat);
+          sp.position.copy(fo).addScaledVector(d, len * 0.42).add(V3(0.02, 0, 0));
+          orient(sp, d, V3(1, 0, 0.3));
+          sp.scale.set(0.04, len, 0.012);
           horns.add(sp);
+        }
+        const ths = [0.3, 0.62, 0.95, 1.3, 1.68, 2.05, 2.4];
+        const hts = [0.09, 0.15, 0.2, 0.22, 0.18, 0.14, 0.09];
+        ths.forEach((th, i) => {
+          const p = V3(0, Math.sin(th) * HH, Math.cos(th) * HD);
+          const n = HN(p.clone());
+          const tg = V3(0, Math.cos(th) * HH, -Math.sin(th) * HD).normalize();
+          fin(horns, p.clone().addScaledVector(n, -0.01), tg, n, 0.13, hts[i], i % 2 ? castMat : plateMat);
         });
       }
-
       const back = add(torso, new THREE.Group());
-      [1.03, 0.92, 0.81, 0.7, 0.59, 0.48].forEach((y, i) => {
+      [1.12, 1.0, 0.88, 0.76, 0.64, 0.52, 0.4].forEach((y, i) => {
         const a = Math.PI;
         const n = TN(a, y);
-        const sp = mesh(new THREE.ConeGeometry(0.036 - i * 0.003, 0.15 - i * 0.012, 4), castMat);
-        sp.position.copy(TP(a, y)).addScaledVector(n, 0.05);
-        sp.quaternion.setFromUnitVectors(V3(0, 1, 0), n.clone().add(V3(0, 0.5, 0)).normalize());
-        sp.scale.set(1, 1, 0.45);
-        back.add(sp);
+        const tg = TP(a, y - 0.02).sub(TP(a, y + 0.02)).normalize();
+        fin(back, TP(a, y).addScaledVector(n, -0.01), tg, n, 0.15 - i * 0.008, 0.2 - i * 0.017, i % 2 ? castMat : plateMat);
       });
-      const scales = add(torso, new THREE.Group());
-      {
-        [0.8, 0.73, 0.66, 0.59].forEach((y, row) => {
-          for (let k = 0; k < 8; k++) {
-            const a = 0.5 + (k + (row % 2) * 0.5) * 0.135;
-            if (a > 1.55) continue;
-            const n = TN(a, y);
-            const dn = V3(0, -1, 0).addScaledVector(n, n.y).normalize();
-            const m = mesh(scaleGeo, plateMat);
-            m.position.copy(TP(a, y)).addScaledVector(n, 0.002);
-            orient(m, dn.clone().negate(), n);
-            m.scale.setScalar(1.45);
-            scales.add(m);
-          }
-        });
+      const ribs = add(torso, new THREE.Group());
+      [[0.8, 0.07], [0.66, 0.06], [0.52, 0.05]].forEach(([y0, dy], i) => {
+        const K = 30;
+        const pts = [];
+        for (let k = 0; k <= K; k++) {
+          const u = k / K;
+          pts.push([lerp(2.45, 0.85 + i * 0.08, u), y0 - dy * Math.sin(u * Math.PI * 0.5) - 0.03 * u]);
+        }
+        ribs.add(mesh(strip(pts.map(([a, y]) => TP(a, y)), pts.map(([a, y]) => TN(a, y)), k => 0.03 * (1 - 0.85 * smooth(0.7, 1, k / K)) * (0.5 + 0.5 * smooth(0, 0.12, k / K)), k => 0.024 * (1 - 0.6 * smooth(0.75, 1, k / K))), plateMat));
+        const [a, y] = pts[0];
+        const n = TN(a, y);
+        const sp = mesh(new THREE.ConeGeometry(0.026, 0.12, 4), castMat);
+        sp.position.copy(TP(a, y)).addScaledVector(n, 0.04);
+        sp.quaternion.setFromUnitVectors(V3(0, 1, 0), n.clone().add(V3(0.0, 0.2, -0.6)).normalize());
+        sp.scale.set(1, 1, 0.45);
+        ribs.add(sp);
+      });
+      const fangs = add(torso, new THREE.Group());
+      for (let k = 0; k < 7; k++) {
+        const a = lerp(0.25, 1.75, k / 6);
+        const y = 0.045;
+        const p = TP(a, y);
+        const n = TN(a, y);
+        const len = k % 2 ? 0.07 : 0.1;
+        const pts = [p.clone().addScaledVector(n, 0.02), p.clone().addScaledVector(n, 0.03).add(V3(0, -len * 0.5, 0)), p.clone().addScaledVector(n, 0.012).add(V3(0, -len, 0))];
+        fangs.add(mesh(tubeGeo(pts, u => Math.max(0.002, lerp(0.016, 0.002, u)), 12, 8).g, castMat));
       }
-      const coil = add(port, new THREE.Group());
+      const claw = add(port, new THREE.Group());
       {
         const zf = x => 0.012 - 0.8 * x * x;
-        const A0 = 1.95;
-        const A1 = A0 - Math.PI * 1.75;
-        const pts = [];
-        for (let i = 0; i <= 50; i++) {
-          const f = i / 50;
-          const a = lerp(A0, A1, f);
-          const R = lerp(0.168, 0.15, f);
-          const x = Math.cos(a) * R;
-          pts.push(V3(x, Math.sin(a) * R, zf(x) + 0.012 + 0.008 * Math.sin(f * 9)));
-        }
-        const { c } = tubeGeo(pts, u => 1, 4, 4);
-        coil.add(mesh(tubeGeo(pts, u => lerp(0.03, 0.006, Math.pow(u, 0.9)), 80, 10).g, castMat));
-        for (let k = 1; k < 9; k++) {
-          const u = k / 10;
-          const p = c.getPointAt(u);
-          const sp = mesh(new THREE.ConeGeometry(0.012 - k * 0.0008, 0.035, 4), plateMat, false);
-          sp.position.copy(p).add(V3(0, 0, 0.018));
-          sp.quaternion.setFromUnitVectors(V3(0, 1, 0), V3(0, 0, 1));
-          sp.scale.set(1, 1, 0.5);
-          coil.add(sp);
-        }
-        const hd = new THREE.Group();
-        const p0 = c.getPointAt(0);
-        const t0 = c.getTangentAt(0).negate();
-        hd.position.copy(p0);
-        orient(hd, t0, V3(0, 0, 1));
-        coil.add(hd);
-        const sn = mesh(new THREE.SphereGeometry(0.03, 14, 10), castMat);
-        sn.scale.set(0.9, 1.6, 0.7);
-        sn.position.y = 0.025;
-        hd.add(sn);
-        [-1, 1].forEach(s => {
-          const hn = mesh(new THREE.ConeGeometry(0.008, 0.05, 4), castMat, false);
-          hn.position.set(s * 0.018, -0.005, 0.015);
-          hn.rotation.set(-0.5, 0, s * 0.6 + Math.PI);
-          hd.add(hn);
-          const ey = mesh(new THREE.SphereGeometry(0.006, 8, 6), stringMat, false);
-          ey.position.set(s * 0.016, 0.03, 0.017);
-          hd.add(ey);
+        const at = (r, a, lift) => {
+          const x = Math.cos(a) * r;
+          return V3(x, Math.sin(a) * r, zf(x) + lift);
+        };
+        const palm = mesh(new THREE.SphereGeometry(1, 24, 16), plateMat);
+        palm.position.set(0.27, 0.02, zf(0.27) + 0.012);
+        palm.rotation.set(0, 0.45, 0.25);
+        palm.scale.set(0.07, 0.1, 0.035);
+        claw.add(palm);
+        const wrist = [V3(0.27, 0.03, zf(0.27) + 0.01), V3(0.33, 0.1, zf(0.33) + 0.02), V3(0.38, 0.18, zf(0.38) + 0.0), V3(0.4, 0.24, zf(0.4) - 0.04)];
+        claw.add(mesh(tubeGeo(wrist, u => lerp(0.05, 0.035, u), 16, 12).g, plateMat));
+        [[1.25, 0.9], [0.55, 1], [-0.1, 1], [-0.75, 0.9], [-1.55, 0.75]].forEach(([a, sc], i) => {
+          const s0 = V3(0.27, 0.02, zf(0.27) + 0.02).add(V3(Math.cos(a) * 0.04, Math.sin(a) * 0.05, 0));
+          const k1 = at(0.235, a * 0.6 + (i === 4 ? -0.4 : 0), 0.05);
+          const k2 = at(0.19, a * 0.8, 0.045);
+          const tip = at(0.145, a * 0.85, 0.02);
+          const pts = [s0, s0.clone().lerp(k1, 0.5).add(V3(0, 0, 0.015)), k1, k2, tip];
+          const fc = new THREE.CatmullRomCurve3(pts);
+          claw.add(mesh(tubeGeo(pts, u => (lerp(0.03, 0.019, u) + 0.006 * Math.exp(-Math.pow((u - 0.45) / 0.06, 2)) + 0.006 * Math.exp(-Math.pow((u - 0.72) / 0.06, 2))) * sc, 36, 12).g, plateMat));
+          [0.3, 0.58, 0.82].forEach((u, j) => {
+            const q = fc.getPointAt(u);
+            const tg = fc.getTangentAt(u);
+            const sp = mesh(new THREE.ConeGeometry(1, 1, 4), castMat);
+            sp.position.copy(q).add(V3(0, 0, 0.026 * sc - j * 0.002));
+            orient(sp, tg, V3(0, 0, 1));
+            sp.scale.set(0.018 * sc, 0.05 * sc, 0.008);
+            claw.add(sp);
+          });
+          const dIn = V3(-Math.cos(a * 0.85), -Math.sin(a * 0.85), 0);
+          const tl = [tip.clone(), tip.clone().addScaledVector(dIn, 0.035).add(V3(0, 0, 0.01)), tip.clone().addScaledVector(dIn, 0.07).add(V3(0, 0, -0.01)), tip.clone().addScaledVector(dIn, 0.085).add(V3(0, 0, -0.04))];
+          claw.add(mesh(tubeGeo(tl, u => Math.max(0.002, lerp(0.02, 0.002, u)) * sc, 16, 8).g, castMat));
         });
       }
       const pad = add(socket, new THREE.Group());
@@ -2667,21 +2753,23 @@ Pets.register({
         pad.position.set(0.02, 0.03, 0);
         pad.rotation.z = -0.35;
         [0, 1, 2].forEach(i => {
-          const sh = mesh(new THREE.SphereGeometry(0.205 - i * 0.032, 32, 12, 0, TAU, 0, Math.PI * 0.37), i === 1 ? castMat : plateMat);
+          const sh = mesh(new THREE.SphereGeometry(0.21 - i * 0.032, 32, 12, 0, TAU, 0, Math.PI * 0.37), i === 1 ? castMat : plateMat);
           sh.scale.set(1, 0.7, 1.06);
           sh.position.set(0.03 * i, -0.045 * i, 0);
           pad.add(sh);
         });
-        [[-0.1, 0.13, 0.22], [0.0, 0.16, 0.27], [0.1, 0.13, 0.2]].forEach(([z, y, l]) => {
-          const pts = [V3(-0.02, y - 0.03, z), V3(0.02, y + 0.05, z - 0.04), V3(0.0, y + l * 0.55, z - l * 0.6), V3(-0.04, y + l * 0.75, z - l)];
-          pad.add(mesh(tubeGeo(pts, u => Math.max(0.003, lerp(0.03, 0.003, u)), 20, 8).g, castMat));
+        [[-0.13, 0.12, 0.26], [-0.04, 0.15, 0.34], [0.05, 0.15, 0.3], [0.13, 0.12, 0.22]].forEach(([z, y, l]) => {
+          const pts = [V3(-0.02, y - 0.04, z), V3(0.02, y + 0.06, z - 0.03), V3(0.0, y + l * 0.55, z - l * 0.55), V3(-0.05, y + l * 0.75, z - l * 0.95)];
+          pad.add(mesh(tubeGeo(pts, u => Math.max(0.003, lerp(0.034, 0.003, u)) * (1 + 0.1 * Math.max(0, Math.sin(u * 30)) * (1 - u)), 24, 8).g, castMat));
         });
-        for (let k = 0; k < 9; k++) {
-          const a = lerp(-Math.PI * 0.6, Math.PI * 0.6, k / 8);
-          const sp = mesh(new THREE.ConeGeometry(0.016, 0.06, 4), castMat, false);
-          sp.position.set(Math.cos(a) * 0.19, 0.04, Math.sin(a) * 0.2);
-          sp.quaternion.setFromUnitVectors(V3(0, 1, 0), V3(Math.cos(a), -0.6, Math.sin(a)).normalize());
-          sp.scale.set(1, 1, 0.5);
+        for (let k = 0; k < 11; k++) {
+          const a = lerp(-Math.PI * 0.65, Math.PI * 0.65, k / 10);
+          const d = V3(Math.cos(a), -0.75, Math.sin(a)).normalize();
+          const len = k % 2 ? 0.09 : 0.13;
+          const sp = mesh(new THREE.ConeGeometry(1, 1, 4), k % 2 ? castMat : plateMat);
+          sp.position.set(Math.cos(a) * 0.19, 0.03, Math.sin(a) * 0.2).addScaledVector(d, len * 0.4);
+          orient(sp, d, V3(Math.cos(a), 0.6, Math.sin(a)));
+          sp.scale.set(0.035, len, 0.01);
           pad.add(sp);
         }
       }
@@ -2994,6 +3082,10 @@ Pets.register({
       breathMat.color.copy(hotC);
       kitNow = KITS[coreType || "steel"] || null;
       Object.values(KITS).forEach(k => k.set(k === kitNow));
+      const half = kitNow === bowKit || kitNow === dragonKit;
+      browFull.visible = !half;
+      browHalf.visible = half;
+      crestM.visible = kitNow !== dragonKit;
       restyle();
     };
 
