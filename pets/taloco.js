@@ -478,16 +478,15 @@ Pets.register({
       flow([[2.4, 0.98], [2.34, 0.91], [2.37, 0.84]], u => 0.028 * (1 - Math.pow(u, 1.6)) + 0.004, u => lerp(0.55, 0.75, u));
     }
 
-    const legs = [-1, 1].map(s => {
+    const LEGL = 1.38;
+    const buildLeg = (s, L) => {
       const g = new THREE.Group();
-      g.position.set(s * 0.15, TIP + 0.3, 0.03);
-      bodyG.add(g);
       const radL = u => {
         const knee = 0.012 * Math.exp(-Math.pow((u - 0.52) / 0.1, 2));
         const r = u < 0.58 ? lerp(0.1, 0.08, u / 0.58) : 0.08 * (1 - Math.pow((u - 0.58) / 0.42, 1.4));
         return Math.max(0.003, r + knee);
       };
-      const { g: geo, c: lc } = tubeGeo([V3(-s * 0.09, 0.07, -0.02), V3(0, 0, 0), V3(s * 0.1, -0.08, 0.06), V3(s * 0.17, -0.22, 0.13), V3(s * 0.2, -0.38, 0.08), V3(s * 0.215, -0.56, -0.01)], radL, 48, 18);
+      const { g: geo, c: lc } = tubeGeo([V3(-s * 0.09, 0.07, -0.02), V3(0, 0, 0), V3(s * 0.1, -0.08 * L, 0.06), V3(s * 0.17, -0.22 * L, 0.13), V3(s * 0.2, -0.38 * L, 0.08), V3(s * 0.215, -0.56 * L, -0.01)], radL, 48, 18);
       g.add(mesh(geo, steelMat));
       const front = u => {
         const t = lc.getTangentAt(u);
@@ -531,6 +530,16 @@ Pets.register({
         const us = Array.from({ length: K + 1 }, (_, i) => lerp(0.32, 0.48, i / K));
         g.add(mesh(strip(us.map(u => lc.getPointAt(u).addScaledVector(side(u), radL(u) - 0.004)), us.map(side), i => 0.034 * (1 - 0.7 * smooth(0.6, 1, i / K)), i => 0.016), plateMat));
       }
+      return g;
+    };
+    const legs = [-1, 1].map(s => {
+      const g = new THREE.Group();
+      g.position.set(s * 0.15, TIP + 0.3, 0.03);
+      bodyG.add(g);
+      g.userData.base = buildLeg(s, 1);
+      g.userData.long = buildLeg(s, LEGL);
+      g.userData.long.visible = false;
+      g.add(g.userData.base, g.userData.long);
       return g;
     });
 
@@ -2832,7 +2841,7 @@ Pets.register({
       }
       const talons = add(legs[1], new THREE.Group());
       {
-        const tip = V3(0.215, -0.56, -0.01);
+        const tip = V3(0.215, -0.56 * LEGL, -0.01);
         [[-0.04, 0.3], [0, 0], [0.04, -0.3]].forEach(([dx, yaw]) => {
           const d = V3(Math.sin(yaw) * 0.3 + dx, 0, 1).normalize();
           const pts = [tip.clone().add(V3(dx, 0.07, -0.01)), tip.clone().add(V3(dx, 0.03, 0.03)).addScaledVector(d, 0.03), tip.clone().add(V3(dx, -0.02, 0)).addScaledVector(d, 0.09), tip.clone().add(V3(dx, -0.07, 0)).addScaledVector(d, 0.1)];
@@ -3086,6 +3095,10 @@ Pets.register({
       browFull.visible = !half;
       browHalf.visible = half;
       crestM.visible = kitNow !== dragonKit;
+      legs.forEach(g => {
+        g.userData.base.visible = kitNow !== dragonKit;
+        g.userData.long.visible = kitNow === dragonKit;
+      });
       restyle();
     };
 
