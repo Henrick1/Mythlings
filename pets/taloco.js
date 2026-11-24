@@ -5096,8 +5096,8 @@ Pets.register({
       const { add } = K;
       const arm = dyn(moltenMat);
       K.parts.push(arm);
-      const SL = 1.35;
-      const GZ = 0.36;
+      const SL = 1.95;
+      const GZ = 0.52;
       const scythe = add(bodyG, new THREE.Group());
       const scy = new THREE.Group();
       scy.position.z = -GZ;
@@ -5129,7 +5129,7 @@ Pets.register({
         return g;
       })();
       {
-        const snC = new THREE.CatmullRomCurve3([V3(0, 0, -0.05), V3(0.045, 0.02, 0.2), V3(-0.035, -0.015, 0.42), V3(0.04, 0.02, 0.66), V3(-0.025, 0, 0.88), V3(0, 0, SL)]);
+        const snC = new THREE.CatmullRomCurve3([V3(0, 0, -0.05), V3(0.05, 0.02, SL * 0.18), V3(-0.04, -0.015, SL * 0.38), V3(0.045, 0.02, SL * 0.6), V3(-0.03, 0, SL * 0.8), V3(0, 0, SL)]);
         const part = (u0, u1) => snC.getPoints(60).filter((_, i) => i / 60 >= u0 - 1e-6 && i / 60 <= u1 + 1e-6);
         const knots = [0.08, 0.19, 0.27, 0.75, 0.83, 0.93];
         const radS = (u, v) => {
