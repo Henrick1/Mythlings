@@ -5096,8 +5096,8 @@ Pets.register({
       const { add } = K;
       const arm = dyn(moltenMat);
       K.parts.push(arm);
-      const SL = 1.95;
-      const GZ = 0.52;
+      const SL = 2.35;
+      const GZ = 0.92;
       const scythe = add(bodyG, new THREE.Group());
       const scy = new THREE.Group();
       scy.position.z = -GZ;
@@ -5131,16 +5131,16 @@ Pets.register({
       {
         const snC = new THREE.CatmullRomCurve3([V3(0, 0, -0.05), V3(0.05, 0.02, SL * 0.18), V3(-0.04, -0.015, SL * 0.38), V3(0.045, 0.02, SL * 0.6), V3(-0.03, 0, SL * 0.8), V3(0, 0, SL)]);
         const part = (u0, u1) => snC.getPoints(60).filter((_, i) => i / 60 >= u0 - 1e-6 && i / 60 <= u1 + 1e-6);
-        const knots = [0.08, 0.19, 0.27, 0.75, 0.83, 0.93];
+        const knots = [0.07, 0.16, 0.25, 0.47, 0.82, 0.88, 0.95];
         const radS = (u, v) => {
           let r = lerp(0.058, 0.05, u);
           knots.forEach((k, i) => (r += 0.02 * Math.exp(-Math.pow((u - k) / 0.022, 2)) * (0.7 + 0.5 * Math.sin(v * TAU + i * 2))));
           return r * (1 + 0.08 * Math.sin(v * TAU * 3 + u * 40) + 0.05 * Math.sin(u * 90));
         };
-        scy.add(mesh(tubeGeo(part(0, 0.34), (u, v) => radS(u * 0.34, v) * (1 - 0.35 * smooth(0.75, 1, u)), 40, 14).g, castMat));
-        scy.add(mesh(tubeGeo(part(0.66, 1), (u, v) => radS(0.66 + u * 0.34, v) * (1 - 0.35 * (1 - smooth(0, 0.25, u))), 40, 14).g, castMat));
-        scy.add(mesh(tubeGeo(part(0.3, 0.7), (u, v) => 0.06 * (1 + 0.18 * Math.sin(v * TAU * 3 + u * 14)), 30, 14).g, ghostMat, false));
-        scy.userData.frags = [0.4, 0.47, 0.53, 0.6].map((u, i) => {
+        scy.add(mesh(tubeGeo(part(0, 0.49), (u, v) => radS(u * 0.49, v) * (1 - 0.35 * smooth(0.82, 1, u)), 70, 14).g, castMat));
+        scy.add(mesh(tubeGeo(part(0.75, 1), (u, v) => radS(0.75 + u * 0.25, v) * (1 - 0.35 * (1 - smooth(0, 0.25, u))), 40, 14).g, castMat));
+        scy.add(mesh(tubeGeo(part(0.46, 0.78), (u, v) => 0.06 * (1 + 0.18 * Math.sin(v * TAU * 3 + u * 14)), 30, 14).g, ghostMat, false));
+        scy.userData.frags = [0.53, 0.59, 0.65, 0.71].map((u, i) => {
           const f = mesh(new THREE.DodecahedronGeometry(0.03 + (i % 2) * 0.012, 0), castMat);
           f.position.copy(snC.getPointAt(u));
           f.userData.base = f.position.clone();
@@ -5181,7 +5181,7 @@ Pets.register({
         const m = mesh(dropGeo, ghostMat, false);
         scy.add(m);
         K.parts.push(m);
-        return { m, k, per: 1.4 + (k % 3) * 0.4, z: SL * 0.32 + (k / 7) * SL * 0.36 };
+        return { m, k, per: 1.4 + (k % 3) * 0.4, z: SL * 0.5 + (k / 7) * SL * 0.26 };
       });
       const crown = add(head, new THREE.Group());
       {
