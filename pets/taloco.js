@@ -4138,7 +4138,7 @@ Pets.register({
           horn.add(sp);
         });
         [-1, 1].forEach(sg => {
-          const b = onHeadRing(0.55, Math.PI + sg * 0.5);
+          const b = onHeadRing(0.55, Math.PI - sg * 0.5);
           const pts2 = [b, b.clone().add(V3(sg * 0.06, 0.1, -0.06)), b.clone().add(V3(sg * 0.18, 0.2, -0.2)), b.clone().add(V3(sg * 0.34, 0.24, -0.38)), b.clone().add(V3(sg * 0.48, 0.2, -0.5))];
           const { g: ag, c: ac } = tubeGeo(pts2, u => lerp(0.016, 0.006, u) * (1 + 0.25 * Math.max(0, Math.sin(u * 40))), 50, 8);
           horn.add(mesh(ag, darkSteel));
@@ -4217,16 +4217,21 @@ Pets.register({
             elytra.add(mesh(tubeGeo(ln, u => 0.007 * Math.sin(Math.PI * u), 30, 6).g, hotMat));
           });
           const mem = new THREE.Shape();
-          mem.moveTo(0, 0);
-          mem.quadraticCurveTo(0.2, -0.05, 0.42, -0.32);
-          mem.quadraticCurveTo(0.3, -0.42, 0.08, -0.36);
-          mem.quadraticCurveTo(0.02, -0.2, 0, 0);
+          mem.moveTo(0, 0.03);
+          mem.quadraticCurveTo(0.2, 0.08, 0.42, 0.02);
+          mem.quadraticCurveTo(0.3, -0.07, 0.12, -0.08);
+          mem.quadraticCurveTo(0.03, -0.06, 0, 0.03);
           const mg = new THREE.ShapeGeometry(mem, 10);
           const wm = mesh(mg, wingMemMat, false);
-          const base = TP(Math.PI + sg * 0.5, 0.42).addScaledVector(TN(Math.PI + sg * 0.5, 0.42), 0.03);
+          const wa = Math.PI + sg * 0.62;
+          const wy = 0.62;
+          const nrm = TN(wa, wy);
+          const base = TP(wa, wy).addScaledVector(nrm, 0.02);
+          const X = V3(Math.sign(base.x) * 0.75, -0.55, 0).addScaledVector(nrm, 0.25).normalize();
+          const Z = nrm.clone().addScaledVector(X, -nrm.dot(X)).normalize();
+          const Y = Z.clone().cross(X).normalize();
           wm.position.copy(base);
-          wm.rotation.set(0.25, Math.PI + sg * 0.35, 0);
-          wm.scale.set(-sg, 1, 1);
+          wm.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(X, Y, Z));
           elytra.add(wm);
         });
       }
