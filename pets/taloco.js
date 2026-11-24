@@ -3744,6 +3744,113 @@ Pets.register({
           crestDrops.add(d);
         });
       });
+      const pit = (parent, p, n, r) => {
+        const g = new THREE.Group();
+        g.position.copy(p).addScaledVector(n, 0.002);
+        g.quaternion.setFromUnitVectors(V3(0, 0, 1), n);
+        parent.add(g);
+        const hole = mesh(new THREE.CircleGeometry(r * 0.78, 16), pitMat, false);
+        hole.position.z = 0.004;
+        g.add(hole);
+        const rim = mesh(new THREE.TorusGeometry(r, r * 0.28, 8, 18), hotMat, false);
+        rim.position.z = 0.006;
+        g.add(rim);
+        return g;
+      };
+      const hang = (parent, p, s, k = 1.5) => {
+        const d = mesh(dropGeo, hotMat);
+        d.position.copy(p);
+        d.scale.set(s, s * k, s);
+        d.rotation.x = Math.PI;
+        parent.add(d);
+        return d;
+      };
+      const headAcid = add(head, new THREE.Group());
+      {
+        [[0.2, 1.3, 0.032], [-0.3, 2.2, 0.026], [0.5, 2.8, 0.03], [0.1, -2.4, 0.024], [-0.45, 1.75, 0.02], [0.62, 0.9, 0.022]].forEach(([y, a, r]) => {
+          const p = onHeadRing(y, a);
+          pit(headAcid, p, HN(p), r);
+        });
+        [[0.52, 0.5, 1.1, 1.9], [0.3, 0.3, 0.9, 1.4], [0.14, 0.17, 0.8, 1.2]].forEach(([x, y, s, k]) => {
+          [-1, 1].forEach(sg => {
+            if (sg < 0 && x < 0.2) return;
+            const p = HP(sg * x, y - 0.12);
+            hang(headAcid, p.clone().addScaledVector(HN(p), 0.035), s, k);
+          });
+        });
+      }
+      const bodyAcid = add(torso, new THREE.Group());
+      {
+        [0.55, 0.85, 1.15, 1.45].forEach((a, i) => {
+          const p = TP(a, 1.13);
+          hang(bodyAcid, p.addScaledVector(TN(a, 1.13), 0.03), 0.9 + (i % 2) * 0.3, 1.4 + (i % 3) * 0.4);
+        });
+        [[2.1, 1.06, 0.72, 0.045], [2.45, 1.02, 0.8, 0.035], [1.85, 0.6, 0.3, 0.03]].forEach(([a, y0, y1, w0]) => {
+          const N = 14;
+          const pts = [];
+          for (let i = 0; i <= N; i++) {
+            const f = i / N;
+            pts.push([a + 0.05 * Math.sin(f * 6 + a * 3), lerp(y0, y1, f)]);
+          }
+          bodyAcid.add(mesh(strip(pts.map(([q, y]) => TP(q, y)), pts.map(([q, y]) => TN(q, y)), i => w0 * (0.6 + 0.4 * Math.sin((i / N) * Math.PI * 0.9 + 0.3)) * (1 - 0.5 * (i / N)), () => 0.013), moltenMat));
+          const end = TP(pts[N][0], pts[N][1]);
+          const d = mesh(dropGeo, moltenMat);
+          d.position.copy(end).addScaledVector(TN(pts[N][0], pts[N][1]), 0.012).add(V3(0, -0.02, 0));
+          d.scale.set(w0 * 26, w0 * 34, w0 * 26);
+          bodyAcid.add(d);
+        });
+        [[2.7, 0.72, 0.04], [3.3, 0.92, 0.032], [2.2, 0.42, 0.03], [3.0, 0.5, 0.026], [-2.6, 0.82, 0.03]].forEach(([a, y, r]) => pit(bodyAcid, TP(a, y), TN(a, y), r));
+      }
+      const legAcid = add(legs[1], new THREE.Group());
+      {
+        const lc = new THREE.CatmullRomCurve3([V3(-0.09, 0.07, -0.02), V3(0, 0, 0), V3(0.1, -0.08 * LEGL, 0.06), V3(0.17, -0.22 * LEGL, 0.13), V3(0.2, -0.38 * LEGL, 0.08), V3(0.215, -0.56 * LEGL, -0.01)]);
+        const radL = u => {
+          const knee = 0.012 * Math.exp(-Math.pow((u - 0.52) / 0.1, 2));
+          const r = u < 0.58 ? lerp(0.1, 0.08, u / 0.58) : 0.08 * (1 - Math.pow((u - 0.58) / 0.42, 1.4));
+          return Math.max(0.003, r + knee);
+        };
+        const dirAt = (u, f) => {
+          const t = lc.getTangentAt(u);
+          return f.clone().addScaledVector(t, -f.dot(t)).normalize();
+        };
+        [[V3(1, 0, 0.5), 0.2, 0.47, 0.03], [V3(0.3, 0, 1), 0.24, 0.42, 0.026], [V3(1, 0, -0.6), 0.22, 0.38, 0.022]].forEach(([f, u0, u1, w0]) => {
+          const N = 14;
+          const us = Array.from({ length: N + 1 }, (_, i) => lerp(u0, u1, i / N));
+          const pts = us.map(u => lc.getPointAt(u).addScaledVector(dirAt(u, f), radL(u) - 0.003));
+          legAcid.add(mesh(strip(pts, us.map(u => dirAt(u, f)), i => w0 * (0.6 + 0.4 * Math.sin((i / N) * Math.PI * 0.9 + 0.3)) * (1 - 0.45 * (i / N)), () => 0.012), moltenMat));
+          const d = mesh(dropGeo, moltenMat);
+          d.position.copy(pts[N]).addScaledVector(dirAt(u1, f), 0.012).add(V3(0, -0.018, 0));
+          d.scale.set(w0 * 26, w0 * 34, w0 * 26);
+          legAcid.add(d);
+        });
+        [[0.64, V3(0.4, 0, 1), 0.026], [0.78, V3(1, 0, 0.2), 0.022], [0.36, V3(0.2, 0, 1), 0.024]].forEach(([u, f, r]) => {
+          const n = dirAt(u, f);
+          pit(legAcid, lc.getPointAt(u).addScaledVector(n, radL(u)), n, r);
+        });
+      }
+      const stinger = add(tailTip, new THREE.Group());
+      {
+        const bulb = mesh(new THREE.SphereGeometry(0.085, 22, 16), hotMat);
+        bulb.scale.set(1, 0.95, 1.3);
+        bulb.position.z = 0.06;
+        stinger.add(bulb);
+        [0.0, 0.11].forEach(z => {
+          const r = mesh(new THREE.TorusGeometry(z ? 0.07 : 0.05, 0.016, 8, 22), castMat);
+          r.position.z = z;
+          stinger.add(r);
+        });
+        const st = tubeGeo([V3(0, 0, 0.1), V3(0, 0.03, 0.2), V3(0, 0.11, 0.28), V3(0, 0.23, 0.3), V3(0, 0.32, 0.25)], u => lerp(0.06, 0.002, Math.pow(u, 0.85)), 36, 14).g;
+        stinger.add(mesh(st, castMat));
+        const dr = hang(stinger, V3(0, -0.07, 0.07), 0.9, 1.6);
+        dr.rotation.x = Math.PI;
+        stinger.scale.setScalar(1.15);
+      }
+      const bubbles = Array.from({ length: 6 }, (_, k) => {
+        const m = mesh(new THREE.SphereGeometry(0.03, 12, 10), hotMat, false);
+        bodyG.add(m);
+        K.parts.push(m);
+        return { m, k, per: 1.1 + (k % 3) * 0.35, a: (k / 6) * TAU };
+      });
       const puddle = new THREE.Mesh(new THREE.TorusGeometry(1, 0.08, 6, 48), trailMat);
       puddle.rotation.x = Math.PI / 2;
       puddle.visible = false;
@@ -3751,6 +3858,7 @@ Pets.register({
       const tipsBig = [V3(), V3(), V3()];
       let spread = 0.26;
       return {
+        customTail: true,
         set: on => {
           K.set(on);
           tents.forEach(T => (T.drop.visible = false));
@@ -3818,6 +3926,15 @@ Pets.register({
             return lerp(0.125, 0.135, u) * wob;
           }, 24, 18);
           knot.position.copy(P);
+          const sb = socket.localToWorld(V3(0.06, 0.12, 0));
+          const sbL = bodyG.worldToLocal(sb);
+          bubbles.forEach(B => {
+            const u = (t / B.per + B.k * 0.29) % 1;
+            const r = 0.05 + 0.1 * ((B.k * 37) % 10) / 10;
+            B.m.position.copy(sbL).add(V3(Math.cos(B.a) * r, u * 0.22, Math.sin(B.a) * r));
+            const sc = (0.5 + 0.9 * u) * (u > 0.88 ? (1 - u) / 0.12 : 1) * (motion > 0 ? 1 : 0.6);
+            B.m.scale.setScalar(Math.max(0.01, sc));
+          });
           knot.scale.setScalar(0.14 * (1 + 0.04 * Math.sin(t * 3.3) * motion));
           spread = lerp(spread, S.spread || 0.27, 0.3);
           const D = S.hL.clone().sub(P);
