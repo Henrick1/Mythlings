@@ -518,8 +518,9 @@ ipcMain.on("treat", () => {
 });
 
 ipcMain.on("play", () => {
+  const c = Game.collect(state, state.pet);
   const r = Game.play(state);
-  if (!r.changed) return;
+  if (!r.changed && !c.changed) return;
   saveState();
   broadcast();
   scheduleSync();

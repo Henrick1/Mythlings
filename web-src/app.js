@@ -2315,7 +2315,7 @@
   }
 
   function habitatRows(v) {
-    return v.party.filter(p => !p.away && hasPet(p.species)).map(p => ({ uid: p.id, species: p.species, variant: !!p.variant, core: p.core || null, name: (meta[p.species] && meta[p.species].name) || p.name, hunger: p.hunger, life: p.life, joy: p.joy, dying: p.dying }));
+    return v.party.filter(p => !p.away && hasPet(p.species)).map(p => ({ uid: p.id, species: p.species, variant: !!p.variant, core: p.core || null, name: (meta[p.species] && meta[p.species].name) || p.name, purse: p.purse || 0, cap: Game.C.PURSE_CAP, hunger: p.hunger, life: p.life, joy: p.joy, dying: p.dying }));
   }
 
   function renderHabitat(v, info) {
@@ -2354,6 +2354,13 @@
     if (held) {
       giveItem(uid);
       return;
+    }
+    const got = Game.collect(state, uid);
+    if (got.changed) {
+      saveState();
+      scheduleSync();
+      if (habitat) habitat.coins(uid, got.coins);
+      sfx("coins");
     }
     if (uid !== state.pet) {
       const r = Game.selectPet(state, uid);

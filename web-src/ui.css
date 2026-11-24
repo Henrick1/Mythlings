@@ -2269,6 +2269,60 @@ a:focus-visible {
   will-change: transform;
 }
 
+.hab-purse {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: -34px 0 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 4px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  border-radius: 999px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  white-space: nowrap;
+  will-change: transform;
+}
+
+.hab-purse .coin {
+  width: 16px;
+  height: 16px;
+}
+
+.hab-purse.full {
+  background: #ffd75a;
+  color: #5a3a00;
+  box-shadow: 0 0 0 2px #fff, 0 3px 10px rgba(242, 182, 48, 0.6);
+}
+
+.hab-coinpop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  margin: -40px 0 0 -24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 800;
+  text-shadow: 0 2px 0 #a8650f, 0 0 6px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  animation: hab-pop 0.25s ease-out;
+  will-change: transform;
+}
+
+.hab-coinpop .coin {
+  width: 20px;
+  height: 20px;
+}
+
 @keyframes hab-pop {
   from {
     scale: 0.3;
