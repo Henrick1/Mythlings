@@ -5096,8 +5096,13 @@ Pets.register({
       const { add } = K;
       const arm = dyn(moltenMat);
       K.parts.push(arm);
-      const SL = 1.1;
+      const SL = 1.35;
+      const GZ = 0.36;
       const scythe = add(bodyG, new THREE.Group());
+      const scy = new THREE.Group();
+      scy.position.z = -GZ;
+      scythe.add(scy);
+      scythe.add(moltenGrip(0.42, 0.056, 0.115, 2.4));
       const spineC = new THREE.CubicBezierCurve(V2(-0.03, 0.08), V2(0.5, 0.16), V2(0.9, -0.3), V2(0.8, -1.05));
       const edgeC = new THREE.CubicBezierCurve(V2(0.8, -1.05), V2(0.72, -0.5), V2(0.42, -0.1), V2(-0.03, -0.07));
       const bladeShape = (() => {
@@ -5132,21 +5137,25 @@ Pets.register({
           knots.forEach((k, i) => (r += 0.02 * Math.exp(-Math.pow((u - k) / 0.022, 2)) * (0.7 + 0.5 * Math.sin(v * TAU + i * 2))));
           return r * (1 + 0.08 * Math.sin(v * TAU * 3 + u * 40) + 0.05 * Math.sin(u * 90));
         };
-        scythe.add(mesh(tubeGeo(part(0, 0.34), (u, v) => radS(u * 0.34, v) * (1 - 0.35 * smooth(0.75, 1, u)), 40, 14).g, castMat));
-        scythe.add(mesh(tubeGeo(part(0.66, 1), (u, v) => radS(0.66 + u * 0.34, v) * (1 - 0.35 * (1 - smooth(0, 0.25, u))), 40, 14).g, castMat));
-        scythe.add(mesh(tubeGeo(part(0.3, 0.7), (u, v) => 0.06 * (1 + 0.18 * Math.sin(v * TAU * 3 + u * 14)), 30, 14).g, ghostMat, false));
-        scythe.userData.frags = [0.4, 0.47, 0.53, 0.6].map((u, i) => {
+        scy.add(mesh(tubeGeo(part(0, 0.34), (u, v) => radS(u * 0.34, v) * (1 - 0.35 * smooth(0.75, 1, u)), 40, 14).g, castMat));
+        scy.add(mesh(tubeGeo(part(0.66, 1), (u, v) => radS(0.66 + u * 0.34, v) * (1 - 0.35 * (1 - smooth(0, 0.25, u))), 40, 14).g, castMat));
+        scy.add(mesh(tubeGeo(part(0.3, 0.7), (u, v) => 0.06 * (1 + 0.18 * Math.sin(v * TAU * 3 + u * 14)), 30, 14).g, ghostMat, false));
+        scy.userData.frags = [0.4, 0.47, 0.53, 0.6].map((u, i) => {
           const f = mesh(new THREE.DodecahedronGeometry(0.03 + (i % 2) * 0.012, 0), castMat);
           f.position.copy(snC.getPointAt(u));
           f.userData.base = f.position.clone();
           f.userData.i = i;
-          scythe.add(f);
+          scy.add(f);
           return f;
         });
+        const pom = mesh(new THREE.SphereGeometry(0.075, 14, 10), castMat);
+        pom.scale.set(1.1, 0.9, 1.3);
+        pom.position.set(0.01, 0, -0.08);
+        scy.add(pom);
         const head2 = mesh(new THREE.SphereGeometry(0.085, 18, 14), castMat);
         head2.scale.set(1, 1.15, 1.4);
         head2.position.set(0, 0.02, SL);
-        scythe.add(head2);
+        scy.add(head2);
         const sp = [];
         for (let k = 0; k < 13; k++) {
           const a = (k / 13) * TAU;
@@ -5155,24 +5164,24 @@ Pets.register({
           const l = 0.07 + 0.08 * ((k * 7) % 5) / 4;
           sp.push(spike(V3(d.x * 0.07, d.y * 0.07, SL + 0.03 + ((k * 3) % 4) * 0.012), d.clone().add(V3(0, -0.25, 0.9)), l, 0.02, 4));
         }
-        scythe.add(mesh(mergeGeos(sp), castMat));
+        scy.add(mesh(mergeGeos(sp), castMat));
         [[0, 1], [0.045, 0.75], [-0.045, 0.75]].forEach(([x, k]) => {
           const h = tubeGeo([V3(x, -0.05, SL + 0.03), V3(x, -0.15 * k, SL + 0.1 * k), V3(x, -0.27 * k, SL + 0.1 * k), V3(x, -0.33 * k, SL + 0.03)], u => lerp(0.026, 0.003, u) * k, 20, 8).g;
-          scythe.add(mesh(h, plateMat));
+          scy.add(mesh(h, plateMat));
         });
         const bl = mesh(bladeGeo, castMat);
         bl.position.set(0, 0.03, SL);
-        scythe.add(bl);
+        scy.add(bl);
         const ep = edgeC.getPoints(40).map(p => V3(0, p.x + 0.03, p.y + SL));
-        scythe.add(mesh(tubeGeo(ep, u => 0.011 * Math.sin(Math.PI * Math.min(1, u * 1.1 + 0.04)), 80, 6).g, hotMat, false));
+        scy.add(mesh(tubeGeo(ep, u => 0.011 * Math.sin(Math.PI * Math.min(1, u * 1.1 + 0.04)), 80, 6).g, hotMat, false));
         const sp2 = spineC.getPoints(40).map(p => V3(0, p.x + 0.03, p.y + SL));
-        scythe.add(mesh(tubeGeo(sp2, u => 0.02 * (1 - 0.85 * u), 80, 8).g, plateMat));
+        scy.add(mesh(tubeGeo(sp2, u => 0.02 * (1 - 0.85 * u), 80, 8).g, plateMat));
       }
       const wisps = Array.from({ length: 7 }, (_, k) => {
         const m = mesh(dropGeo, ghostMat, false);
-        scythe.add(m);
+        scy.add(m);
         K.parts.push(m);
-        return { m, k, per: 1.4 + (k % 3) * 0.4, z: 0.3 + (k / 7) * 0.45 };
+        return { m, k, per: 1.4 + (k % 3) * 0.4, z: SL * 0.32 + (k / 7) * SL * 0.36 };
       });
       const crown = add(head, new THREE.Group());
       {
@@ -5346,8 +5355,8 @@ Pets.register({
             S.hL.lerp(V3(0.6, TIP + 1.6, -0.1), raise);
             want.lerp(V3(0.1, 0.8, -0.6), raise);
             bwant.lerp(V3(0, 0.6, 0.8), raise);
-            S.hL.lerp(V3(0.35, TIP + 0.8, 0.85), reap);
-            want.lerp(V3(0.05, -0.2, 1), reap);
+            S.hL.lerp(V3(0.35, TIP + 1.0, 0.85), reap);
+            want.lerp(V3(0.05, 0.05, 1), reap);
             bwant.lerp(V3(0, -1, 0.1), reap);
             S.hR.lerp(V3(-0.82, TIP + 1.2, 0.2), raise);
             S.hover += 0.22 * raise - 0.05 * reap;
@@ -5376,14 +5385,14 @@ Pets.register({
         arm(S, t, motion) {
           dir.lerp(want.clone().normalize(), 0.45).normalize();
           bdir.lerp(bwant.clone().normalize(), 0.45);
-          const rad = u => lerp(0.125, 0.075, smooth(0.3, 0.9, u));
+          const rad = u => lerp(0.125, 0.092, smooth(0.3, 0.9, u));
           const c = moltenArm(arm, shoulders[1], S.hL, t, motion, rad, 0.72);
           const z = dir.clone();
           let y = bdir.clone().addScaledVector(z, -bdir.dot(z));
           if (y.lengthSq() < 1e-4) y = V3(0, 0, 1).addScaledVector(z, -z.z);
           y.normalize();
           const x = y.clone().cross(z).normalize();
-          scythe.position.copy(c.getPointAt(1));
+          scythe.position.copy(c.getPointAt(1)).addScaledVector(c.getTangentAt(1), 0.06);
           scythe.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
           wisps.forEach(W => {
             const u = (t / W.per + W.k * 0.31) % 1;
@@ -5394,7 +5403,7 @@ Pets.register({
             W.m.scale.set(sc, sc * 1.6, sc);
             W.m.quaternion.setFromUnitVectors(V3(0, -1, 0), up);
           });
-          scythe.userData.frags.forEach(f => {
+          scy.userData.frags.forEach(f => {
             const i = f.userData.i;
             f.position.copy(f.userData.base).add(V3(Math.sin(t * 1.7 + i * 2) * 0.05, Math.cos(t * 1.3 + i) * 0.05, Math.sin(t * 2.1 + i) * 0.02).multiplyScalar(motion));
             f.rotation.set(t * 0.8 + i, t * 0.6 + i * 2, 0);
@@ -5406,7 +5415,7 @@ Pets.register({
         },
         fx(S, nm) {
           scythe.updateMatrixWorld(true);
-          const tip = big.worldToLocal(scythe.localToWorld(V3(0, 0.83, SL - 1.0)));
+          const tip = big.worldToLocal(scy.localToWorld(V3(0, 0.83, SL - 1.0)));
           if (nm === "swipe")
             trail.forEach((a, i) => {
               a.position.copy(shoulders[1]).add(V3(-0.2, 0.15, 0));
@@ -5415,7 +5424,7 @@ Pets.register({
             });
           if (S.waveK >= 0 && !launched) {
             launched = true;
-            from = big.worldToLocal(scythe.localToWorld(V3(0, 0, SL)));
+            from = big.worldToLocal(scy.localToWorld(V3(0, 0, SL)));
             const f = big.worldToLocal(bodyG.localToWorld(V3(0, 0, 1))).sub(big.worldToLocal(bodyG.localToWorld(V3(0, 0, 0))));
             f.y = 0;
             fdir = f.normalize();
