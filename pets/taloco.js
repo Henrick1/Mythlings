@@ -4718,7 +4718,378 @@ Pets.register({
       };
     })();
 
-    const KITS = { steel: shieldKit, rock: hammerKit, fire: swordKit, water: tridentKit, grass: bowKit, dragon: dragonKit, fighting: fistKit, ice: iceKit, poison: poisonKit, bug: bugKit };
+    const copperMat = new THREE.MeshStandardMaterial({ color: 0xc8743a, roughness: 0.3, metalness: 0.85 });
+    const ceramicMat = new THREE.MeshStandardMaterial({ color: 0xe8e2d4, roughness: 0.35, metalness: 0.05 });
+    const railKit = (() => {
+      const K = makeKit();
+      const { add } = K;
+      const arm = dyn(moltenMat);
+      K.parts.push(arm);
+      const cable = dyn(darkSteel);
+      K.parts.push(cable);
+      const grips = [0.66, 0.8].map(() => add(bodyG, mesh(new THREE.TorusGeometry(1, 0.17, 8, 28), copperMat)));
+      const gun = add(bodyG, new THREE.Group());
+      const MZ = 1.22;
+      const chanMat = new THREE.MeshBasicMaterial({ color: 0xffe060, transparent: true, opacity: 0.3, depthWrite: false, blending: THREE.AdditiveBlending });
+      const orbMat = new THREE.MeshBasicMaterial({ color: 0xffe060, transparent: true, opacity: 0.9, depthWrite: false });
+      const box = (w, h, d, m, x, y, z) => {
+        const b = mesh(new THREE.BoxGeometry(w, h, d), m);
+        b.position.set(x, y, z);
+        gun.add(b);
+        return b;
+      };
+      {
+        const hous = new THREE.CylinderGeometry(0.15, 0.16, 0.48, 20);
+        hous.rotateX(Math.PI / 2);
+        hous.translate(0, 0, 0.06);
+        gun.add(mesh(hous, castMat));
+        const cap = mesh(new THREE.SphereGeometry(0.16, 20, 12, 0, TAU, 0, Math.PI / 2), castMat);
+        cap.rotation.x = -Math.PI / 2;
+        cap.position.z = -0.18;
+        cap.scale.set(1, 1, 0.5);
+        gun.add(cap);
+        [-0.1, 0.12].forEach(z => {
+          const r = mesh(new THREE.TorusGeometry(0.162, 0.016, 8, 28), plateMat);
+          r.position.z = z;
+          gun.add(r);
+        });
+        for (let i = 0; i < 5; i++) box(0.012, 0.07, 0.26, plateMat, -0.08 + i * 0.04, 0.17, 0.04);
+        [-1, 1].forEach(sg => {
+          const c = new THREE.CylinderGeometry(0.05, 0.05, 0.34, 14);
+          c.rotateX(Math.PI / 2);
+          const cm = mesh(c, darkSteel);
+          cm.position.set(sg * 0.19, -0.04, 0.05);
+          gun.add(cm);
+          [-0.08, 0.0, 0.08].forEach(z => {
+            const b = mesh(new THREE.TorusGeometry(0.051, 0.008, 6, 18), hotMat, false);
+            b.position.set(sg * 0.19, -0.04, 0.05 + z);
+            gun.add(b);
+          });
+          const tcap = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.02, 12), copperMat);
+          tcap.rotation.x = Math.PI / 2;
+          tcap.position.set(sg * 0.19, -0.04, 0.23);
+          gun.add(tcap);
+        });
+        [-1, 1].forEach(sg => {
+          box(0.07, 0.05, MZ - 0.26, castMat, 0, sg * 0.09, 0.26 + (MZ - 0.26) / 2);
+          box(0.05, 0.008, MZ - 0.3, hotMat, 0, sg * 0.063, 0.3 + (MZ - 0.3) / 2);
+          box(0.085, 0.018, MZ - 0.3, plateMat, 0, sg * 0.122, 0.3 + (MZ - 0.3) / 2);
+          const tip = mesh(new THREE.ConeGeometry(0.035, 0.14, 4), castMat);
+          tip.rotation.x = Math.PI / 2;
+          tip.position.set(0, sg * 0.09, MZ + 0.06);
+          tip.scale.set(1, 0.7, 1);
+          gun.add(tip);
+          [-1, 1].forEach(sx => {
+            const pr = mesh(new THREE.ConeGeometry(0.014, 0.09, 4), castMat);
+            pr.rotation.set(Math.PI / 2, 0, 0);
+            pr.position.set(sx * 0.03, sg * 0.105, MZ + 0.02);
+            pr.rotation.y = sx * 0.4;
+            gun.add(pr);
+          });
+        });
+        [0.36, 0.44, 0.52, 0.6].forEach(z => {
+          const t = mesh(new THREE.TorusGeometry(0.13, 0.026, 8, 26), copperMat);
+          t.position.z = z;
+          gun.add(t);
+        });
+        [0.78, 1.02].forEach(z => {
+          [-1, 1].forEach(sx => {
+            box(0.024, 0.2, 0.05, ceramicMat, sx * 0.055, 0, z);
+            [-1, 1].forEach(sy => box(0.04, 0.014, 0.06, plateMat, sx * 0.055, sy * 0.105, z));
+          });
+        });
+        const chan = mesh(new THREE.BoxGeometry(0.06, 0.1, MZ - 0.3), chanMat, false);
+        chan.position.z = 0.3 + (MZ - 0.3) / 2;
+        gun.add(chan);
+        gun.userData.chan = chan;
+        const sight = mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.14, 10), darkSteel);
+        sight.rotation.x = Math.PI / 2;
+        sight.position.set(0.1, 0.2, 0.3);
+        gun.add(sight);
+        const lens = mesh(new THREE.CircleGeometry(0.02, 12), hotMat, false);
+        lens.position.set(0.1, 0.2, 0.371);
+        gun.add(lens);
+      }
+      const ball = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 14), orbMat);
+      ball.visible = false;
+      big.add(ball);
+      const ballIn = new THREE.Mesh(new THREE.SphereGeometry(0.55, 14, 10), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+      ball.add(ballIn);
+      const beam = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1, 14, 1, true), orbMat);
+      beam.visible = false;
+      big.add(beam);
+      const flash = new THREE.Mesh(new THREE.TorusGeometry(1, 0.12, 6, 32), orbMat);
+      flash.visible = false;
+      big.add(flash);
+      const charge = mesh(new THREE.SphereGeometry(1, 16, 12), orbMat, false);
+      charge.visible = false;
+      gun.add(charge);
+      K.parts.push(charge);
+      const lensG = add(head, new THREE.Group());
+      {
+        const eP = HP(0.34, -0.02);
+        const n = HN(eP);
+        const at = eP.clone().addScaledVector(n, 0.07);
+        const g = new THREE.Group();
+        g.position.copy(at);
+        g.quaternion.setFromUnitVectors(V3(0, 0, 1), n.clone().add(V3(0, 0, 0.9)).normalize());
+        lensG.add(g);
+        const ring = mesh(new THREE.TorusGeometry(0.085, 0.016, 8, 28), darkSteel);
+        g.add(ring);
+        const ring2 = mesh(new THREE.TorusGeometry(0.07, 0.008, 6, 24), copperMat);
+        ring2.position.z = 0.01;
+        g.add(ring2);
+        const glass = mesh(new THREE.CircleGeometry(0.075, 24), new THREE.MeshStandardMaterial({ color: 0xfff0a0, emissive: 0xffd400, emissiveIntensity: 0.25, transparent: true, opacity: 0.35, roughness: 0.05, metalness: 0.2 }), false);
+        glass.position.z = 0.004;
+        g.add(glass);
+        const cross = [[0.12, 0.005], [0.005, 0.12]].map(([w, h]) => {
+          const c = mesh(new THREE.PlaneGeometry(w, h), hotMat, false);
+          c.position.z = 0.006;
+          g.add(c);
+          return c;
+        });
+        void cross;
+        const ear = HP(0.95, 0.05);
+        const en = HN(ear);
+        const pod = mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 18), plateMat);
+        pod.position.copy(ear).addScaledVector(en, 0.02);
+        pod.quaternion.setFromUnitVectors(V3(0, 1, 0), en);
+        lensG.add(pod);
+        const arm2 = tubeGeo([ear.clone().addScaledVector(en, 0.04), ear.clone().addScaledVector(en, 0.06).add(V3(-0.04, 0, 0.08)), at.clone().add(V3(0.08, 0, -0.02))], () => 0.012, 16, 6).g;
+        lensG.add(mesh(arm2, darkSteel));
+        const ant = tubeGeo([ear.clone().addScaledVector(en, 0.05), ear.clone().add(V3(0.08, 0.16, -0.05)), ear.clone().add(V3(0.1, 0.32, -0.1))], u => lerp(0.012, 0.005, u), 16, 6).g;
+        lensG.add(mesh(ant, darkSteel));
+        const bulb = mesh(new THREE.SphereGeometry(0.024, 10, 8), hotMat, false);
+        bulb.position.copy(ear).add(V3(0.1, 0.33, -0.1));
+        lensG.add(bulb);
+      }
+      const pack = add(socket, new THREE.Group());
+      {
+        pack.position.set(0.02, 0.04, 0);
+        pack.rotation.z = -0.38;
+        const sh = mesh(new THREE.SphereGeometry(0.21, 32, 12, 0, TAU, 0, Math.PI * 0.42), plateMat);
+        sh.scale.set(1, 0.72, 1.08);
+        pack.add(sh);
+        [-0.08, 0.08].forEach(z => {
+          const c = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.16, 14), darkSteel);
+          c.position.set(0.0, 0.17, z);
+          pack.add(c);
+          const b = mesh(new THREE.TorusGeometry(0.046, 0.008, 6, 16), hotMat, false);
+          b.rotation.x = Math.PI / 2;
+          b.position.set(0, 0.19, z);
+          pack.add(b);
+          const tcap = mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.02, 12), copperMat);
+          tcap.position.set(0, 0.26, z);
+          pack.add(tcap);
+        });
+      }
+      const coreRing = add(port, new THREE.Group());
+      {
+        const t = mesh(new THREE.TorusGeometry(0.17, 0.022, 8, 32), copperMat);
+        t.position.z = -0.006;
+        coreRing.add(t);
+        for (let k = 0; k < 8; k++) {
+          const a = (k / 8) * TAU;
+          const l = mesh(new THREE.BoxGeometry(0.03, 0.05, 0.02), k % 2 ? plateMat : hotMat, k % 2 === 1);
+          l.position.set(Math.cos(a) * 0.215, Math.sin(a) * 0.215, 0.005);
+          l.rotation.z = a;
+          coreRing.add(l);
+        }
+      }
+      const backPack = add(torso, new THREE.Group());
+      {
+        const P = TP(Math.PI, 0.82);
+        const n = TN(Math.PI, 0.82);
+        const g = new THREE.Group();
+        g.position.copy(P).addScaledVector(n, 0.05);
+        g.quaternion.setFromUnitVectors(V3(0, 0, 1), n);
+        backPack.add(g);
+        const body = mesh(new THREE.BoxGeometry(0.42, 0.4, 0.12), plateMat);
+        g.add(body);
+        [-0.12, 0, 0.12].forEach(x => {
+          const c = mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.36, 14), darkSteel);
+          c.position.set(x, 0, 0.09);
+          g.add(c);
+          [-0.08, 0.04].forEach(y => {
+            const b = mesh(new THREE.TorusGeometry(0.046, 0.008, 6, 16), hotMat, false);
+            b.rotation.x = Math.PI / 2;
+            b.position.set(x, y, 0.09);
+            g.add(b);
+          });
+        });
+        [-1, 1].forEach(sg => {
+          const s = mesh(new THREE.BoxGeometry(0.05, 0.5, 0.04), darkSteel);
+          s.position.set(sg * 0.17, 0.05, -0.02);
+          g.add(s);
+        });
+      }
+      const plug = add(tailTip, new THREE.Group());
+      {
+        const body = mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.14, 14), plateMat);
+        body.rotation.x = Math.PI / 2;
+        body.position.z = 0.06;
+        plug.add(body);
+        const ring = mesh(new THREE.TorusGeometry(0.06, 0.012, 6, 18), copperMat);
+        ring.position.z = 0.1;
+        plug.add(ring);
+        [-1, 1].forEach(sg => {
+          const pin = mesh(new THREE.BoxGeometry(0.018, 0.035, 0.12), copperMat);
+          pin.position.set(sg * 0.03, 0, 0.18);
+          plug.add(pin);
+        });
+        plug.scale.setScalar(1.2);
+      }
+      let dir = V3(0.15, -0.2, 1).normalize();
+      const want = V3(0.15, -0.2, 1);
+      let recoil = 0;
+      let muzzle0 = V3();
+      let fwd0 = V3(0, 0, 1);
+      let fired = false;
+      return {
+        customTail: true,
+        set: on => {
+          K.set(on);
+          if (!on) {
+            ball.visible = false;
+            beam.visible = false;
+            flash.visible = false;
+          }
+          charge.visible = false;
+        },
+        style(shiny) {
+          plateMat.color.setHex(shiny ? 0xe8e0c8 : 0x34405a);
+        },
+        rest(S, t, motion) {
+          S.hL.set(0.86, TIP + 0.62, 0.4).add(V3(0, Math.sin(t * 1.4 + 1.2) * 0.02 * motion, 0));
+          want.set(0.18, -0.2, 1);
+          S.chargeK = 0.1 + 0.05 * Math.sin(t * 3);
+        },
+        act(nm, p, S) {
+          if (nm === "swipe") {
+            const aim = smooth(0.02, 0.2, p) * (1 - smooth(0.82, 0.98, p));
+            S.hL.lerp(V3(0.62, TIP + 1.0, 0.75), aim);
+            want.lerp(V3(-0.05, 0.02, 1), aim);
+            S.chargeK = smooth(0.1, 0.4, p) * (1 - smooth(0.42, 0.45, p));
+            S.shotK = p > 0.42 && p < 0.75 ? smooth(0.42, 0.75, p) : -1;
+            S.kick = p > 0.42 ? Math.exp(-(p - 0.42) * 14) : 0;
+            S.spinY -= 0.25 * aim;
+            S.lean += -0.12 * S.kick;
+            S.glow = 0.6 * S.chargeK + 0.8 * S.kick;
+            S.flash = 0.5 * S.kick;
+            S.impact = S.kick;
+            S.sparkK = p > 0.62 && p < 0.85 ? smooth(0.62, 0.85, p) : -1;
+            S.mouthK = 0.5 * S.kick;
+            return true;
+          }
+          if (nm === "fling") {
+            const aim = smooth(0.02, 0.18, p) * (1 - smooth(0.85, 0.99, p));
+            S.hL.lerp(V3(0.55, TIP + 1.05, 0.7), aim);
+            want.lerp(V3(-0.08, 0.06, 1), aim);
+            S.hR.lerp(V3(-0.1, TIP + 1.05, 0.75), aim);
+            S.chargeK = smooth(0.08, 0.52, p) * (1 - smooth(0.54, 0.57, p));
+            S.shotK = p > 0.54 && p < 0.92 ? smooth(0.54, 0.92, p) : -1;
+            S.beamK = p > 0.54 && p < 0.8 ? 1 - smooth(0.54, 0.8, p) : 0;
+            S.kick = p > 0.54 ? Math.exp(-(p - 0.54) * 9) : 0;
+            S.spinY -= 0.3 * aim;
+            S.lean += -0.05 * S.chargeK - 0.22 * S.kick;
+            S.hover += -0.04 * S.chargeK;
+            S.squash = 1 - 0.04 * S.chargeK;
+            S.legK = Math.max(S.legK, 0.5 * S.chargeK);
+            S.glow = 1.4 * S.chargeK + 1.0 * S.kick;
+            S.flash = 0.8 * S.chargeK + 0.8 * S.kick;
+            S.impact = S.kick;
+            S.sparkK = p > 0.82 && p < 0.99 ? smooth(0.82, 0.99, p) : -1;
+            S.headPitch += 0.05 * aim;
+            S.mouthK = 0.8 * S.kick;
+            return true;
+          }
+          if (nm === "spin") {
+            S.hL.lerp(V3(0.95, TIP + 0.9, 0.05), S.spinK);
+            want.lerp(V3(1, 0, 0.1), S.spinK);
+          }
+          if (nm === "jump") {
+            S.hL.lerp(V3(0.9, TIP + 0.85, 0.35), S.air);
+            want.lerp(V3(0.3, -0.7, 0.6), S.air);
+          }
+          return false;
+        },
+        arm(S, t, motion) {
+          dir.lerp(want.clone().normalize(), 0.5).normalize();
+          recoil = lerp(recoil, S.kick || 0, 0.6);
+          const hand = S.hL.clone().addScaledVector(dir, -0.18 * recoil);
+          const rad = u => lerp(0.125, 0.11, smooth(0.3, 0.9, u));
+          const c = moltenArm(arm, shoulders[1], hand, t, motion, rad, 0.7);
+          [0.66, 0.8].forEach((u, i) => {
+            grips[i].position.copy(c.getPointAt(u));
+            grips[i].quaternion.setFromUnitVectors(V3(0, 0, 1), c.getTangentAt(u));
+            grips[i].scale.setScalar(rad(u) + 0.008);
+          });
+          const z = dir.clone();
+          let x = V3(0, 1, 0).cross(z);
+          if (x.lengthSq() < 1e-3) x = V3(1, 0, 0);
+          x.normalize();
+          const y = z.clone().cross(x).normalize();
+          gun.position.copy(c.getPointAt(1)).addScaledVector(dir, 0.2);
+          gun.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+          const ck = S.chargeK || 0;
+          gun.userData.chan.material.opacity = 0.15 + 0.6 * ck + 0.4 * recoil;
+          charge.visible = ck > 0.15;
+          if (charge.visible) {
+            charge.position.set(0, 0, 0.32 + 0.05 * Math.sin(t * 30));
+            charge.scale.setScalar(0.02 + 0.07 * ck * (1 + 0.12 * Math.sin(t * 40)));
+          }
+          const sp = shoulders[1].clone().add(V3(0.02, 0.24, -0.12));
+          const gp = gun.position.clone().add(V3(0, 0.16, -0.1).applyQuaternion(gun.quaternion));
+          const mid = sp.clone().lerp(gp, 0.5).add(V3(0.12, -0.12, -0.08));
+          flexTube(cable, [sp, sp.clone().lerp(mid, 0.6).add(V3(0.04, 0, -0.02)), mid, gp.clone().lerp(mid, 0.4), gp], () => 0.022, 30, 8);
+        },
+        fx(S, nm, p, t) {
+          gun.updateMatrixWorld(true);
+          const muzzle = big.worldToLocal(gun.localToWorld(V3(0, 0, MZ + 0.05)));
+          const back = big.worldToLocal(gun.localToWorld(V3(0, 0, 0.3)));
+          const fwd = muzzle.clone().sub(back).normalize();
+          const k = S.shotK === undefined ? -1 : S.shotK;
+          if (k >= 0 && !fired) {
+            fired = true;
+            muzzle0.copy(muzzle);
+            fwd0.copy(fwd);
+          }
+          if (k < 0) fired = false;
+          const big2 = nm === "fling";
+          ball.visible = k >= 0 && k < 1;
+          let at = muzzle;
+          if (ball.visible) {
+            at = muzzle0.clone().addScaledVector(fwd0, k * (big2 ? 4.2 : 3.4));
+            ball.position.copy(at);
+            ball.scale.setScalar((big2 ? 0.2 : 0.11) * (1 + 0.15 * Math.sin(t * 50)));
+            orbMat.color.copy(trailMat.color);
+          }
+          const bk = S.beamK || 0;
+          beam.visible = bk > 0.02 && ball.visible;
+          if (beam.visible) {
+            const len = at.distanceTo(muzzle0);
+            beam.position.copy(muzzle0).addScaledVector(fwd0, len / 2);
+            beam.quaternion.setFromUnitVectors(V3(0, 1, 0), fwd0);
+            beam.scale.set(0.05 + 0.1 * bk, len, 0.05 + 0.1 * bk);
+          }
+          const fk = S.kick || 0;
+          flash.visible = fk > 0.1 && k >= 0;
+          if (flash.visible) {
+            flash.position.copy(muzzle0).addScaledVector(fwd0, 0.1 + (1 - fk) * 0.3);
+            flash.quaternion.setFromUnitVectors(V3(0, 0, 1), fwd0);
+            flash.scale.setScalar((big2 ? 0.35 : 0.2) * (1.6 - fk));
+          }
+          return S.sparkK >= 0 ? at : muzzle;
+        },
+        hide() {
+          ball.visible = false;
+          beam.visible = false;
+          flash.visible = false;
+        }
+      };
+    })();
+
+    const KITS = { steel: shieldKit, rock: hammerKit, fire: swordKit, water: tridentKit, grass: bowKit, dragon: dragonKit, fighting: fistKit, ice: iceKit, poison: poisonKit, bug: bugKit, electric: railKit };
     let kitNow = hammerKit;
 
     const food = berry();
