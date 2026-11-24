@@ -3232,7 +3232,7 @@ Pets.register({
           if (!on) rings.forEach(r => (r.visible = false));
         },
         style(shiny) {
-          plateMat.color.setHex(shiny ? 0xb8322a : 0xd4a73c);
+          plateMat.color.setHex(shiny ? 0xe05a3c : 0xc03028);
         },
         rest(S, t, motion) {
           S.hL.set(0.78, TIP + 0.5, 0.3).add(V3(0, Math.sin(t * 2.6) * 0.025 * motion, 0));
