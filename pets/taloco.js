@@ -4008,7 +4008,426 @@ Pets.register({
       };
     })();
 
-    const KITS = { steel: hammerKit, fire: swordKit, water: tridentKit, grass: bowKit, dragon: dragonKit, fighting: fistKit, ice: iceKit, poison: poisonKit };
+    const shellMat = new THREE.MeshStandardMaterial({ color: 0x24401c, roughness: 0.22, metalness: 0.7, side: THREE.DoubleSide });
+    const wingMemMat = new THREE.MeshStandardMaterial({ color: 0xc8f080, emissive: 0x6a9a10, emissiveIntensity: 0.25, roughness: 0.2, metalness: 0.1, transparent: true, opacity: 0.45, side: THREE.DoubleSide, depthWrite: false });
+    const bugKit = (() => {
+      const K = makeKit();
+      const { add } = K;
+      const arm = dyn(moltenMat);
+      K.parts.push(arm);
+      const segGeo = new THREE.LatheGeometry([V2(0.96, -0.55), V2(1.04, -0.42), V2(1.13, -0.05), V2(1.24, 0.38), V2(1.3, 0.55), V2(1.18, 0.62), V2(1.0, 0.56)], 20);
+      const segU = [0.22, 0.36, 0.5, 0.64, 0.78, 0.9];
+      const segs = segU.map((u, i) => {
+        const g = add(bodyG, new THREE.Group());
+        g.add(mesh(segGeo, shellMat));
+        const sp = mesh(new THREE.ConeGeometry(0.16, 0.5, 4), shellMat);
+        sp.position.set(0, 0.35, 1.3);
+        sp.rotation.x = 1.15;
+        sp.scale.set(1, 1, 0.5);
+        g.add(sp);
+        return { g, u };
+      });
+      const claw = add(bodyG, new THREE.Group());
+      const clawIn = new THREE.Group();
+      clawIn.scale.setScalar(1.35);
+      claw.add(clawIn);
+      const jawPivot = new THREE.Group();
+      jawPivot.position.set(0, 0.075, 0.2);
+      clawIn.add(jawPivot);
+      const orbMat = new THREE.MeshBasicMaterial({ color: 0xb0ff40, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending });
+      const orb = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 14), orbMat);
+      orb.visible = false;
+      orb.position.set(0, 0.02, 0.42);
+      clawIn.add(orb);
+      K.parts.push(orb);
+      {
+        const pg = new THREE.SphereGeometry(1, 40, 28);
+        const q = pg.attributes.position;
+        for (let i = 0; i < q.count; i++) {
+          const v = V3(q.getX(i), q.getY(i), q.getZ(i));
+          const k = 1 + 0.06 * Math.max(0, Math.sin(Math.atan2(v.y, v.x) * 6)) * (1 - Math.abs(v.z));
+          q.setXYZ(i, v.x * 0.15 * k, v.y * 0.135 * k, v.z * 0.2 + 0.1);
+        }
+        pg.computeVertexNormals();
+        clawIn.add(mesh(pg, castMat));
+        const cap = mesh(new THREE.SphereGeometry(1, 32, 16, 0, TAU, 0, Math.PI * 0.45), shellMat);
+        cap.scale.set(0.16, 0.15, 0.21);
+        cap.position.z = 0.1;
+        cap.rotation.x = -0.15;
+        clawIn.add(cap);
+        [[-0.02, 0.13, 0.04, 0.09], [0.0, 0.15, 0.12, 0.11], [0.02, 0.13, 0.2, 0.08]].forEach(([x, y, z, l]) => {
+          const sp = mesh(new THREE.ConeGeometry(0.03, l, 5), shellMat);
+          sp.position.set(x, y, z);
+          sp.rotation.x = 0.55;
+          clawIn.add(sp);
+        });
+        [-1, 1].forEach(sg => {
+          const r = mesh(new THREE.TorusGeometry(0.02, 0.008, 6, 14), castMat);
+          r.position.set(sg * 0.15, 0.03, 0.12);
+          r.rotation.y = Math.PI / 2;
+          clawIn.add(r);
+        });
+        const cuff = mesh(new THREE.TorusGeometry(0.135, 0.03, 10, 28), shellMat);
+        cuff.position.z = -0.08;
+        clawIn.add(cuff);
+        const jaw = (pts, r0, flat) => {
+          const { g, c } = tubeGeo(pts, (u, v) => {
+            const a = v * TAU;
+            const base = lerp(r0, 0.004, Math.pow(u, 0.9));
+            return base * (Math.abs(Math.cos(a)) * (1 - flat) + flat + 0.0);
+          }, 40, 16);
+          return { g, c };
+        };
+        const low = jaw([V3(0, -0.04, 0.22), V3(0, -0.085, 0.36), V3(0, -0.075, 0.5), V3(0, -0.02, 0.62), V3(0, 0.05, 0.69)], 0.072, 0.55);
+        const lowM = mesh(low.g, castMat);
+        lowM.scale.x = 0.75;
+        clawIn.add(lowM);
+        const up = jaw([V3(0, 0, 0), V3(0, 0.07, 0.12), V3(0, 0.075, 0.27), V3(0, 0.03, 0.4), V3(0, -0.035, 0.47)], 0.07, 0.55);
+        const upM = mesh(up.g, castMat);
+        upM.scale.x = 0.75;
+        jawPivot.add(upM);
+        const hinge = mesh(new THREE.SphereGeometry(0.05, 16, 12), shellMat);
+        hinge.scale.set(1.6, 1, 1);
+        jawPivot.add(hinge);
+        const teeth = (c, parent, sg, n, u0, u1, yoff) => {
+          const list = [];
+          for (let i = 0; i < n; i++) {
+            const u = lerp(u0, u1, i / (n - 1));
+            const p = c.getPointAt(u);
+            const tg = c.getTangentAt(u);
+            const inward = V3(0, sg, 0).addScaledVector(tg, -sg * tg.y).normalize();
+            const r = lerp(0.06, 0.012, u) * yoff;
+            const l = (i % 2 ? 0.045 : 0.07) * (1 - 0.4 * u);
+            list.push(spike(p.clone().addScaledVector(inward, r * 0.55), inward.clone().addScaledVector(tg, 0.35), l, 0.016));
+          }
+          parent.add(mesh(mergeGeos(list), hotMat, false));
+        };
+        teeth(low.c, clawIn, 1, 7, 0.18, 0.82, 1);
+        teeth(up.c, jawPivot, -1, 6, 0.2, 0.82, 1);
+        const outer = [];
+        [0.3, 0.5, 0.68].forEach(u => {
+          const p = up.c.getPointAt(u);
+          outer.push(spike(p.clone().add(V3(0, lerp(0.035, 0.012, u), 0)), V3(0, 1, -0.5), 0.07, 0.018, 4));
+        });
+        [0.35, 0.6].forEach(u => {
+          const p = low.c.getPointAt(u);
+          outer.push(spike(p.clone().add(V3(0, -lerp(0.035, 0.012, u), 0)), V3(0, -1, -0.4), 0.06, 0.016, 4));
+        });
+        jawPivot.add(mesh(mergeGeos(outer.slice(0, 3)), shellMat));
+        clawIn.add(mesh(mergeGeos(outer.slice(3)), shellMat));
+      }
+      const horn = add(head, new THREE.Group());
+      {
+        const p0 = HP(0, 0.3);
+        const pts = [p0.clone().addScaledVector(HN(p0), -0.03), p0.clone().add(V3(0, 0.14, 0.1)), V3(0, HH + 0.3, HD * 0.55), V3(0, HH + 0.5, HD * 0.1), V3(0, HH + 0.56, -HD * 0.45)];
+        const { g, c } = tubeGeo(pts, (u, v) => {
+          const a = v * TAU;
+          return lerp(0.085, 0.012, Math.pow(u, 0.8)) * (0.8 + 0.2 * Math.abs(Math.sin(a)));
+        }, 40, 16);
+        horn.add(mesh(g, shellMat));
+        const tip = c.getPointAt(0.82);
+        [-1, 1].forEach(sg => {
+          const f = tubeGeo([tip.clone(), tip.clone().add(V3(sg * 0.05, 0.04, -0.03)), tip.clone().add(V3(sg * 0.1, 0.1, -0.02))], u => lerp(0.022, 0.003, u), 14, 8).g;
+          horn.add(mesh(f, shellMat));
+        });
+        [0.25, 0.45].forEach(u => {
+          const p = c.getPointAt(u);
+          const sp = mesh(new THREE.ConeGeometry(0.022, 0.07, 4), shellMat);
+          sp.position.copy(p).add(V3(0, 0, 0.05));
+          sp.rotation.x = 1.1;
+          horn.add(sp);
+        });
+        [-1, 1].forEach(sg => {
+          const b = onHeadRing(0.55, Math.PI + sg * 0.5);
+          const pts2 = [b, b.clone().add(V3(sg * 0.06, 0.1, -0.06)), b.clone().add(V3(sg * 0.18, 0.2, -0.2)), b.clone().add(V3(sg * 0.34, 0.24, -0.38)), b.clone().add(V3(sg * 0.48, 0.2, -0.5))];
+          const { g: ag, c: ac } = tubeGeo(pts2, u => lerp(0.016, 0.006, u) * (1 + 0.25 * Math.max(0, Math.sin(u * 40))), 50, 8);
+          horn.add(mesh(ag, darkSteel));
+          const club = mesh(new THREE.SphereGeometry(0.022, 10, 8), castMat);
+          club.position.copy(ac.getPointAt(1));
+          club.scale.set(1, 1, 1.8);
+          horn.add(club);
+        });
+      }
+      const hexes = add(torso, new THREE.Group());
+      {
+        const R = 0.05;
+        const list = [];
+        for (let q = -4; q <= 4; q++)
+          for (let r = -3; r <= 3; r++) {
+            const x = R * 1.75 * (q + r / 2);
+            const y = R * 1.52 * r;
+            const d = Math.hypot(x, y * 1.1);
+            if (d < 0.19 || d > 0.34 || y < -0.16) continue;
+            const yy = PY + y;
+            const a = x / Math.max(0.2, rOf(yy));
+            const n = TN(a, yy);
+            const g = new THREE.CylinderGeometry(R * 0.9, R * 0.95, 0.022, 6);
+            g.rotateY(Math.PI / 6);
+            g.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(V3(0, 1, 0), n)));
+            const pp = TP(a, yy).addScaledVector(n, 0.004);
+            g.translate(pp.x, pp.y, pp.z);
+            list.push(g);
+          }
+        hexes.add(mesh(mergeGeos(list), shellMat));
+      }
+      const elytra = add(torso, new THREE.Group());
+      {
+        [-1, 1].forEach(sg => {
+          const NA = 16;
+          const NY = 18;
+          const pos = [];
+          const idx = [];
+          for (let j = 0; j <= NY; j++)
+            for (let i = 0; i <= NA; i++) {
+              const v = j / NY;
+              const u = i / NA;
+              const y = lerp(1.1, 0.34, v);
+              const w = 0.95 * Math.sin(Math.PI * Math.min(1, 0.25 + v * 0.95)) * (1 - 0.15 * v);
+              const a = Math.PI + sg * (0.04 + u * w);
+              const p = TP(a, y).addScaledVector(TN(a, y), 0.04 + 0.05 * Math.sin(Math.PI * u) * Math.sin(Math.PI * v));
+              pos.push(p.x, p.y, p.z);
+            }
+          for (let j = 0; j < NY; j++)
+            for (let i = 0; i < NA; i++) {
+              const a = j * (NA + 1) + i;
+              if (sg > 0) idx.push(a, a + 1, a + NA + 1, a + 1, a + NA + 2, a + NA + 1);
+              else idx.push(a, a + NA + 1, a + 1, a + 1, a + NA + 1, a + NA + 2);
+            }
+          const g = new THREE.BufferGeometry();
+          g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+          g.setIndex(idx);
+          g.computeVertexNormals();
+          elytra.add(mesh(g, shellMat));
+          const seam = [];
+          for (let j = 0; j <= NY; j++) {
+            const y = lerp(1.1, 0.34, j / NY);
+            const a = Math.PI + sg * 0.04;
+            seam.push(TP(a, y).addScaledVector(TN(a, y), 0.045));
+          }
+          elytra.add(mesh(tubeGeo(seam, () => 0.012, 30, 6).g, castMat));
+          [0.3, 0.55, 0.8].forEach((f, k) => {
+            const ln = [];
+            for (let j = 2; j <= NY - 2; j++) {
+              const v = j / NY;
+              const y = lerp(1.1, 0.34, v);
+              const w = 0.95 * Math.sin(Math.PI * Math.min(1, 0.25 + v * 0.95)) * (1 - 0.15 * v);
+              const a = Math.PI + sg * (0.04 + f * w);
+              ln.push(TP(a, y).addScaledVector(TN(a, y), 0.04 + 0.05 * Math.sin(Math.PI * f) * Math.sin(Math.PI * v) + 0.006));
+            }
+            elytra.add(mesh(tubeGeo(ln, u => 0.007 * Math.sin(Math.PI * u), 30, 6).g, hotMat));
+          });
+          const mem = new THREE.Shape();
+          mem.moveTo(0, 0);
+          mem.quadraticCurveTo(0.2, -0.05, 0.42, -0.32);
+          mem.quadraticCurveTo(0.3, -0.42, 0.08, -0.36);
+          mem.quadraticCurveTo(0.02, -0.2, 0, 0);
+          const mg = new THREE.ShapeGeometry(mem, 10);
+          const wm = mesh(mg, wingMemMat, false);
+          const base = TP(Math.PI + sg * 0.5, 0.42).addScaledVector(TN(Math.PI + sg * 0.5, 0.42), 0.03);
+          wm.position.copy(base);
+          wm.rotation.set(0.25, Math.PI + sg * 0.35, 0);
+          wm.scale.set(-sg, 1, 1);
+          elytra.add(wm);
+        });
+      }
+      const pron = add(socket, new THREE.Group());
+      {
+        pron.position.set(0.03, 0.04, 0);
+        pron.rotation.z = -0.4;
+        const sh = mesh(new THREE.SphereGeometry(0.22, 36, 16, 0, TAU, 0, Math.PI * 0.45), shellMat);
+        sh.scale.set(1, 0.8, 1.12);
+        pron.add(sh);
+        const rim = mesh(new THREE.TorusGeometry(0.2, 0.014, 6, 32), castMat);
+        rim.rotation.x = Math.PI / 2;
+        rim.scale.set(1, 1.12, 1);
+        rim.position.y = 0.06;
+        pron.add(rim);
+        const hp = tubeGeo([V3(0.0, 0.16, 0.0), V3(0.05, 0.27, 0.03), V3(0.14, 0.33, 0.07), V3(0.22, 0.32, 0.1)], u => lerp(0.045, 0.004, u), 20, 10).g;
+        pron.add(mesh(hp, shellMat));
+        [-1, 1].forEach(sg => {
+          const sp = mesh(new THREE.ConeGeometry(0.025, 0.1, 4), shellMat);
+          sp.position.set(0.1, 0.1, sg * 0.14);
+          sp.rotation.set(sg * 0.9, 0, -0.6);
+          pron.add(sp);
+        });
+        [-1, 0, 1].forEach(k => {
+          const ln = mesh(new THREE.TorusGeometry(0.13 + Math.abs(k) * 0.03, 0.006, 6, 20, 1.2), hotMat, false);
+          ln.position.y = 0.155 - Math.abs(k) * 0.02;
+          ln.rotation.set(-Math.PI / 2, 0, k * 0.6 - 0.6);
+          pron.add(ln);
+        });
+      }
+      const legSp = [0, 1].map(i => add(legs[i], new THREE.Group()));
+      {
+        [-1, 1].forEach((s, i) => {
+          const lc = new THREE.CatmullRomCurve3([V3(-s * 0.09, 0.07, -0.02), V3(0, 0, 0), V3(s * 0.1, -0.08 * LEGL, 0.06), V3(s * 0.17, -0.22 * LEGL, 0.13), V3(s * 0.2, -0.38 * LEGL, 0.08), V3(s * 0.215, -0.56 * LEGL, -0.01)]);
+          const radL = u => {
+            const knee = 0.012 * Math.exp(-Math.pow((u - 0.52) / 0.1, 2));
+            const r = u < 0.58 ? lerp(0.1, 0.08, u / 0.58) : 0.08 * (1 - Math.pow((u - 0.58) / 0.42, 1.4));
+            return Math.max(0.003, r + knee);
+          };
+          const list = [];
+          [0.62, 0.7, 0.78, 0.86].forEach((u, k) => {
+            const t = lc.getTangentAt(u);
+            const b = V3(0, 0, -1).addScaledVector(t, t.z).normalize();
+            list.push(spike(lc.getPointAt(u).addScaledVector(b, radL(u) * 0.8), b.clone().addScaledVector(t, -0.6), 0.09 - k * 0.012, 0.02, 4));
+          });
+          legSp[i].add(mesh(mergeGeos(list), shellMat));
+        });
+      }
+      const forceps = add(tailTip, new THREE.Group());
+      {
+        const base = mesh(new THREE.SphereGeometry(0.055, 16, 12), shellMat);
+        base.scale.set(1.4, 0.8, 1.2);
+        forceps.add(base);
+        [-1, 1].forEach(sg => {
+          const g = tubeGeo([V3(sg * 0.03, 0, 0.02), V3(sg * 0.09, 0, 0.12), V3(sg * 0.08, 0, 0.26), V3(sg * 0.02, 0, 0.36), V3(-sg * 0.03, 0.0, 0.38)], (u, v) => lerp(0.04, 0.004, Math.pow(u, 0.9)) * (0.6 + 0.4 * Math.abs(Math.cos(v * TAU))), 30, 12).g;
+          forceps.add(mesh(g, shellMat));
+          const tl = [];
+          [0.35, 0.55].forEach(z => tl.push(spike(V3(sg * 0.075, 0, z * 0.7 + 0.04), V3(-sg, 0, 0.3), 0.04, 0.012, 4)));
+          forceps.add(mesh(mergeGeos(tl), hotMat, false));
+        });
+        forceps.scale.setScalar(1.2);
+      }
+      const shock = new THREE.Mesh(new THREE.TorusGeometry(1, 0.07, 6, 48), orbMat);
+      shock.rotation.x = Math.PI / 2;
+      shock.visible = false;
+      big.add(shock);
+      let dir = V3(0, 0, 1);
+      const want = V3(0, 0, 1);
+      let open = 0.2;
+      let hitAt = V3();
+      return {
+        customTail: true,
+        set: on => {
+          K.set(on);
+          if (!on) shock.visible = false;
+          orb.visible = false;
+        },
+        style(shiny) {
+          shellMat.color.setHex(shiny ? 0x6a2a8a : 0x24401c);
+          plateMat.color.setHex(shiny ? 0x8a4ab0 : 0x4a7a1c);
+        },
+        rest(S, t, motion) {
+          S.hL.set(0.98, TIP + 0.6, 0.5).add(V3(0, Math.sin(t * 1.4 + 1.2) * 0.02 * motion, 0));
+          want.set(0.3, -0.3, 1);
+          S.claw = 0.18 + 0.14 * Math.max(0, Math.sin(t * 1.7)) * Math.max(0, Math.sin(t * 5.3)) * motion;
+          S.spinY -= 0.06;
+        },
+        act(nm, p, S) {
+          if (nm === "swipe") {
+            const wind = smooth(0.04, 0.3, p) * (1 - smooth(0.34, 0.42, p));
+            const strike = smooth(0.34, 0.44, p) * (1 - smooth(0.74, 0.95, p));
+            S.hL.lerp(V3(0.92, TIP + 1.05, -0.15), wind);
+            want.lerp(V3(0.35, 0.3, 0.6), wind);
+            S.hL.lerp(V3(0.3, TIP + 0.95, 1.0), strike);
+            want.lerp(V3(-0.1, -0.05, 1), strike);
+            S.claw = 0.2 + 0.85 * smooth(0.04, 0.32, p) * (1 - smooth(0.4, 0.46, p));
+            S.spinY += 0.3 * wind - 0.35 * strike;
+            S.lean += -0.06 * wind + 0.16 * strike;
+            S.glow = 0.5 * wind + 0.8 * strike;
+            S.impact = p > 0.44 && p < 0.6 ? 1 - smooth(0.44, 0.6, p) : 0;
+            S.sparkK = p > 0.44 && p < 0.7 ? smooth(0.44, 0.7, p) : -1;
+            S.mouthK = 0.6 * strike;
+            return true;
+          }
+          if (nm === "fling") {
+            const raise = smooth(0.04, 0.42, p) * (1 - smooth(0.48, 0.56, p));
+            const slam = smooth(0.5, 0.6, p) * (1 - smooth(0.8, 0.98, p));
+            S.hL.lerp(V3(1.0, TIP + 1.55, 0.15), raise);
+            want.lerp(V3(0.45, 0.75, 0.45), raise);
+            S.hL.lerp(V3(0.32, TIP + 0.55, 0.95), slam);
+            want.lerp(V3(0, -0.75, 0.65), slam);
+            S.hR.lerp(V3(-0.8, TIP + 1.15, 0.2), raise);
+            S.claw = 0.2 + 1.0 * smooth(0.04, 0.4, p) * (1 - smooth(0.55, 0.6, p));
+            S.orbK = smooth(0.1, 0.5, p) * (1 - smooth(0.56, 0.6, p));
+            S.lean += -0.12 * raise + 0.28 * slam;
+            S.hover += 0.14 * raise - 0.1 * slam;
+            S.squash = 1 + 0.04 * raise - 0.06 * slam;
+            S.glow = 1.3 * raise + 0.9 * slam;
+            S.flash = 0.7 * raise + 0.7 * slam;
+            S.waveK = p > 0.58 && p < 0.97 ? smooth(0.58, 0.97, p) : -1;
+            S.impact = p > 0.58 && p < 0.76 ? 1 - smooth(0.58, 0.76, p) : 0;
+            S.sparkK = p > 0.58 && p < 0.85 ? smooth(0.58, 0.85, p) : -1;
+            S.headPitch += 0.18 * slam - 0.12 * raise;
+            S.mouthK = 0.8 * slam;
+            S.legK = 0.5 * raise;
+            return true;
+          }
+          if (nm === "spin") {
+            S.hL.lerp(V3(0.95, TIP + 0.95, 0.05), S.spinK);
+            want.lerp(V3(1, 0.05, 0.1), S.spinK);
+            S.claw = 0.2 + 0.6 * S.spinK;
+          }
+          if (nm === "jump") {
+            S.hL.lerp(V3(1.02, TIP + 1.0, 0.35), S.air);
+            want.lerp(V3(0.55, 0.45, 0.65), S.air);
+            S.claw = 0.2 + 0.5 * S.air;
+          }
+          return false;
+        },
+        arm(S, t, motion) {
+          dir.lerp(want.clone().normalize(), 0.5).normalize();
+          const rad = u => lerp(0.125, 0.085, smooth(0.3, 0.9, u));
+          const c = moltenArm(arm, shoulders[1], S.hL, t, motion, rad, 0.7);
+          segs.forEach(sg => {
+            const p = c.getPointAt(sg.u);
+            const tg = c.getTangentAt(sg.u);
+            const up = V3(0, 1, 0).addScaledVector(tg, -tg.y);
+            if (up.lengthSq() < 1e-3) up.set(1, 0, 0);
+            up.normalize();
+            const x = up.clone().cross(tg).normalize();
+            sg.g.position.copy(p);
+            sg.g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, up, tg).multiply(new THREE.Matrix4().makeRotationX(Math.PI / 2)));
+            const rr = rad(sg.u) * (1 + 0.04 * Math.sin(t * 3 + sg.u * 9) * motion);
+            sg.g.scale.set(rr, 0.11, rr);
+          });
+          const stubEnd = c.getPointAt(1).addScaledVector(c.getTangentAt(1), 0.04);
+          const z = dir.clone();
+          let x = V3(0, 1, 0).cross(z);
+          if (x.lengthSq() < 1e-3) x = V3(1, 0, 0);
+          x.normalize();
+          const y = z.clone().cross(x).normalize();
+          claw.position.copy(stubEnd);
+          claw.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+          open = lerp(open, S.claw === undefined ? 0.2 : S.claw, 0.45);
+          jawPivot.rotation.x = -open * 0.75;
+          const ok = S.orbK || 0;
+          orb.visible = ok > 0.02;
+          if (orb.visible) {
+            orbMat.color.copy(trailMat.color);
+            orbMat.opacity = 0.75 * ok;
+            orb.scale.setScalar(0.03 + 0.08 * ok * (1 + 0.15 * Math.sin(t * 25)));
+          }
+        },
+        fx(S, nm) {
+          claw.updateMatrixWorld(true);
+          const tip = big.worldToLocal(clawIn.localToWorld(V3(0, 0.03, 0.66)));
+          if (nm === "swipe")
+            trail.forEach((a, i) => {
+              a.position.copy(shoulders[1]);
+              a.rotation.set(0, Math.PI / 2, 0.75 + i * 0.05);
+              a.scale.setScalar(1.3 + i * 0.05);
+            });
+          if (S.waveK >= 0 && S.waveK < 0.03) hitAt = tip.clone();
+          shock.visible = S.waveK >= 0;
+          if (shock.visible) {
+            const k = 0.2 + S.waveK * 1.8;
+            shock.position.set(hitAt.x, 0.04, hitAt.z);
+            shock.scale.set(k, k, 1 + S.waveK);
+            orbMat.color.copy(trailMat.color);
+            orbMat.opacity = 0.85 * (1 - S.waveK);
+          }
+          return tip;
+        },
+        hide() {
+          shock.visible = false;
+          orb.visible = false;
+        }
+      };
+    })();
+
+    const KITS = { steel: hammerKit, fire: swordKit, water: tridentKit, grass: bowKit, dragon: dragonKit, fighting: fistKit, ice: iceKit, poison: poisonKit, bug: bugKit };
     let kitNow = hammerKit;
 
     const food = berry();
@@ -4049,7 +4468,7 @@ Pets.register({
       const half = kitNow === bowKit || kitNow === dragonKit;
       browFull.visible = !half;
       browHalf.visible = half;
-      crestM.visible = kitNow !== dragonKit && kitNow !== fistKit;
+      crestM.visible = kitNow !== dragonKit && kitNow !== fistKit && kitNow !== bugKit;
 
       restyle();
     };
