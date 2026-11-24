@@ -3403,19 +3403,17 @@ Pets.register({
         top.position.z = HZ + 0.22;
         axe.add(top);
         const sh = new THREE.Shape();
-        sh.moveTo(0.06, 0.075);
-        sh.quadraticCurveTo(0.2, 0.08, 0.3, 0.17);
-        sh.quadraticCurveTo(0.36, 0.23, 0.42, 0.29);
-        sh.quadraticCurveTo(0.56, 0.0, 0.42, -0.29);
-        sh.quadraticCurveTo(0.36, -0.23, 0.3, -0.17);
-        sh.quadraticCurveTo(0.2, -0.08, 0.06, -0.075);
-        sh.lineTo(0.06, 0.075);
+        sh.moveTo(0.06, 0.065);
+        sh.quadraticCurveTo(0.27, 0.06, 0.33, 0.39);
+        sh.quadraticCurveTo(0.67, -0.01, 0.33, -0.45);
+        sh.quadraticCurveTo(0.27, -0.065, 0.06, -0.065);
+        sh.lineTo(0.06, 0.065);
         const bg = new THREE.ExtrudeGeometry(sh, { depth: 0.06, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.012, bevelSegments: 2, curveSegments: 14 });
         bg.translate(0, 0, -0.03);
         const q = bg.attributes.position;
         for (let i = 0; i < q.count; i++) {
           const x = q.getX(i);
-          const k = lerp(1, 0.22, smooth(0.16, 0.5, x));
+          const k = lerp(1, 0.22, smooth(0.14, 0.48, x));
           q.setZ(i, q.getZ(i) * k);
         }
         bg.rotateX(Math.PI / 2);
@@ -3426,7 +3424,7 @@ Pets.register({
         axe.add(mesh(bg, castMat), mesh(bm, castMat));
         const ic = [];
         [-1, 1].forEach(sg => {
-          [[0.4, -0.27, 0.1], [0.34, -0.22, 0.07], [0.45, -0.2, 0.06]].forEach(([x, z, l]) => ic.push(spike(V3(sg * x, 0, HZ + z), V3(0, 0, -1), l, 0.018)));
+          [[0.305, -0.34, 0.08], [0.275, -0.25, 0.07], [0.2, -0.125, 0.05]].forEach(([x, z, l]) => ic.push(spike(V3(sg * x, 0, HZ + z), V3(0, 0, -1), l, 0.016)));
         });
         axe.add(mesh(mergeGeos(ic), iceMat, false));
         const furG = tubeGeo([V3(0, 0, 0.5), V3(0, 0, 0.56), V3(0, 0, 0.62), V3(0, 0, 0.68), V3(0, 0, 0.72)], (u, v) => {
@@ -3611,8 +3609,8 @@ Pets.register({
             wraps[i].scale.setScalar(rad(u) + 0.008);
           });
           const z = dir.clone();
-          let x = V3(0, 1, 0).cross(z);
-          if (x.lengthSq() < 1e-3) x = V3(1, 0, 0);
+          let x = V3(1, 0, 0).addScaledVector(z, -z.x);
+          if (x.lengthSq() < 1e-3) x = V3(0, 0, 1).addScaledVector(z, -z.z);
           x.normalize();
           const y = z.clone().cross(x).normalize();
           axe.position.copy(stubEnd);
@@ -3623,7 +3621,7 @@ Pets.register({
         },
         fx(S, nm) {
           axe.updateMatrixWorld(true);
-          const edge = big.worldToLocal(axe.localToWorld(V3(0.47, 0, HZ)));
+          const edge = big.worldToLocal(axe.localToWorld(V3(0.5, 0, HZ)));
           if (nm === "swipe")
             trail.forEach((a, i) => {
               a.position.copy(shoulders[1]);
