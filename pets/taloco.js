@@ -789,6 +789,7 @@ Pets.register({
       tailTip.add(collarT);
     }
     const tailRad = u => Math.max(0.006, lerp(0.12, 0.024, Math.pow(u, 0.85)));
+    const baseTailParts = tailTip.children.slice();
 
     const castMat = new THREE.MeshStandardMaterial({ color: 0xffffff, map: castTex, emissive: 0xffffff, emissiveMap: castGlowTex, emissiveIntensity: 0.9, roughness: 0.32, metalness: 0.55 });
     if (!moltenTex) castMat.color.set(0x6e757d);
@@ -1486,11 +1487,10 @@ Pets.register({
       bodyG.add(jet);
       let dir = V3(0, 1, 0);
       const want = V3(0, 1, 0);
-      const baseTail = tailTip.children.filter(c => c !== fluke);
       return {
+        customTail: true,
         set: on => {
           K.set(on);
-          baseTail.forEach(c => (c.visible = !on));
           if (!on) {
             splash.visible = false;
             jet.visible = false;
@@ -2867,7 +2867,6 @@ Pets.register({
         rib.scale.set(1, 1, 0.5);
         spade.add(rib);
       }
-      const baseTail = tailTip.children.filter(ch => ch !== spade);
       const beam = new THREE.Mesh((() => {
         const g = new THREE.ConeGeometry(1, 1, 20, 1, true);
         g.translate(0, -0.5, 0);
@@ -2896,9 +2895,9 @@ Pets.register({
         orbs.forEach(o => (o.m.visible = false));
       };
       return {
+        customTail: true,
         set: on => {
           K.set(on);
-          baseTail.forEach(ch => (ch.visible = !on));
           if (!on) hideFx();
         },
         style(shiny) {
@@ -3463,6 +3462,27 @@ Pets.register({
         });
         frost.add(mesh(mergeGeos(parts), iceMat, false));
       }
+      const iceTail = add(tailTip, new THREE.Group());
+      {
+        const parts = [];
+        const cr = (d, len, r, back = 0) => {
+          const dn = d.clone().normalize();
+          const at = dn.clone().multiplyScalar(back);
+          parts.push(spike(at, dn, len, r, 6));
+          const b = new THREE.ConeGeometry(r, r * 1.3, 6);
+          b.rotateX(Math.PI);
+          b.translate(0, -r * 0.55, 0);
+          b.applyMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(new THREE.Quaternion().setFromUnitVectors(V3(0, 1, 0), dn)));
+          b.translate(at.x, at.y, at.z);
+          parts.push(b);
+        };
+        cr(V3(0, 0.05, 1), 0.34, 0.05, 0.02);
+        [[0.55, 0.5, 1, 0.21, 0.036], [-0.55, 0.45, 1, 0.19, 0.034], [0.15, 0.8, 0.6, 0.17, 0.032], [0.75, -0.15, 0.8, 0.15, 0.03], [-0.75, -0.1, 0.8, 0.14, 0.03], [-0.2, 0.9, 0.4, 0.13, 0.026], [0.0, -0.6, 0.7, 0.1, 0.024]].forEach(([x, y, z, len, r]) => cr(V3(x, y, z), len, r, 0.01));
+        iceTail.add(mesh(mergeGeos(parts), iceMat, false));
+        const collar = mesh(new THREE.TorusGeometry(0.034, 0.014, 8, 20), castMat);
+        iceTail.add(collar);
+        iceTail.scale.setScalar(1.3);
+      }
       const mantle = add(socket, new THREE.Group());
       {
         mantle.position.set(0.0, 0.05, 0);
@@ -3515,6 +3535,7 @@ Pets.register({
       let fwdBig = V3(0, 0, 1);
       let hitBig = V3(0, 0, 1);
       return {
+        customTail: true,
         set: on => {
           K.set(on);
           if (!on) spikes.forEach(s => (s.m.visible = false));
@@ -3659,6 +3680,7 @@ Pets.register({
       breathMat.color.copy(hotC);
       kitNow = KITS[coreType || "steel"] || null;
       Object.values(KITS).forEach(k => k.set(k === kitNow));
+      baseTailParts.forEach(c => (c.visible = !(kitNow && kitNow.customTail)));
       const half = kitNow === bowKit || kitNow === dragonKit;
       browFull.visible = !half;
       browHalf.visible = half;
