@@ -536,10 +536,7 @@ Pets.register({
       const g = new THREE.Group();
       g.position.set(s * 0.15, TIP + 0.3, 0.03);
       bodyG.add(g);
-      g.userData.base = buildLeg(s, 1);
-      g.userData.long = buildLeg(s, LEGL);
-      g.userData.long.visible = false;
-      g.add(g.userData.base, g.userData.long);
+      g.add(buildLeg(s, LEGL));
       return g;
     });
 
@@ -1465,7 +1462,7 @@ Pets.register({
         waves.add(end);
       });
       const legFin = add(legs[1], new THREE.Group());
-      fin(legFin, 4, 0.27, 0.2, 1.35, V3(0, -0.35, -1), V3(1, 0.2, 0), V3(0.235, -0.34, 0.02));
+      fin(legFin, 4, 0.27, 0.2, 1.35, V3(0, -0.35, -1), V3(1, 0.2, 0), V3(0.25, -0.34 * LEGL, 0.02));
       const fluke = add(tailTip, new THREE.Group());
       [-1, 1].forEach(sg => {
         const lobe = mesh(new THREE.SphereGeometry(0.1, 18, 10), plateMat);
@@ -3095,10 +3092,7 @@ Pets.register({
       browFull.visible = !half;
       browHalf.visible = half;
       crestM.visible = kitNow !== dragonKit;
-      legs.forEach(g => {
-        g.userData.base.visible = kitNow !== dragonKit;
-        g.userData.long.visible = kitNow === dragonKit;
-      });
+
       restyle();
     };
 
