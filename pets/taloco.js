@@ -3846,7 +3846,7 @@ Pets.register({
             x.normalize();
             const y = d.clone().cross(x).normalize();
             T.st.position.copy(e);
-            T.st.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, d));
+            T.st.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x.negate(), y.negate(), d));
           });
         },
         fx(S, nm, p, t) {
