@@ -3051,7 +3051,294 @@ Pets.register({
       };
     })();
 
-    const KITS = { steel: hammerKit, fire: swordKit, water: tridentKit, grass: bowKit, dragon: dragonKit };
+    const fistKit = (() => {
+      const K = makeKit();
+      const { add } = K;
+      const arm = dyn(moltenMat);
+      K.parts.push(arm);
+      const wraps = [0.6, 0.71, 0.82].map(() => add(bodyG, mesh(new THREE.TorusGeometry(1, 0.17, 8, 28), castMat)));
+      const fist = add(bodyG, new THREE.Group());
+      const fistIn = new THREE.Group();
+      fist.add(fistIn);
+      const FZ = 0.26;
+      {
+        const g = new THREE.SphereGeometry(1, 44, 32);
+        const q = g.attributes.position;
+        const f = v => Math.sign(v) * Math.pow(Math.abs(v), 0.55);
+        for (let i = 0; i < q.count; i++) {
+          const x = f(q.getX(i));
+          const y = f(q.getY(i));
+          const z = f(q.getZ(i));
+          const k = (z + 1) / 2;
+          q.setXYZ(i, x * 0.25 * lerp(0.82, 1, k), y * 0.2 * lerp(0.9, 1, k), z * 0.24 + FZ);
+        }
+        g.computeVertexNormals();
+        fistIn.add(mesh(g, castMat));
+        [-0.165, -0.055, 0.055, 0.165].forEach((x, i) => {
+          const kn = mesh(new THREE.SphereGeometry(0.072, 20, 14), castMat);
+          kn.scale.set(1, 0.78, 0.86);
+          kn.position.set(x, 0.135, FZ + 0.2 - 0.016 * Math.abs(i - 1.5));
+          fistIn.add(kn);
+        });
+        [-0.11, 0, 0.11].forEach(x => {
+          const sf = mesh(new THREE.BoxGeometry(0.012, 0.13, 0.012), hotMat, false);
+          sf.position.set(x, -0.02, FZ + 0.232);
+          fistIn.add(sf);
+          const st = mesh(new THREE.BoxGeometry(0.012, 0.012, 0.12), hotMat, false);
+          st.position.set(x, 0.19, FZ + 0.06);
+          fistIn.add(st);
+        });
+        const th = tubeGeo([V3(-0.25, -0.02, FZ - 0.08), V3(-0.22, -0.1, FZ + 0.1), V3(-0.12, -0.15, FZ + 0.22), V3(0.0, -0.16, FZ + 0.25)], u => 0.068 * (1 - 0.3 * u), 30, 14);
+        fistIn.add(mesh(th.g, castMat));
+        const tipT = mesh(new THREE.SphereGeometry(0.048, 16, 12), castMat);
+        tipT.position.set(0.0, -0.16, FZ + 0.25);
+        fistIn.add(tipT);
+        const flare = mesh(new THREE.LatheGeometry([V2(0.118, -0.2), V2(0.124, -0.14), V2(0.138, -0.08), V2(0.158, -0.03), V2(0.172, 0.01), V2(0.17, 0.04)], 32), moltenMat);
+        flare.rotation.x = Math.PI / 2;
+        fistIn.add(flare);
+        const cuff = mesh(new THREE.TorusGeometry(0.178, 0.038, 10, 32), castMat);
+        cuff.position.z = 0.02;
+        fistIn.add(cuff);
+        const cuff2 = mesh(new THREE.TorusGeometry(0.176, 0.016, 8, 32), darkSteel);
+        cuff2.position.z = 0.075;
+        fistIn.add(cuff2);
+      }
+      const band = add(head, new THREE.Group());
+      const bandY = a => 0.7 - 0.14 * (1 - Math.cos(a)) / 2;
+      const knotP = onHeadRing(bandY(Math.PI), Math.PI);
+      {
+        const N = 72;
+        const pts = [];
+        for (let i = 0; i <= N; i++) {
+          const a = (i / N) * TAU;
+          pts.push(onHeadRing(bandY(a), a));
+        }
+        band.add(mesh(strip(pts, pts.map(HN), () => 0.058, () => 0.036), castMat));
+        const n = HN(knotP);
+        const kn = mesh(new THREE.SphereGeometry(0.055, 18, 14), castMat);
+        kn.scale.set(1.3, 0.9, 0.75);
+        kn.position.copy(knotP).addScaledVector(n, 0.04);
+        band.add(kn);
+        [-1, 1].forEach(sg => {
+          const lp = mesh(new THREE.TorusGeometry(0.03, 0.016, 8, 18), castMat);
+          lp.position.copy(knotP).addScaledVector(n, 0.045).add(V3(sg * 0.07, 0.01, 0));
+          lp.rotation.set(0, Math.PI / 2 - sg * 0.5, sg * 0.5);
+          band.add(lp);
+        });
+        [-0.9, -0.4, 0.4, 0.9].forEach((a, i) => {
+          const y = bandY(a) - 0.16 - (i % 2) * 0.05;
+          const pp = onHeadRing(y, a);
+          const dr = mesh(dropGeo, castMat);
+          dr.position.copy(pp).addScaledVector(HN(pp), 0.012);
+          dr.scale.set(0.8, 1.2 + (i % 2) * 0.5, 0.8);
+          band.add(dr);
+        });
+      }
+      const tails = [-1, 1].map(sg => {
+        const m = dyn(castMat);
+        K.parts.push(m);
+        return { m, sg };
+      });
+      const belt = add(torso, new THREE.Group());
+      {
+        const BY = 0.22;
+        const N = 72;
+        const pts = [];
+        for (let i = 0; i <= N; i++) pts.push([(i / N) * TAU, BY]);
+        belt.add(mesh(strip(pts.map(([a, y]) => TP(a, y)), pts.map(([a, y]) => TN(a, y)), () => 0.06, () => 0.03), castMat));
+        const plate = new THREE.Group();
+        const P = TP(0, BY + 0.01);
+        const n = TN(0, BY + 0.01);
+        plate.position.copy(P).addScaledVector(n, 0.03);
+        plate.quaternion.setFromUnitVectors(V3(0, 0, 1), n);
+        belt.add(plate);
+        const disc = mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.04, 40), castMat);
+        disc.rotation.x = Math.PI / 2;
+        disc.scale.set(1.35, 1, 0.95);
+        plate.add(disc);
+        const rim = mesh(new THREE.TorusGeometry(0.13, 0.016, 8, 40), plateMat);
+        rim.scale.set(1.35, 0.95, 1);
+        rim.position.z = 0.02;
+        plate.add(rim);
+        const sh = new THREE.Shape();
+        for (let k = 0; k < 10; k++) {
+          const a = Math.PI / 2 + (k * Math.PI) / 5;
+          const r = k % 2 ? 0.032 : 0.075;
+          sh[k ? "lineTo" : "moveTo"](Math.cos(a) * r, Math.sin(a) * r);
+        }
+        const star = mesh(new THREE.ExtrudeGeometry(sh, { depth: 0.016, bevelEnabled: true, bevelThickness: 0.006, bevelSize: 0.006, bevelSegments: 1 }), plateMat);
+        star.position.z = 0.02;
+        plate.add(star);
+        [-1, 1].forEach(sg => {
+          const a = sg * 0.95;
+          const sp = new THREE.Group();
+          sp.position.copy(TP(a, BY)).addScaledVector(TN(a, BY), 0.03);
+          sp.quaternion.setFromUnitVectors(V3(0, 0, 1), TN(a, BY));
+          belt.add(sp);
+          const d = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.03, 24), castMat);
+          d.rotation.x = Math.PI / 2;
+          d.scale.set(1, 1.2, 1);
+          sp.add(d);
+          const r2 = mesh(new THREE.TorusGeometry(0.06, 0.01, 6, 24), plateMat);
+          r2.scale.set(1, 1.2, 1);
+          r2.position.z = 0.016;
+          sp.add(r2);
+        });
+      }
+      const frameP = add(port, new THREE.Group());
+      {
+        const oct = mesh(new THREE.TorusGeometry(0.165, 0.03, 6, 8), castMat);
+        oct.rotation.z = Math.PI / 8;
+        oct.position.z = -0.006;
+        frameP.add(oct);
+        for (let k = 0; k < 4; k++) {
+          const a = Math.PI / 4 + (k * Math.PI) / 2;
+          const r = mesh(new THREE.SphereGeometry(0.026, 12, 8), plateMat);
+          r.position.set(Math.cos(a) * 0.165, Math.sin(a) * 0.165, 0.016);
+          frameP.add(r);
+        }
+      }
+      const pad = add(socket, new THREE.Group());
+      {
+        pad.position.set(0.02, 0.04, 0);
+        pad.rotation.z = -0.4;
+        [0, 1, 2].forEach(i => {
+          const sh = mesh(new THREE.SphereGeometry(0.215 - i * 0.025, 32, 12, 0, TAU, 0, Math.PI * 0.4), i === 1 ? plateMat : castMat);
+          sh.scale.set(1, 0.72, 1.08);
+          sh.position.set(0.035 * i, -0.05 * i, 0);
+          pad.add(sh);
+        });
+        const ridge = mesh(new THREE.TorusGeometry(0.175, 0.03, 8, 24, Math.PI), plateMat);
+        ridge.rotation.set(0, Math.PI / 2, 0);
+        ridge.scale.set(1, 0.62, 1);
+        ridge.position.y = 0.02;
+        pad.add(ridge);
+        [-0.12, 0, 0.12].forEach(z => {
+          const rv = mesh(new THREE.SphereGeometry(0.02, 10, 8), plateMat);
+          rv.position.set(0.15, 0.06, z);
+          pad.add(rv);
+        });
+      }
+      const rings = [0, 1, 2].map(() => {
+        const m = new THREE.Mesh(new THREE.TorusGeometry(1, 0.06, 8, 40), trailMat);
+        m.visible = false;
+        big.add(m);
+        return m;
+      });
+      let fistK = 1;
+      return {
+        set: on => {
+          K.set(on);
+          if (!on) rings.forEach(r => (r.visible = false));
+        },
+        style(shiny) {
+          plateMat.color.setHex(shiny ? 0xd08a4a : 0x9c5a3c);
+        },
+        rest(S, t, motion) {
+          S.hL.set(0.78, TIP + 0.5, 0.3).add(V3(0, Math.sin(t * 2.6) * 0.025 * motion, 0));
+          S.hR.set(-0.56, TIP + 0.98, 0.42).add(V3(0, Math.sin(t * 2.6 + 0.8) * 0.02 * motion, 0));
+          S.hover += Math.sin(t * 2.6) * 0.018 * motion;
+          S.lean += 0.06;
+          S.spinY -= 0.12;
+          S.headPitch += 0.1;
+          S.legK = 0.3;
+          S.fistK = 1;
+        },
+        act(nm, p, S) {
+          if (nm === "swipe") {
+            const wind = smooth(0.04, 0.3, p) * (1 - smooth(0.34, 0.42, p));
+            const strike = smooth(0.34, 0.44, p) * (1 - smooth(0.7, 0.95, p));
+            S.hL.lerp(V3(0.72, TIP + 0.92, -0.18), wind);
+            S.hL.lerp(V3(0.16, TIP + 1.02, 1.08), strike);
+            S.hR.lerp(V3(-0.5, TIP + 1.05, 0.5), strike);
+            S.spinY += 0.3 * wind - 0.38 * strike;
+            S.lean += -0.06 * wind + 0.16 * strike;
+            S.glow = 0.5 * wind + 0.8 * strike;
+            S.impact = p > 0.42 && p < 0.6 ? 1 - smooth(0.42, 0.6, p) : 0;
+            S.punchK = p > 0.42 && p < 0.66 ? smooth(0.42, 0.66, p) : -1;
+            S.sparkK = p > 0.42 && p < 0.7 ? smooth(0.42, 0.7, p) : -1;
+            S.mouthK = 0.6 * strike;
+            S.fistK = 1 + 0.08 * strike;
+            return true;
+          }
+          if (nm === "fling") {
+            const charge = smooth(0.04, 0.4, p) * (1 - smooth(0.48, 0.55, p));
+            const blast = smooth(0.5, 0.6, p) * (1 - smooth(0.82, 0.98, p));
+            S.hL.lerp(V3(0.78, TIP + 0.72, -0.28), charge);
+            S.hL.lerp(V3(0.14, TIP + 1.08, 1.12), blast);
+            S.hR.lerp(V3(-0.6, TIP + 1.15, 0.35), charge);
+            S.spinY += 0.4 * charge - 0.45 * blast;
+            S.lean += -0.05 * charge + 0.24 * blast;
+            S.hover += -0.05 * charge + 0.06 * blast;
+            S.squash = 1 - 0.05 * charge + 0.03 * blast;
+            S.legK = Math.max(S.legK, 0.5 * charge + 0.3 * blast);
+            S.glow = 1.4 * charge + 1.0 * blast;
+            S.flash = 0.7 * charge + 0.6 * blast;
+            S.impact = p > 0.58 && p < 0.78 ? 1 - smooth(0.58, 0.78, p) : 0;
+            S.waveK = p > 0.58 && p < 0.98 ? smooth(0.58, 0.98, p) : -1;
+            S.sparkK = p > 0.58 && p < 0.85 ? smooth(0.58, 0.85, p) : -1;
+            S.headPitch += 0.12 * blast - 0.08 * charge;
+            S.mouthK = 0.8 * blast;
+            S.fistK = 1 + 0.32 * charge + 0.22 * blast;
+            return true;
+          }
+          if (nm === "spin") S.hL.lerp(V3(0.95, TIP + 0.95, 0.0), S.spinK);
+          if (nm === "jump") S.hL.lerp(V3(0.42, TIP + 1.85, 0.32), S.air);
+          return false;
+        },
+        arm(S, t, motion) {
+          const rad = u => lerp(0.12, 0.185, smooth(0.2, 1, u));
+          const c = moltenArm(arm, shoulders[1], S.hL, t, motion, rad);
+          [0.6, 0.71, 0.82].forEach((u, i) => {
+            wraps[i].position.copy(c.getPointAt(u));
+            wraps[i].quaternion.setFromUnitVectors(V3(0, 0, 1), c.getTangentAt(u));
+            wraps[i].rotateX(i % 2 ? 0.32 : -0.32);
+            wraps[i].scale.setScalar(rad(u) + 0.006);
+          });
+          const end = c.getPointAt(1);
+          const d = c.getTangentAt(1);
+          const { hx, hy } = frame(d);
+          fist.position.copy(end).addScaledVector(d, 0.1);
+          fist.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(hx, hy, d));
+          fistK = lerp(fistK, S.fistK || 1, 0.35);
+          fistIn.scale.setScalar(1.55 * fistK);
+          head.updateMatrixWorld(true);
+          const kw = bodyG.worldToLocal(head.localToWorld(knotP.clone().addScaledVector(HN(knotP), 0.03)));
+          tails.forEach(T => {
+            const sw = Math.sin(t * 2.1 + T.sg) * 0.04 * motion;
+            const sw2 = Math.sin(t * 2.1 + T.sg - 0.8) * 0.07 * motion;
+            const back = 0.12 * (S.lean > 0.1 ? S.lean * 3 : 0);
+            const pts = [kw, kw.clone().add(V3(T.sg * 0.06, -0.08, -0.08 - back * 0.3)), kw.clone().add(V3(T.sg * 0.11 + sw, -0.26, -0.17 - back * 0.6)), kw.clone().add(V3(T.sg * 0.15 + sw2, -0.46 + back * 0.4, -0.22 - back)), kw.clone().add(V3(T.sg * 0.17 + sw2 * 1.4, -0.62 + back * 0.5, -0.24 - back * 1.2))];
+            flexTube(T.m, pts, (u, v) => (0.034 * (1 - 0.3 * u) - (u > 0.9 ? 0.016 * (u - 0.9) / 0.1 : 0)) * (0.55 + 0.45 * Math.abs(Math.cos(v * TAU))), 24, 10);
+          });
+        },
+        fx(S, nm) {
+          fist.updateMatrixWorld(true);
+          const tip = big.worldToLocal(fistIn.localToWorld(V3(0, 0, FZ + 0.3)));
+          const fwd = big.worldToLocal(fistIn.localToWorld(V3(0, 0, FZ + 1.3))).sub(tip).normalize();
+          const q = new THREE.Quaternion().setFromUnitVectors(V3(0, 0, 1), fwd);
+          rings.forEach((r, i) => {
+            let k = -1;
+            if (nm === "swipe" && S.punchK >= 0 && i === 0) k = S.punchK;
+            if (nm === "fling" && S.waveK >= 0) k = S.waveK - i * 0.14;
+            r.visible = k >= 0 && k <= 1;
+            if (!r.visible) return;
+            const far = nm === "fling" ? k * 2.4 : k * 0.4;
+            r.position.copy(tip).addScaledVector(fwd, far);
+            r.quaternion.copy(q);
+            r.scale.setScalar(nm === "fling" ? 0.18 + k * 0.7 : 0.15 + k * 0.35);
+          });
+          if (nm === "fling" && S.waveK >= 0) S.trailOpacity = 0.8 * (1 - S.waveK);
+          if (nm === "swipe" && S.punchK >= 0) S.trailOpacity = 0.7 * (1 - S.punchK);
+          return tip;
+        },
+        hide() {
+          rings.forEach(r => (r.visible = false));
+        }
+      };
+    })();
+
+    const KITS = { steel: hammerKit, fire: swordKit, water: tridentKit, grass: bowKit, dragon: dragonKit, fighting: fistKit };
     let kitNow = hammerKit;
 
     const food = berry();
@@ -3091,7 +3378,7 @@ Pets.register({
       const half = kitNow === bowKit || kitNow === dragonKit;
       browFull.visible = !half;
       browHalf.visible = half;
-      crestM.visible = kitNow !== dragonKit;
+      crestM.visible = kitNow !== dragonKit && kitNow !== fistKit;
 
       restyle();
     };
