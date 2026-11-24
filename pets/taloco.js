@@ -3141,7 +3141,7 @@ Pets.register({
       });
       const belt = add(torso, new THREE.Group());
       {
-        const BY = 0.22;
+        const BY = 0.52;
         const N = 72;
         const pts = [];
         for (let i = 0; i <= N; i++) pts.push([(i / N) * TAU, BY]);
@@ -3232,7 +3232,7 @@ Pets.register({
           if (!on) rings.forEach(r => (r.visible = false));
         },
         style(shiny) {
-          plateMat.color.setHex(shiny ? 0xd08a4a : 0x9c5a3c);
+          plateMat.color.setHex(shiny ? 0xb8322a : 0xd4a73c);
         },
         rest(S, t, motion) {
           S.hL.set(0.78, TIP + 0.5, 0.3).add(V3(0, Math.sin(t * 2.6) * 0.025 * motion, 0));
