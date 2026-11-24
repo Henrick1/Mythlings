@@ -5098,25 +5098,25 @@ Pets.register({
       K.parts.push(arm);
       const SL = 1.1;
       const scythe = add(bodyG, new THREE.Group());
+      const spineC = new THREE.CubicBezierCurve(V2(-0.03, 0.08), V2(0.5, 0.16), V2(0.9, -0.3), V2(0.8, -1.05));
+      const edgeC = new THREE.CubicBezierCurve(V2(0.8, -1.05), V2(0.72, -0.5), V2(0.42, -0.1), V2(-0.03, -0.07));
       const bladeShape = (() => {
         const sh = new THREE.Shape();
-        sh.moveTo(-0.05, 0.07);
-        sh.quadraticCurveTo(0.42, 0.16, 0.95, -0.36);
-        sh.quadraticCurveTo(0.46, -0.02, -0.05, -0.07);
-        sh.lineTo(-0.05, 0.07);
+        sh.moveTo(-0.03, 0.08);
+        sh.bezierCurveTo(0.5, 0.16, 0.9, -0.3, 0.8, -1.05);
+        sh.bezierCurveTo(0.72, -0.5, 0.42, -0.1, -0.03, -0.07);
+        sh.lineTo(-0.03, 0.08);
         return sh;
       })();
       const toLocal = new THREE.Matrix4().makeBasis(V3(0, 1, 0), V3(0, 0, 1), V3(1, 0, 0));
       const bladeGeo = (() => {
-        const g = new THREE.ExtrudeGeometry(bladeShape, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.01, bevelSegments: 2, curveSegments: 24 });
+        const g = new THREE.ExtrudeGeometry(bladeShape, { depth: 0.03, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.008, bevelSegments: 2, curveSegments: 40 });
         g.translate(0, 0, -0.015);
         const q = g.attributes.position;
         for (let i = 0; i < q.count; i++) {
           const x = q.getX(i);
           const y = q.getY(i);
-          const edge = smooth(0.0, -0.09, y - (0.12 - 0.5 * Math.max(0, x)) * 0) * 0;
-          void edge;
-          const k = lerp(1, 0.3, smooth(0.1, 0.95, x));
+          const k = lerp(1, 0.3, smooth(0.0, 1.0, Math.hypot(x, y) / 1.3));
           q.setZ(i, q.getZ(i) * k);
         }
         g.applyMatrix4(toLocal);
@@ -5124,15 +5124,17 @@ Pets.register({
         return g;
       })();
       {
-        const snC = new THREE.CatmullRomCurve3([V3(0, 0, -0.05), V3(0.03, 0.0, 0.3), V3(-0.025, 0, 0.66), V3(0, 0, SL)]);
-        const part = (u0, u1) => snC.getPoints(40).filter((_, i) => i / 40 >= u0 - 1e-6 && i / 40 <= u1 + 1e-6);
-        const radS = u => lerp(0.06, 0.048, u);
-        const solidA = part(0, 0.34);
-        const solidB = part(0.66, 1);
-        scythe.add(mesh(tubeGeo(solidA, u => radS(u * 0.34) * (1 - 0.35 * smooth(0.75, 1, u)), 30, 14).g, castMat));
-        scythe.add(mesh(tubeGeo(solidB, u => radS(0.66 + u * 0.34) * (1 - 0.35 * (1 - smooth(0, 0.25, u))), 30, 14).g, castMat));
-        const mid = part(0.3, 0.7);
-        scythe.add(mesh(tubeGeo(mid, (u, v) => 0.06 * (1 + 0.18 * Math.sin(v * TAU * 3 + u * 14)), 30, 14).g, ghostMat, false));
+        const snC = new THREE.CatmullRomCurve3([V3(0, 0, -0.05), V3(0.045, 0.02, 0.2), V3(-0.035, -0.015, 0.42), V3(0.04, 0.02, 0.66), V3(-0.025, 0, 0.88), V3(0, 0, SL)]);
+        const part = (u0, u1) => snC.getPoints(60).filter((_, i) => i / 60 >= u0 - 1e-6 && i / 60 <= u1 + 1e-6);
+        const knots = [0.08, 0.19, 0.27, 0.75, 0.83, 0.93];
+        const radS = (u, v) => {
+          let r = lerp(0.058, 0.05, u);
+          knots.forEach((k, i) => (r += 0.02 * Math.exp(-Math.pow((u - k) / 0.022, 2)) * (0.7 + 0.5 * Math.sin(v * TAU + i * 2))));
+          return r * (1 + 0.08 * Math.sin(v * TAU * 3 + u * 40) + 0.05 * Math.sin(u * 90));
+        };
+        scythe.add(mesh(tubeGeo(part(0, 0.34), (u, v) => radS(u * 0.34, v) * (1 - 0.35 * smooth(0.75, 1, u)), 40, 14).g, castMat));
+        scythe.add(mesh(tubeGeo(part(0.66, 1), (u, v) => radS(0.66 + u * 0.34, v) * (1 - 0.35 * (1 - smooth(0, 0.25, u))), 40, 14).g, castMat));
+        scythe.add(mesh(tubeGeo(part(0.3, 0.7), (u, v) => 0.06 * (1 + 0.18 * Math.sin(v * TAU * 3 + u * 14)), 30, 14).g, ghostMat, false));
         scythe.userData.frags = [0.4, 0.47, 0.53, 0.6].map((u, i) => {
           const f = mesh(new THREE.DodecahedronGeometry(0.03 + (i % 2) * 0.012, 0), castMat);
           f.position.copy(snC.getPointAt(u));
@@ -5141,35 +5143,30 @@ Pets.register({
           scythe.add(f);
           return f;
         });
-        [0.12, 0.5, 0.88].forEach(z => {
-          const r = mesh(new THREE.TorusGeometry(z > 0.8 ? 0.07 : 0.062, 0.016, 8, 22), plateMat);
-          r.position.z = z;
-          scythe.add(r);
+        const head2 = mesh(new THREE.SphereGeometry(0.085, 18, 14), castMat);
+        head2.scale.set(1, 1.15, 1.4);
+        head2.position.set(0, 0.02, SL);
+        scythe.add(head2);
+        const sp = [];
+        for (let k = 0; k < 13; k++) {
+          const a = (k / 13) * TAU;
+          const d = V3(Math.cos(a), Math.sin(a), 0);
+          if (d.y > 0.55) continue;
+          const l = 0.07 + 0.08 * ((k * 7) % 5) / 4;
+          sp.push(spike(V3(d.x * 0.07, d.y * 0.07, SL + 0.03 + ((k * 3) % 4) * 0.012), d.clone().add(V3(0, -0.25, 0.9)), l, 0.02, 4));
+        }
+        scythe.add(mesh(mergeGeos(sp), castMat));
+        [[0, 1], [0.045, 0.75], [-0.045, 0.75]].forEach(([x, k]) => {
+          const h = tubeGeo([V3(x, -0.05, SL + 0.03), V3(x, -0.15 * k, SL + 0.1 * k), V3(x, -0.27 * k, SL + 0.1 * k), V3(x, -0.33 * k, SL + 0.03)], u => lerp(0.026, 0.003, u) * k, 20, 8).g;
+          scythe.add(mesh(h, plateMat));
         });
-        const col = new THREE.CylinderGeometry(0.075, 0.06, 0.16, 14);
-        col.rotateX(Math.PI / 2);
-        col.translate(0, 0.02, SL);
-        scythe.add(mesh(col, plateMat));
-        const spikeT = mesh(new THREE.ConeGeometry(0.035, 0.18, 6), castMat);
-        spikeT.rotation.x = Math.PI / 2;
-        spikeT.position.set(0, 0, SL + 0.15);
-        scythe.add(spikeT);
         const bl = mesh(bladeGeo, castMat);
         bl.position.set(0, 0.03, SL);
         scythe.add(bl);
-        const curve = new THREE.QuadraticBezierCurve(V2(0.95, -0.36), V2(0.46, -0.02), V2(-0.02, -0.07));
-        const pts = curve.getPoints(30).map(p => V3(0, p.x + 0.03, p.y + SL));
-        const edge = tubeGeo(pts, u => 0.012 * Math.sin(Math.PI * Math.min(1, u * 1.15 + 0.05)), 60, 6).g;
-        scythe.add(mesh(edge, hotMat, false));
-        const spine = new THREE.QuadraticBezierCurve(V2(-0.02, 0.07), V2(0.42, 0.16), V2(0.93, -0.35));
-        const sp2 = spine.getPoints(30).map(p => V3(0, p.x + 0.03, p.y + SL));
-        scythe.add(mesh(tubeGeo(sp2, u => 0.022 * (1 - 0.8 * u), 50, 8).g, plateMat));
-        const hooks = [];
-        [0.3, 0.55].forEach(u => {
-          const p = spine.getPoint(u);
-          hooks.push(spike(V3(0, p.x + 0.03, p.y + SL + 0.01), V3(0, 0.3, 1), 0.09, 0.022, 4));
-        });
-        scythe.add(mesh(mergeGeos(hooks), plateMat));
+        const ep = edgeC.getPoints(40).map(p => V3(0, p.x + 0.03, p.y + SL));
+        scythe.add(mesh(tubeGeo(ep, u => 0.011 * Math.sin(Math.PI * Math.min(1, u * 1.1 + 0.04)), 80, 6).g, hotMat, false));
+        const sp2 = spineC.getPoints(40).map(p => V3(0, p.x + 0.03, p.y + SL));
+        scythe.add(mesh(tubeGeo(sp2, u => 0.02 * (1 - 0.85 * u), 80, 8).g, plateMat));
       }
       const wisps = Array.from({ length: 7 }, (_, k) => {
         const m = mesh(dropGeo, ghostMat, false);
@@ -5321,7 +5318,7 @@ Pets.register({
         rest(S, t, motion) {
           S.hL.set(0.84, TIP + 0.72, 0.22).add(V3(0, Math.sin(t * 1.2 + 1.2) * 0.03 * motion, 0));
           want.set(0.05, 1, -0.12);
-          bwant.set(-0.25, 0, 1);
+          bwant.set(0.85, 0, 0.55);
           S.hover += Math.sin(t * 1.6) * 0.03 * motion;
         },
         act(nm, p, S) {
@@ -5409,7 +5406,7 @@ Pets.register({
         },
         fx(S, nm) {
           scythe.updateMatrixWorld(true);
-          const tip = big.worldToLocal(scythe.localToWorld(V3(0, 0.98, SL - 0.33)));
+          const tip = big.worldToLocal(scythe.localToWorld(V3(0, 0.83, SL - 1.0)));
           if (nm === "swipe")
             trail.forEach((a, i) => {
               a.position.copy(shoulders[1]).add(V3(-0.2, 0.15, 0));
@@ -5431,9 +5428,9 @@ Pets.register({
             reaper.position.y = lerp(from.y, 0.6, smooth(0, 0.3, k));
             const side = V3(0, 1, 0).cross(fdir).normalize();
             reaper.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(fdir, side, V3(0, 1, 0)));
-            reaper.translateY(-0.45);
-            reaper.translateZ(0.15);
-            reaper.scale.setScalar(1.4 + k * 0.8);
+            reaper.translateY(-0.42);
+            reaper.translateZ(0.5);
+            reaper.scale.setScalar(1.1 + k * 0.6);
             reaper.material.color.copy(trailMat.color).lerp(new THREE.Color(1, 1, 1), 0.35);
             reaper.material.opacity = 0.75 * (1 - smooth(0.6, 1, k));
           }
