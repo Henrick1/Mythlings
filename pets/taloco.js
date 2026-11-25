@@ -6046,9 +6046,6 @@ Pets.register({
           edge.push(HP(xout(y), y));
         }
         mask.add(mesh(strip(edge, edge.map(HN), () => 0.014, () => off + 0.016), shadeMat));
-        const top = HP(xin(ylim), ylim);
-        const tn = HN(top);
-        mask.add(mesh(tubeGeo([top.clone().addScaledVector(tn, 0.0), top.clone().add(V3(0.02, 0.1, -0.03)), top.clone().add(V3(0.0, 0.2, -0.12)), top.clone().add(V3(-0.05, 0.26, -0.26))], u => lerp(0.04, 0.004, Math.pow(u, 0.9)), 24, 8).g, shadeMat));
         const ep = HP(0.36, -0.02);
         const slit = mesh(new THREE.SphereGeometry(1, 16, 8), slitMat, false);
         slit.position.copy(ep).addScaledVector(HN(ep), off + 0.006);
