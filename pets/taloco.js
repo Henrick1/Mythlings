@@ -6349,42 +6349,109 @@ Pets.register({
           brace.add(gm);
         }
       }
-      const HS = 1.3;
+      const HS = 1.08;
+      const psyMat = new THREE.MeshStandardMaterial({ color: 0xa69dbd, roughness: 0.3, metalness: 0.4 });
       const hand = add(bodyG, new THREE.Group());
       const handIn = new THREE.Group();
       handIn.scale.setScalar(HS);
+      handIn.rotation.x = Math.PI / 2;
+      handIn.position.z = 0.02;
       hand.add(handIn);
       {
-        const mitt = mesh(new THREE.SphereGeometry(0.135, 32, 22), steelMat);
-        mitt.scale.set(1.1, 0.62, 1.28);
-        mitt.position.z = 0.11;
-        handIn.add(mitt);
-        const knuck = mesh(new THREE.SphereGeometry(0.12, 32, 12, 0, TAU, 0, Math.PI * 0.4), plateMat);
-        knuck.scale.set(1.12, 0.52, 1.22);
-        knuck.position.set(0, 0.035, 0.11);
-        handIn.add(knuck);
-        const gem = mesh(new THREE.OctahedronGeometry(0.03, 0), hotMat, false);
-        gem.position.set(0, 0.098, 0.1);
-        gem.scale.set(1, 0.5, 1.3);
+        const tips = [-0.72, -0.24, 0.24, 0.72];
+        const grooves = [-0.48, 0, 0.48];
+        const topOf = cx => 0.27 + 0.03 * tips.reduce((a, g) => a + Math.exp(-(((cx - g) / 0.16) ** 2)), 0) - 0.07 * cx ** 4 - 0.025 * Math.max(0, cx) ** 2;
+        const botOf = cx => -0.11 + 0.035 * cx * cx;
+        const W = Y => lerp(0.085, 0.13, smooth(-0.11, 0.0, Y)) - 0.012 * smooth(0.12, 0.3, Y);
+        const D = Y => lerp(0.06, 0.072, smooth(-0.11, -0.02, Y)) - 0.026 * smooth(0.06, 0.26, Y);
+        const curl = Y => 1.6 * Math.pow(Math.max(0, Y - 0.09), 2);
+        const grv = (cx, Y) => smooth(0.1, 0.16, Y) * grooves.reduce((a, g) => a + Math.exp(-(((cx - g) / 0.07) ** 2)), 0);
+        const P = (cx, Y, s, k = 1) => {
+          const d = D(Y) * (s > 0 ? 0.68 : 1) * (1 - 0.18 * grv(cx, Y)) * k;
+          const cup = s > 0 ? -0.018 * (1 - cx * cx) * smooth(-0.1, -0.02, Y) * (1 - smooth(0.05, 0.13, Y)) : 0;
+          return V3(cx * W(Y), Y, s * d + curl(Y) + cup);
+        };
+        const mittGeo = (() => {
+          const g = new THREE.SphereGeometry(1, 64, 72);
+          g.rotateZ(Math.PI / 2);
+          const q = g.attributes.position;
+          for (let i = 0; i < q.count; i++) {
+            const x = q.getX(i);
+            const y = q.getY(i);
+            const z = q.getZ(i);
+            const r0 = Math.sqrt(Math.max(0, 1 - x * x));
+            const cy = r0 > 1e-5 ? y / r0 : 0;
+            const cz = r0 > 1e-5 ? z / r0 : 0;
+            const cx = Math.sign(x) * Math.pow(Math.abs(x), 0.9);
+            const top = topOf(cx);
+            const bot = botOf(cx);
+            const m = (top + bot) / 2;
+            const h = (top - bot) / 2;
+            const Y = m + h * Math.sign(cy) * Math.pow(Math.abs(cy), 0.7);
+            const e = Math.pow(r0, 0.38);
+            const sz = Math.sign(cz) * Math.pow(Math.abs(cz), 0.85);
+            const d = D(Y) * (cz > 0 ? 0.68 : 1) * (1 - 0.18 * grv(cx, Y));
+            const cup = cz > 0 ? -0.018 * (1 - cx * cx) * smooth(-0.1, -0.02, Y) * (1 - smooth(0.05, 0.13, Y)) * Math.abs(cz) : 0;
+            q.setXYZ(i, cx * W(Y), Y, (sz * d + cup) * e + curl(Y));
+          }
+          g.computeVertexNormals();
+          return g;
+        })();
+        handIn.add(mesh(mittGeo, psyMat));
+        const thumbGeo = (() => {
+          const g = new THREE.SphereGeometry(1, 40, 28);
+          const q = g.attributes.position;
+          for (let i = 0; i < q.count; i++) {
+            const x = q.getX(i);
+            const y = q.getY(i);
+            const z = q.getZ(i);
+            const u = (y + 1) / 2;
+            const rr = lerp(0.044, 0.034, u);
+            const r0 = Math.sqrt(Math.max(0, 1 - y * y));
+            const e = Math.pow(r0, 0.4);
+            q.setXYZ(i, (r0 > 1e-5 ? x / r0 : 0) * rr * e, u * 0.14, (r0 > 1e-5 ? z / r0 : 0) * rr * 0.85 * e + 0.3 * Math.pow(u, 2) * 0.14);
+          }
+          g.computeVertexNormals();
+          return g;
+        })();
+        const tp = new THREE.Group();
+        tp.position.set(-0.095, -0.06, 0.014);
+        tp.quaternion.setFromUnitVectors(V3(0, 1, 0), V3(-0.5, 0.8, 0.38).normalize());
+        handIn.add(tp);
+        tp.add(mesh(thumbGeo, psyMat));
+        grooves.forEach(gx => {
+          const pts = [];
+          for (let k = 0; k <= 14; k++) {
+            const Y = lerp(0.12, topOf(gx) - 0.03, k / 14);
+            pts.push(P(gx, Y, 1).add(V3(0, 0, 0.002)));
+          }
+          handIn.add(mesh(tubeGeo(pts, u => 0.005 * Math.pow(Math.sin(Math.PI * u), 0.5), 30, 6).g, hotMat, false));
+        });
+        const backC = P(0, 0.0, -1);
+        const backP = mesh(new THREE.SphereGeometry(0.075, 28, 12, 0, TAU, 0, Math.PI * 0.42), plateMat);
+        backP.rotation.x = -Math.PI / 2;
+        backP.position.copy(backC).add(V3(0, 0, 0.026));
+        backP.scale.set(1.25, 1.3, 0.45);
+        handIn.add(backP);
+        const gem = mesh(new THREE.OctahedronGeometry(0.026, 0), hotMat, false);
+        gem.position.copy(backC).add(V3(0, 0, -0.012));
+        gem.scale.set(1, 1.35, 0.55);
         handIn.add(gem);
-        const th = new THREE.Group();
-        th.position.set(0.11, 0.0, 0.06);
-        th.rotation.set(-0.15, 0.85, 0);
-        handIn.add(th);
-        const tm = mesh(new THREE.SphereGeometry(0.05, 20, 14), steelMat);
-        tm.scale.set(0.95, 0.8, 1.7);
-        tm.position.z = 0.05;
-        th.add(tm);
-        const sig = mesh(new THREE.TorusGeometry(0.058, 0.008, 6, 40), hotMat, false);
-        sig.rotation.x = Math.PI / 2;
-        sig.position.set(0, -0.082, 0.1);
+        const pc = P(0, -0.01, 1);
+        const sig = mesh(new THREE.TorusGeometry(0.056, 0.007, 6, 40), hotMat, false);
+        sig.position.copy(pc).add(V3(0, 0, 0.003));
         handIn.add(sig);
-        const sig2 = mesh(new THREE.CircleGeometry(0.022, 24), hotMat, false);
-        sig2.rotation.x = Math.PI / 2;
-        sig2.position.set(0, -0.083, 0.1);
+        const sig2 = mesh(new THREE.TorusGeometry(0.028, 0.006, 6, 32), hotMat, false);
+        sig2.position.copy(pc).add(V3(0, 0, 0.004));
         handIn.add(sig2);
-        const wr = mesh(new THREE.TorusGeometry(0.085, 0.016, 8, 32), darkSteel);
-        wr.position.z = -0.01;
+        const dot = mesh(new THREE.SphereGeometry(0.012, 10, 8), hotMat, false);
+        dot.position.copy(pc).add(V3(0, 0, 0.004));
+        dot.scale.z = 0.5;
+        handIn.add(dot);
+        const wr = mesh(new THREE.TorusGeometry(0.075, 0.016, 10, 36), darkSteel);
+        wr.rotation.x = Math.PI / 2;
+        wr.position.y = -0.085;
+        wr.scale.set(1.08, 1, 0.78);
         handIn.add(wr);
       }
       const cap = add(socket, new THREE.Group());
@@ -6501,6 +6568,8 @@ Pets.register({
       });
       let bend = 0.2;
       const bendW = { v: 0.2 };
+      let roll = Math.PI;
+      const rollW = { v: Math.PI };
       let orbR = 0.3;
       const orbW = { r: 0.3, spd: 1.4 };
       let orbA = 0;
@@ -6516,8 +6585,9 @@ Pets.register({
           plateMat.color.setHex(shiny ? 0xf0d488 : 0xa8407e);
         },
         rest(S, t, motion) {
-          S.hL.set(0.74, TIP + 0.5 + Math.sin(t * 1.6) * 0.03 * motion, 0.36);
-          bendW.v = 0.25 + 0.08 * Math.sin(t * 1.1) * motion;
+          S.hL.set(0.8, TIP + 0.62 + Math.sin(t * 1.6) * 0.03 * motion, 0.42);
+          bendW.v = -0.15 + 0.06 * Math.sin(t * 1.1) * motion;
+          rollW.v = Math.PI;
           orbW.r = 0.3;
           orbW.spd = 1.4;
         },
@@ -6528,6 +6598,7 @@ Pets.register({
             S.hL.lerp(V3(0.95, TIP + 1.2, -0.3), wind);
             S.hL.lerp(V3(0.32, TIP + 1.12, 0.98), push);
             bendW.v = lerp(bendW.v, 1.25, push);
+            rollW.v = lerp(rollW.v, 0, Math.max(wind, push));
             orbW.r = lerp(orbW.r, 0.5, push);
             orbW.spd = lerp(orbW.spd, 7, Math.max(wind, push));
             S.spinY += 0.3 * wind - 0.35 * push;
@@ -6544,9 +6615,10 @@ Pets.register({
             const raise = smooth(0.04, 0.38, p) * (1 - smooth(0.42, 0.5, p));
             const thrust = smooth(0.42, 0.52, p) * (1 - smooth(0.84, 0.98, p));
             S.hL.lerp(V3(0.62, TIP + 1.85, 0.2), raise);
-            bendW.v = lerp(bendW.v, -0.5, raise);
+            bendW.v = lerp(bendW.v, -0.3, raise);
             S.hL.lerp(V3(0.38, TIP + 1.15, 0.95), thrust);
             bendW.v = lerp(bendW.v, 1.25, thrust);
+            rollW.v = lerp(rollW.v, 0, thrust);
             orbW.r = lerp(orbW.r, 0.45, raise);
             orbW.spd = lerp(orbW.spd, 9, Math.max(raise, thrust));
             S.hR.lerp(V3(-0.82, TIP + 1.25, 0.25), raise);
@@ -6588,12 +6660,12 @@ Pets.register({
           const faN = fa.clone().normalize();
           const bob = k => Math.sin(t * 2.2 + k * 1.7) * 0.014 * motion;
           drops.forEach((d, i) => {
-            const u = 0.48 + i * 0.27;
+            const u = 0.5 + i * 0.25;
             d.position.copy(A).addScaledVector(ua, u).add(V3(0, bob(i), 0));
             d.quaternion.setFromUnitVectors(V3(0, 1, 0), uaN);
-            const rr = 0.064 - i * 0.004;
-            const pul = 1 + 0.08 * Math.sin(t * 3 + i * 2);
-            d.scale.set(rr * pul, rr * 1.3 * pul, rr * pul);
+            const rr = 0.058 - i * 0.004;
+            const pul = 1 + 0.06 * Math.sin(t * 3 + i * 2);
+            d.scale.set(rr * pul, rr * 1.15 * pul, rr * pul);
           });
           elbowO.position.copy(E).add(V3(0, bob(4), 0));
           elbowO.scale.setScalar(0.082 * (1 + 0.06 * Math.sin(t * 2.6)));
@@ -6607,28 +6679,33 @@ Pets.register({
           wristO.position.copy(E).addScaledVector(fa, 0.93).add(V3(0, bob(6), 0));
           wristO.scale.setScalar(0.05 * (1 + 0.1 * Math.sin(t * 3.3)));
           bend = lerp(bend, bendW.v, 0.3);
+          roll = lerp(roll, rollW.v, 0.3);
           const { hx, hy } = frame(faN);
           const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(hx, hy, faN));
+          q.multiply(new THREE.Quaternion().setFromAxisAngle(V3(0, 0, 1), roll));
           q.multiply(new THREE.Quaternion().setFromAxisAngle(V3(1, 0, 0), -bend));
           hand.position.copy(Wp).addScaledVector(faN, 0.05).add(V3(0, bob(7), 0));
           hand.quaternion.copy(q);
           const H = hand.position.clone();
           const palmN = V3(0, -1, 0).applyQuaternion(q);
-          const palmC = H.clone().addScaledVector(V3(0, 0, 1).applyQuaternion(q), 0.13 * HS);
+          const palmC = H.clone().addScaledVector(V3(0, 0, 1).applyQuaternion(q), 0.04 * HS).addScaledVector(palmN, 0.06 * HS);
           orbR = lerp(orbR, orbW.r, 0.25);
           orbA += dt * orbW.spd;
           const oa = dt === 0 ? t * orbW.spd : orbA;
-          const ox = V3(1, 0, 0).applyQuaternion(brace.quaternion);
-          const oz = V3(0, 0, 1).applyQuaternion(brace.quaternion);
+          const ox = V3(0, 0, 1).applyQuaternion(q);
+          ox.addScaledVector(palmN, -ox.dot(palmN)).normalize();
+          const oz = palmN.clone().cross(ox).normalize();
+          const oc = palmC.clone().addScaledVector(palmN, 0.2);
           handBig = big.worldToLocal(bodyG.localToWorld(palmC.clone()));
           const k = S.waveK >= 0 ? S.waveK : -1;
           const out = k >= 0 ? smooth(0, 0.5, k) * (1 - smooth(0.62, 1, k)) : 0;
           discs.forEach(D => {
             const a = oa + (D.i / 3) * TAU;
-            const op = bc.clone().addScaledVector(ox, Math.cos(a) * orbR).addScaledVector(oz, Math.sin(a) * orbR);
+            const op = oc.clone().addScaledVector(ox, Math.cos(a) * orbR).addScaledVector(oz, Math.sin(a) * orbR).addScaledVector(palmN, Math.sin(a * 2 + t) * 0.02);
             const dir = V3(Math.sin((D.i - 1) * 0.4), 0.02, Math.cos((D.i - 1) * 0.4));
             D.g.position.copy(op).addScaledVector(dir, out * 3.3);
-            const nrm = faN.clone().lerp(V3(0, 1, 0), out).normalize();
+            const rad = ox.clone().multiplyScalar(Math.cos(a)).addScaledVector(oz, Math.sin(a));
+            const nrm = palmN.clone().multiplyScalar(0.6).addScaledVector(rad, 0.8).normalize().lerp(V3(0, 1, 0), out).normalize();
             D.g.quaternion.setFromUnitVectors(V3(0, 0, 1), nrm);
             D.g.rotateZ(t * (8 + 10 * out) + D.i);
             D.g.scale.setScalar(0.72 * (1 + 0.6 * out));
