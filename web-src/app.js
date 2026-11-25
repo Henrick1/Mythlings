@@ -2969,6 +2969,7 @@
       await loadScript("lib/cloud.js");
       await loadScript("lib/types.js");
       await loadScript("lib/pet-kit.js");
+      await loadScriptSafe("lib/gltf.js");
       await loadScript("lib/egg.js");
       await loadScriptSafe("lib/chest.js");
       await loadScript("lib/stage.js");

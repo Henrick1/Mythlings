@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Batalha</title>
 <link rel="stylesheet" href="lib/battle.css">
@@ -50,6 +50,7 @@ html, body {
 <script src="lib/game.js"></script>
 <script src="lib/sfx.js"></script>
 <script src="lib/pet-kit.js"></script>
+<script src="lib/gltf.js"></script>
 <script src="lib/stage.js"></script>
 <script src="lib/ui-icons.js"></script>
 <script src="lib/battle.js"></script>

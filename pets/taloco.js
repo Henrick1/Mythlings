@@ -7548,6 +7548,121 @@ Pets.register({
     food.visible = false;
     big.add(food);
 
+    const GLB_SRC = { psychic: "assets/models/taloco-psychic.glb" };
+    const GLB_CLIPS = { swipe: "Attack", fling: "Special", spin: "Spin", jump: "Jump", eat: "Eat", absorb: "Idle_Extra" };
+    const glbCache = THREE.__mythGlb || (THREE.__mythGlb = {});
+    const glbs = {};
+    let glbNow = null;
+    let glbShiny = null;
+    const visBox = () => {
+      const keep = [bodyG.position.clone(), bodyG.rotation.clone(), bodyG.scale.clone()];
+      bodyG.position.set(0, 0, 0);
+      bodyG.rotation.set(0, 0, 0);
+      bodyG.scale.set(1, 1, 1);
+      big.updateMatrixWorld(true);
+      const inv = new THREE.Matrix4().copy(big.matrixWorld).invert();
+      const box = new THREE.Box3();
+      const tmp = new THREE.Box3();
+      const shown = o => {
+        for (let q = o; q && q !== bodyG; q = q.parent) if (!q.visible) return false;
+        return true;
+      };
+      [torso, head, ...legs].forEach(gr => gr.traverse(o => {
+        if (!o.isMesh || !o.geometry || !shown(o)) return;
+        if (o.material && o.material.transparent) return;
+        if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+        tmp.copy(o.geometry.boundingBox).applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
+        box.union(tmp);
+      }));
+      bodyG.position.copy(keep[0]);
+      bodyG.rotation.copy(keep[1]);
+      bodyG.scale.copy(keep[2]);
+      return box;
+    };
+    const glbTint = () => {
+      if (!glbNow) return;
+      if (glbShiny === shinyOn && glbNow.tinted === shinyOn) return;
+      glbNow.mats.forEach(m => m.color.copy(m.userData.base).multiply(new THREE.Color(shinyOn ? 0xffd890 : 0xffffff)));
+      glbNow.tinted = shinyOn;
+      glbShiny = shinyOn;
+    };
+    const glbApply = () => {
+      const G = glbs[coreType];
+      glbNow = G && G.scene ? G : null;
+      Object.values(glbs).forEach(g => g.scene && (g.scene.visible = g === glbNow));
+      bodyG.visible = !glbNow;
+      glbTint();
+    };
+    const glbWant = type => {
+      const src = GLB_SRC[type];
+      if (!src || glbs[type] || !hasDoc || !THREE.GLTFLoader || !THREE.SkeletonUtils) return;
+      glbs[type] = {};
+      if (!glbCache[src])
+        glbCache[src] = new Promise(res => {
+          try {
+            new THREE.GLTFLoader().load(src, g => res(g), undefined, () => res(null));
+          } catch (err) {
+            res(null);
+          }
+        });
+      glbCache[src].then(g => {
+        if (!g) return;
+        const sc = THREE.SkeletonUtils.clone(g.scene);
+        const mats = [];
+        sc.traverse(o => {
+          if (!o.isMesh) return;
+          o.castShadow = true;
+          o.frustumCulled = false;
+          o.material = o.material.clone();
+          o.material.userData.base = o.material.color.clone();
+          mats.push(o.material);
+        });
+        sc.traverse(o => {
+          if (!o.isMesh) return;
+          ["map", "emissiveMap"].forEach(k => o.material[k] && (o.material[k].encoding = THREE.LinearEncoding));
+          if (o.material.metalnessMap) o.material.metalness = 0.55;
+        });
+        const mixer = new THREE.AnimationMixer(sc);
+        const acts = {};
+        g.animations.forEach(c => {
+          const a = mixer.clipAction(c);
+          a.play();
+          a.setEffectiveWeight(0);
+          acts[c.name] = a;
+        });
+        const hand = sc.getObjectByName("Punho.R") || sc.getObjectByName("PunhoR");
+        sc.visible = false;
+        big.add(sc);
+        glbs[type] = { scene: sc, mixer, acts, mats, hand, tinted: null, fitted: false, mb: new THREE.Box3().setFromObject(sc) };
+        glbApply();
+      });
+    };
+    const glbDrive = (t, nm, p) => {
+      const G = glbNow;
+      if (!G.fitted) {
+        const mb = G.mb;
+        const want = visBox();
+        const k = (want.max.y - want.min.y) / Math.max(1e-3, mb.max.y - mb.min.y);
+        G.scene.scale.setScalar(k);
+        G.scene.position.set(-(mb.min.x + mb.max.x) * 0.5 * k, want.min.y - mb.min.y * k, -(mb.min.z + mb.max.z) * 0.5 * k);
+        G.fitted = true;
+      }
+      const idle = G.acts.Idle;
+      const name = nm && GLB_CLIPS[nm];
+      const A = name && G.acts[name];
+      const w = A ? smooth(0, 0.08, p) * (1 - smooth(0.92, 1, p)) : 0;
+      Object.values(G.acts).forEach(a => a.setEffectiveWeight(0));
+      if (idle) {
+        idle.time = t % idle.getClip().duration;
+        idle.setEffectiveWeight(1 - w);
+      }
+      if (A) {
+        A.time = Math.min(p, 0.999) * A.getClip().duration;
+        A.setEffectiveWeight(w);
+      }
+      G.mixer.update(0);
+    };
+
     let shinyOn = false;
     const restyle = () => {
       steelMat.color.setHex(shinyOn ? 0xf6d68e : 0xffffff);
@@ -7556,6 +7671,7 @@ Pets.register({
       castMat.color.setHex(shinyOn ? 0xf0c880 : 0xffffff);
       redMat.color.setHex(shinyOn ? 0xc8402a : 0xb3241b);
       if (kitNow) kitNow.style(shinyOn);
+      glbTint();
     };
     const applyCore = () => {
       pal = palOf(GLOW[coreType || "steel"], coreType === "dark" ? 0.25 : coreType === "light" ? 0.6 : coreType === "ground" ? 0.4 : 1);
@@ -7582,6 +7698,8 @@ Pets.register({
       const half = kitNow === bowKit || kitNow === dragonKit || kitNow === clawKit;
       browFull.visible = !half;
       browHalf.visible = half;
+      glbWant(coreType);
+      glbApply();
       crestM.visible = kitNow !== dragonKit && kitNow !== fistKit && kitNow !== bugKit && kitNow !== scytheKit && kitNow !== wingKit && kitNow !== clawKit && kitNow !== psyKit && kitNow !== sunKit && kitNow !== oniKit;
 
       restyle();
@@ -7865,7 +7983,15 @@ Pets.register({
           motesMat.opacity = 0.9 * Math.max(S.pull, chargeK);
         });
 
-        if (nm === "eat" && ph && holdR) {
+        if (glbNow) {
+          glbDrive(t, nm, p);
+          if (nm === "eat" && ph && glbNow.hand) {
+            food.visible = ph.visible && p < 0.9;
+            big.updateMatrixWorld(true);
+            food.position.copy(big.worldToLocal(glbNow.hand.getWorldPosition(V3(0, 0, 0))));
+            food.scale.setScalar(0.55 * (1 - 0.8 * ph.bite));
+          } else food.visible = false;
+        } else if (nm === "eat" && ph && holdR) {
           food.visible = ph.visible && p < 0.9;
           const center = big.worldToLocal(bodyG.localToWorld(holdR.clone()));
           const lifted = V3(-0.46, 3.6, 0.7);

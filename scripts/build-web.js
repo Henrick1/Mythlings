@@ -49,6 +49,7 @@ copyDir(path.join(root, "lib"), path.join(out, "lib"));
 copyDir(path.join(root, "lib", "fonts"), path.join(out, "lib", "fonts"), n => n.endsWith(".woff") || n.endsWith(".txt"));
 copyDir(path.join(root, "pets"), path.join(out, "pets"), n => n.endsWith(".js"));
 copyDir(path.join(root, "assets"), path.join(out, "assets"), n => n.endsWith(".png"));
+copyDir(path.join(root, "assets", "models"), path.join(out, "assets", "models"), n => n.endsWith(".glb"));
 copy(path.join(root, "config.js"), path.join(out, "config.js"));
 
 const threeSources = [
