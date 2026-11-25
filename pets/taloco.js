@@ -266,7 +266,7 @@ Pets.register({
     const coreMat = new THREE.MeshStandardMaterial({ color: 0x8a3a14, emissive: 0xff7a20, emissiveIntensity: 1, roughness: 0.3, metalness: 0.2, flatShading: true });
     const GLOW = {
       fire: 0xff6a1e, water: 0x1e8cff, grass: 0x18d060, electric: 0xffd400, ice: 0x48f8ff, fighting: 0xff2626,
-      poison: 0x9a28ff, ground: 0xc8902a, flying: 0xc0b0ff, psychic: 0xff3c78, bug: 0x9ad000, rock: 0xd09018,
+      poison: 0x9a28ff, ground: 0xc8902a, flying: 0x9c8cff, psychic: 0xff3c78, bug: 0x9ad000, rock: 0xd09018,
       ghost: 0xa64cff, dragon: 0x4020ff, dark: 0x40284c, steel: 0x8ea0b8, light: 0xfff4c0
     };
     let coreType = null;
@@ -5512,7 +5512,265 @@ Pets.register({
       };
     })();
 
-    const KITS = { steel: shieldKit, rock: hammerKit, fire: swordKit, water: tridentKit, grass: bowKit, dragon: dragonKit, fighting: fistKit, ice: iceKit, poison: poisonKit, bug: bugKit, electric: railKit, ghost: scytheKit };
+    const wingKit = (() => {
+      const K = makeKit();
+      const { add } = K;
+      const arm = dyn(moltenMat);
+      K.parts.push(arm);
+      const fShape = new THREE.Shape();
+      fShape.moveTo(0.016, 0);
+      fShape.bezierCurveTo(0.07, 0.1, 0.09, 0.45, 0.06, 0.78);
+      fShape.quadraticCurveTo(0.04, 0.93, 0, 1);
+      fShape.quadraticCurveTo(-0.1, 0.9, -0.15, 0.74);
+      fShape.lineTo(-0.105, 0.7);
+      fShape.quadraticCurveTo(-0.17, 0.56, -0.16, 0.42);
+      fShape.lineTo(-0.11, 0.38);
+      fShape.quadraticCurveTo(-0.13, 0.16, -0.016, 0);
+      fShape.lineTo(0.016, 0);
+      const fGeo = (() => {
+        const g = new THREE.ExtrudeGeometry(fShape, { depth: 0.024, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.006, bevelSegments: 2, curveSegments: 18 });
+        g.translate(0, 0, -0.012);
+        const q = g.attributes.position;
+        for (let i = 0; i < q.count; i++) {
+          const x = q.getX(i);
+          const y = q.getY(i);
+          q.setZ(i, q.getZ(i) * lerp(1, 0.3, smooth(0, 0.12, Math.abs(x))) + 0.05 * x * x * 4);
+          q.setX(i, x - 0.07 * y * y);
+        }
+        g.computeVertexNormals();
+        return g;
+      })();
+      const rachisGeo = tubeGeo([V3(0, -0.02, 0), V3(-0.002, 0.3, 0.004), V3(-0.02, 0.6, 0.004), V3(-0.063, 0.95, 0)], u => lerp(0.017, 0.004, u), 24, 6).g;
+      const feather = (bm, rm) => {
+        const g = new THREE.Group();
+        g.add(mesh(fGeo, bm));
+        g.add(mesh(rachisGeo, rm, false));
+        return g;
+      };
+      const place = (g, at, d, n, L, wx = 1) => {
+        const y = d.clone().normalize();
+        const z = n.clone().addScaledVector(y, -n.dot(y)).normalize();
+        const x = y.clone().cross(z);
+        g.position.copy(at);
+        g.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+        g.scale.set(L * wx, L, L);
+      };
+      const W = 1.0;
+      const prim = [1.05, 1.0, 0.93, 0.85, 0.76, 0.67].map(L => ({ g: add(bodyG, feather(plateMat, hotMat)), L: L * W }));
+      const sec = [0.62, 0.6, 0.58, 0.56, 0.54, 0.52, 0.5, 0.48].map((L, i, a) => ({ g: add(bodyG, feather(plateMat, hotMat)), L: L * W, u: lerp(0.94, 0.42, i / (a.length - 1)) }));
+      const cov = [0.92, 0.84, 0.76, 0.68, 0.6, 0.52, 0.44].map((u, i) => ({ g: add(bodyG, feather(castMat, darkSteel)), L: 0.32 - i * 0.014, u }));
+      const cuff = add(bodyG, mesh(new THREE.TorusGeometry(1, 0.2, 8, 28), castMat));
+      const knob = add(bodyG, mesh(new THREE.SphereGeometry(0.085, 18, 14), castMat));
+      const plume = add(head, new THREE.Group());
+      [[0.75, 0.4, 0], [1.05, 0.52, 0.022], [1.35, 0.6, -0.022], [1.65, 0.52, 0.03], [1.95, 0.42, -0.03]].forEach(([th, L, x], i) => {
+        const p = V3(x, Math.sin(th) * HH, Math.cos(th) * HD);
+        const n = HN(p);
+        const back = V3(0, Math.sin(th + Math.PI / 2), Math.cos(th + Math.PI / 2));
+        const d = back.clone().multiplyScalar(0.75).addScaledVector(n, 0.66).add(V3(0, 0.1, 0));
+        const f = feather(plateMat, hotMat);
+        place(f, p.clone().addScaledVector(n, -0.02), d, V3(1, 0, 0).add(V3(x * 4, 0, 0)), L, 1.2);
+        plume.add(f);
+      });
+      [-1, 1].forEach(sg => {
+        [[1.0, 0.42, 0.55], [1.45, 0.36, 0.7]].forEach(([th, L, sx]) => {
+          const p = onHeadRing(Math.sin(th) * 0.92, sg * (Math.PI / 2 - 0.25 + (th - 1) * 0.6));
+          const n = HN(p);
+          const d = V3(sg * sx, 0.7, -1);
+          const f = feather(plateMat, hotMat);
+          place(f, p.addScaledVector(n, -0.01), d, V3(sg, 0.4, 0.4).cross(d).cross(d).negate(), L, 1.2);
+          plume.add(f);
+        });
+      });
+      const scap = add(bodyG, new THREE.Group());
+      [-1, 1].forEach(sg => {
+        const base = shoulders[sg > 0 ? 1 : 0].clone().add(V3(sg * 0.02, 0.1, -0.02));
+        [[-0.55, 0.36], [-0.15, 0.44], [0.25, 0.4], [0.62, 0.32]].forEach(([a, L], i) => {
+          const d = V3(sg * 0.7, -1, 0).normalize().applyAxisAngle(V3(sg, 0, 0), a * 0.9).add(V3(0, 0, a * 0.25));
+          const out = V3(sg, 0.5, 0).normalize();
+          const f = feather(moltenMat, plateMat);
+          place(f, base.clone().add(V3(0, 0.02 * i, a * 0.12)), d, out, L, 1.6);
+          scap.add(f);
+        });
+      });
+      const ruff = add(torso, new THREE.Group());
+      for (let i = 0; i < 18; i++) {
+        const a = (i / 18) * TAU;
+        const y = 1.15;
+        const p = TP(a, y);
+        const n = TN(a, y);
+        const down = TP(a, y - 0.08).sub(TP(a, y));
+        const f = feather(plateMat, darkSteel);
+        place(f, p.addScaledVector(n, 0.012 + (i % 2) * 0.012), down, n, 0.16 + (i % 2) * 0.02, 2.3);
+        ruff.add(f);
+      }
+      const fan = add(tailTip, new THREE.Group());
+      {
+        [-0.62, -0.31, 0, 0.31, 0.62].forEach((a, i) => {
+          const d = V3(Math.sin(a), 0.12, Math.cos(a));
+          const f = feather(plateMat, hotMat);
+          place(f, V3(0, 0.004 * (2 - Math.abs(i - 2)), -0.02), d, V3(0, 1, 0), 0.46 - Math.abs(a) * 0.12);
+          fan.add(f);
+        });
+        fan.add(mesh(new THREE.SphereGeometry(0.05, 14, 10), castMat));
+      }
+      const darts = Array.from({ length: 5 }, (_, i) => {
+        const g = feather(plateMat, hotMat);
+        const st = new THREE.Mesh(new THREE.ConeGeometry(0.06, 1.2, 8, 1, true), trailMat);
+        st.position.y = -0.55;
+        st.rotation.z = Math.PI;
+        g.add(st);
+        g.visible = false;
+        big.add(g);
+        return { g, i, a: (i - 2) * 0.16, h: (i % 2 ? 0.08 : -0.04) };
+      });
+      let open = 0.15;
+      const openW = { v: 0.15 };
+      const nrm = V3(1, 0, 0.15).normalize();
+      const nwant = V3(1, 0, 0.15);
+      let from = V3();
+      let fdir = V3(0, 0, 1);
+      let launched = false;
+      let tipBig = V3();
+      return {
+        customTail: true,
+        set: on => {
+          K.set(on);
+          if (!on) darts.forEach(d => (d.g.visible = false));
+        },
+        style(shiny) {
+          plateMat.color.setHex(shiny ? 0xf4e2a8 : 0x9aa6d0);
+        },
+        rest(S, t, motion) {
+          S.hL.set(0.98, TIP + 0.78, 0.02).add(V3(0, Math.sin(t * 1.4 + 1.2) * 0.02 * motion, 0));
+          nwant.set(0.15, 0, -1);
+          openW.v = 0.3 + 0.04 * Math.sin(t * 1.1) * motion;
+        },
+        act(nm, p, S) {
+          if (nm === "swipe") {
+            const wind = smooth(0.04, 0.3, p) * (1 - smooth(0.34, 0.42, p));
+            const cut = smooth(0.34, 0.48, p) * (1 - smooth(0.76, 0.95, p));
+            S.hL.lerp(V3(1.0, TIP + 1.15, -0.45), wind);
+            nwant.lerp(V3(0.1, 0.35, -1), wind);
+            S.hL.lerp(V3(0.15, TIP + 0.98, 0.95), cut);
+            nwant.lerp(V3(0, 1, 0.6), cut);
+            openW.v = lerp(openW.v, 1, Math.max(wind, cut));
+            S.spinY += 0.35 * wind - 0.5 * cut;
+            S.lean += -0.06 * wind + 0.14 * cut;
+            S.trailK = p > 0.34 && p < 0.58 ? Math.sin(Math.PI * smooth(0.34, 0.58, p)) : 0;
+            S.glow = 0.5 * wind + 0.8 * cut;
+            S.impact = p > 0.44 && p < 0.6 ? 1 - smooth(0.44, 0.6, p) : 0;
+            S.sparkK = p > 0.44 && p < 0.7 ? smooth(0.44, 0.7, p) : -1;
+            S.mouthK = 0.6 * cut;
+            return true;
+          }
+          if (nm === "fling") {
+            const raise = smooth(0.04, 0.38, p) * (1 - smooth(0.42, 0.5, p));
+            const flap = smooth(0.42, 0.52, p) * (1 - smooth(0.8, 0.98, p));
+            S.hL.lerp(V3(0.78, TIP + 1.85, -0.2), raise);
+            nwant.lerp(V3(0.1, 0.25, 1), raise);
+            S.hL.lerp(V3(0.62, TIP + 0.75, 0.75), flap);
+            nwant.lerp(V3(0, 0.7, 1), flap);
+            openW.v = lerp(openW.v, 1, Math.max(raise, flap));
+            S.hR.lerp(V3(-0.82, TIP + 1.2, 0.2), raise);
+            S.hover += 0.22 * raise - 0.04 * flap;
+            S.lean += -0.14 * raise + 0.26 * flap;
+            S.glow = 1.3 * raise + 0.9 * flap;
+            S.flash = 0.6 * raise + 0.7 * flap;
+            S.waveK = p > 0.46 && p < 0.97 ? smooth(0.46, 0.97, p) : -1;
+            S.impact = p > 0.46 && p < 0.64 ? 1 - smooth(0.46, 0.64, p) : 0;
+            S.sparkK = p > 0.46 && p < 0.74 ? smooth(0.46, 0.74, p) : -1;
+            S.headPitch += 0.12 * flap - 0.12 * raise;
+            S.mouthK = 0.8 * flap;
+            S.legK = 0.4 * raise;
+            return true;
+          }
+          if (nm === "spin") {
+            S.hL.lerp(V3(1.02, TIP + 0.98, 0.0), S.spinK);
+            nwant.lerp(V3(0, 0.5, 1), S.spinK);
+            openW.v = lerp(openW.v, 1, S.spinK);
+          }
+          if (nm === "jump") {
+            S.hL.lerp(V3(0.95, TIP + 1.45, -0.15), S.air);
+            nwant.lerp(V3(0.2, 0.2, -1), S.air);
+            openW.v = lerp(openW.v, 0.9, S.air);
+          }
+          return false;
+        },
+        arm(S, t, motion) {
+          nrm.lerp(nwant.clone().normalize(), 0.4).normalize();
+          open = lerp(open, openW.v, 0.4);
+          const rad = u => lerp(0.125, 0.075, smooth(0.3, 0.95, u));
+          const c = moltenArm(arm, shoulders[1], S.hL, t, motion, rad, 0.7);
+          const end = c.getPointAt(1);
+          const z = c.getTangentAt(1);
+          let n = nrm.clone().addScaledVector(z, -nrm.dot(z));
+          if (n.lengthSq() < 1e-4) n = V3(1, 0, 0).addScaledVector(z, -z.x);
+          n.normalize();
+          const tr = n.clone().cross(z).normalize();
+          const fl = Math.sin(t * 2.2) * 0.03 * motion;
+          prim.forEach((P, i) => {
+            const f = i / (prim.length - 1);
+            const th = lerp(lerp(0.5, 0.1, open), lerp(1.0, 1.6, open), f) + fl * f;
+            const d = z.clone().multiplyScalar(Math.cos(th)).addScaledVector(tr, Math.sin(th));
+            place(P.g, end.clone().addScaledVector(tr, 0.04 * f).addScaledVector(n, 0.012 * (prim.length - i)), d, n, P.L);
+          });
+          sec.forEach((P, i) => {
+            const tg = c.getTangentAt(P.u);
+            const nn = n.clone().addScaledVector(tg, -n.dot(tg)).normalize();
+            const tu = nn.clone().cross(tg).normalize();
+            const a = lerp(1.15, 0.2, open) + 0.05 * i;
+            const d = tu.clone().multiplyScalar(Math.cos(a)).addScaledVector(tg, Math.sin(a));
+            place(P.g, c.getPointAt(P.u).addScaledVector(nn, -0.03 - 0.006 * i), d, nn, P.L);
+          });
+          cov.forEach(P => {
+            const tg = c.getTangentAt(P.u);
+            const nn = n.clone().addScaledVector(tg, -n.dot(tg)).normalize();
+            const tu = nn.clone().cross(tg).normalize();
+            const d = tu.clone().multiplyScalar(0.5).addScaledVector(tg, 0.85);
+            place(P.g, c.getPointAt(P.u).addScaledVector(nn, 0.07).addScaledVector(tu, 0.02), d, nn, P.L);
+          });
+          cuff.position.copy(c.getPointAt(0.93));
+          cuff.quaternion.setFromUnitVectors(V3(0, 0, 1), c.getTangentAt(0.93));
+          cuff.scale.setScalar(rad(0.93) + 0.008);
+          knob.position.copy(end);
+          const P0 = prim[0];
+          tipBig = big.worldToLocal(bodyG.localToWorld(P0.g.position.clone().addScaledVector(V3(0, 1, 0).applyQuaternion(P0.g.quaternion), P0.L * 0.9)));
+        },
+        fx(S, nm) {
+          if (nm === "swipe")
+            trail.forEach((a, i) => {
+              a.position.copy(shoulders[1]).add(V3(-0.2, 0.0, 0));
+              a.rotation.set(Math.PI / 2 - 0.1, 0, -0.4 + i * 0.05);
+              a.scale.setScalar(1.75 + i * 0.06);
+            });
+          if (S.waveK >= 0 && !launched) {
+            launched = true;
+            from = big.worldToLocal(bodyG.localToWorld(knob.position.clone()));
+            const f = big.worldToLocal(bodyG.localToWorld(V3(0, 0, 1))).sub(big.worldToLocal(bodyG.localToWorld(V3(0, 0, 0))));
+            f.y = 0;
+            fdir = f.normalize();
+          }
+          if (S.waveK < 0) launched = false;
+          darts.forEach(D => {
+            const k = S.waveK >= 0 ? S.waveK * 1.15 - D.i * 0.03 : -1;
+            D.g.visible = k > 0 && k < 1;
+            if (!D.g.visible) return;
+            const dir = fdir.clone().applyAxisAngle(V3(0, 1, 0), D.a);
+            const at = from.clone().lerp(V3(from.x, 1.15 + D.h, from.z), smooth(0, 0.12, k)).addScaledVector(dir, 0.2 + k * 3.4);
+            const side = V3(0, 1, 0).cross(dir).normalize();
+            place(D.g, at, dir, V3(0, 1, 0).applyAxisAngle(dir, k * 10 + D.i), 0.62 * (1 - smooth(0.85, 1, k)) + 0.001);
+            D.g.position.addScaledVector(dir, -0.25).addScaledVector(side, 0);
+          });
+          const vis = darts.find(d => d.g.visible);
+          return vis ? vis.g.position.clone() : tipBig;
+        },
+        hide() {
+          darts.forEach(d => (d.g.visible = false));
+        }
+      };
+    })();
+
+    const KITS = { steel: shieldKit, rock: hammerKit, fire: swordKit, water: tridentKit, grass: bowKit, dragon: dragonKit, fighting: fistKit, ice: iceKit, poison: poisonKit, bug: bugKit, electric: railKit, ghost: scytheKit, flying: wingKit };
     let kitNow = hammerKit;
 
     const food = berry();
@@ -5553,7 +5811,7 @@ Pets.register({
       const half = kitNow === bowKit || kitNow === dragonKit;
       browFull.visible = !half;
       browHalf.visible = half;
-      crestM.visible = kitNow !== dragonKit && kitNow !== fistKit && kitNow !== bugKit && kitNow !== scytheKit;
+      crestM.visible = kitNow !== dragonKit && kitNow !== fistKit && kitNow !== bugKit && kitNow !== scytheKit && kitNow !== wingKit;
 
       restyle();
     };
