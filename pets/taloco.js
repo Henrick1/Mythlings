@@ -5858,9 +5858,9 @@ Pets.register({
         cx.globalCompositeOperation = "destination-out";
         for (let i = 0; i < 90; i++) {
           const edge = r8() < 0.5;
-          const x = edge ? (r8() < 0.5 ? 6 + r8() * 30 : 210 + r8() * 40) : 30 + r8() * 200;
-          const y = edge ? r8() * 210 : 150 + r8() * 80;
-          blob(x, y, 8 + r8() * 22, 1);
+          const x = edge ? (r8() < 0.5 ? r8() * 18 : 236 + r8() * 20) : 30 + r8() * 200;
+          const y = edge ? r8() * 210 : 160 + r8() * 70;
+          blob(x, y, 6 + r8() * 14, 1);
         }
         cx.globalCompositeOperation = "source-over";
         for (let i = 0; i < 40; i++) blob(70 + r8() * 130, 20 + r8() * 160, 10 + r8() * 20, 0.6);
