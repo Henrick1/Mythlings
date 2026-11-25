@@ -663,6 +663,25 @@ Pets.register({
     food.visible = false;
     pose.add(food);
 
+    const model = kit.glb
+      ? kit.glb({
+          src: "assets/models/axolirio.glb",
+          parent: pose,
+          owner: root,
+          id: "axolirio",
+          height: 1.07,
+          bottom: -0.06,
+          ignore: /Lily|Spore|Gill/,
+          clips: { attack: "Attack", toxic: "Special", bloom: "Bloom", gills: "Gills", crawl: "Crawl", jump: "Jump", eat: "Eat" },
+          onReady: st => {
+            const keep = new Set([food, st.scene, ...bursts.map(x => x.b)]);
+            pose.children.forEach(c => {
+              if (!keep.has(c)) c.visible = false;
+            });
+          }
+        })
+      : null;
+
     return {
       root,
       update(s) {
@@ -670,6 +689,37 @@ Pets.register({
         const a = action ? action.name : null;
         const p = action ? action.p : 0;
         const ph = a === "eat" ? eatPhase(p) : null;
+        if (model && model.active) {
+          model.drive(t, a, p, { Swim: s.swim || 0 });
+          root.position.set(0, 0, 0);
+          root.rotation.set(0, lookYaw * 0.35, 0);
+          squash.scale.set(1, 1, 1);
+          squash.rotation.set(0, 0, 0);
+          pose.rotation.set(0, -0.35, 0);
+          bursts.forEach(({ b, m, dir, delay }) => {
+            const q = (p - 0.3 - delay) / 0.5;
+            const on = a === "toxic" && q > 0 && q < 1;
+            b.visible = on;
+            if (on) {
+              b.position.set(dir[0] * q * 1.2, 0.45 + dir[1] * q * 1.2 + q * 0.25, 1.35 + dir[2] * q * 1.2);
+              b.scale.setScalar(0.5 + q * 1.1);
+              m.opacity = (1 - q) * 0.7;
+            }
+          });
+          if (ph) {
+            food.visible = ph.visible;
+            const jaw = model.bone("Jaw");
+            let target = new THREE.Vector3(0, 0.5, 1.38);
+            if (jaw) {
+              root.updateMatrixWorld(true);
+              target = pose.worldToLocal(jaw.getWorldPosition(new THREE.Vector3())).add(new THREE.Vector3(0, 0, 0.1));
+            }
+            food.position.set(0, lerp(3.0, target.y, ph.fall * ph.fall), lerp(1.25, target.z, ph.fall));
+            food.scale.setScalar(1 - 0.85 * ph.bite);
+            food.rotation.z = Math.sin(t * 14) * 0.3 + (1 - ph.fall) * 1.0;
+          } else food.visible = false;
+          return;
+        }
 
         let y = 0;
         let sy = 1 + Math.sin(t * 2) * 0.02 * motion;
