@@ -24,6 +24,7 @@ Pets.register({
 
   create({ THREE, kit }) {
     const { mesh, lerp, smooth, eatPhase, berry, strike } = kit;
+    const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
     const std = (color, rough = 0.55, extra = {}) =>
       new THREE.MeshStandardMaterial({ color, roughness: rough, ...extra });
@@ -268,10 +269,56 @@ Pets.register({
     food.visible = false;
     squash.add(food);
 
+    const model = kit.glb
+      ? kit.glb({
+          src: "assets/models/gosmilo.glb",
+          parent: root,
+          owner: root,
+          id: "axolinho",
+          height: 1.91,
+          ignore: /Bubble/,
+          clips: { attack: "Attack", bubble: "Special", jump: "Jump", eat: "Eat" },
+          onReady: () => {
+            squash.visible = false;
+            root.add(food);
+          }
+        })
+      : null;
+
     return {
       root,
       update(s) {
         const { t, pointer, lookYaw, lookPitch, blink, action, motion, reduceMotion } = s;
+        if (model && model.active) {
+          model.drive(t, action ? action.name : null, action ? action.p : 0, { Swim: s.swim || 0 });
+          root.position.set(0, 0, 0);
+          root.rotation.set(lookPitch * 0.5, lookYaw, 0);
+          const blowP = action && action.name === "bubble" ? action.p : -1;
+          puffs.forEach(({ b, m, delay, dir, size }) => {
+            const q = (blowP - 0.38 - delay) / 0.5;
+            const on = blowP >= 0 && q > 0 && q < 1;
+            b.visible = on;
+            if (on) {
+              b.position.set(dir[0] * q * 1.1, 0.68 + dir[1] * q * 1.1 + q * 0.2, 0.85 + dir[2] * q * 1.1);
+              b.scale.setScalar(size * (0.6 + q * 1.4));
+              m.opacity = (1 - q) * 0.75;
+            }
+          });
+          const ph = action && action.name === "eat" ? eatPhase(action.p) : null;
+          if (ph) {
+            food.visible = ph.visible;
+            const jaw = model.bone("Jaw");
+            let target = V3(0, 0.68, 0.8);
+            if (jaw) {
+              root.updateMatrixWorld(true);
+              target = root.worldToLocal(jaw.getWorldPosition(V3(0, 0, 0))).add(V3(0, 0, 0.12));
+            }
+            food.position.set(0, lerp(3.2, target.y, ph.fall * ph.fall), lerp(0.8, target.z, ph.fall));
+            food.scale.setScalar(1 - 0.85 * ph.bite);
+            food.rotation.z = (1 - ph.fall) * 1.2;
+          } else food.visible = false;
+          return;
+        }
         const jump = action && action.name === "jump" ? action : null;
         const eat = action && action.name === "eat" ? action : null;
         const bub = action && action.name === "bubble" ? action : null;
