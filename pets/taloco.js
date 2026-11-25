@@ -6322,84 +6322,70 @@ Pets.register({
     const psyKit = (() => {
       const K = makeKit();
       const { add } = K;
+      const sph = new THREE.SphereGeometry(1, 24, 16);
+      const drops = [0, 1].map(() => add(bodyG, mesh(sph, moltenMat)));
+      const elbowO = add(bodyG, mesh(sph, moltenMat));
+      const elbowR = add(bodyG, mesh(new THREE.TorusGeometry(0.1, 0.011, 8, 40), hotMat, false));
+      const wristO = add(bodyG, mesh(sph, moltenMat));
+      const brace = add(bodyG, new THREE.Group());
+      {
+        const prof = [V2(0.104, -0.16), V2(0.124, -0.156), V2(0.134, -0.13), V2(0.142, -0.04), V2(0.142, 0.04), V2(0.134, 0.12), V2(0.12, 0.15), V2(0.1, 0.156)];
+        brace.add(mesh(new THREE.LatheGeometry(prof, 40), plateMat));
+        brace.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.3, 24, 1, true), darkSteel));
+        [-0.135, 0.135].forEach(y => {
+          const r = mesh(new THREE.TorusGeometry(0.132, 0.013, 8, 40), darkSteel);
+          r.rotation.x = Math.PI / 2;
+          r.position.y = y;
+          brace.add(r);
+        });
+        const band = mesh(new THREE.TorusGeometry(0.145, 0.01, 6, 48), hotMat, false);
+        band.rotation.x = Math.PI / 2;
+        brace.add(band);
+        for (let k = 0; k < 4; k++) {
+          const a = (k / 4) * TAU + Math.PI / 4;
+          const gm = mesh(new THREE.OctahedronGeometry(0.024, 0), hotMat, false);
+          gm.position.set(Math.cos(a) * 0.15, 0.06, Math.sin(a) * 0.15);
+          gm.scale.set(0.6, 1.3, 0.6);
+          brace.add(gm);
+        }
+      }
       const HS = 1.3;
-      const sph = new THREE.SphereGeometry(1, 20, 14);
-      const NB = 7;
-      const beads = Array.from({ length: NB }, () => add(bodyG, mesh(sph, moltenMat)));
       const hand = add(bodyG, new THREE.Group());
       const handIn = new THREE.Group();
       handIn.scale.setScalar(HS);
       hand.add(handIn);
       {
-        const slab = (w, h, r, d, top) => {
-          const sh = new THREE.Shape();
-          sh.moveTo(-w / 2 + r, 0);
-          sh.lineTo(w / 2 - r, 0);
-          sh.quadraticCurveTo(w / 2, 0, w / 2, r);
-          if (top) {
-            sh.lineTo(w / 2, h - w / 2);
-            sh.absarc(0, h - w / 2, w / 2, 0, Math.PI, false);
-          } else {
-            sh.lineTo(w / 2, h - r);
-            sh.quadraticCurveTo(w / 2, h, w / 2 - r, h);
-            sh.lineTo(-w / 2 + r, h);
-            sh.quadraticCurveTo(-w / 2, h, -w / 2, h - r);
-          }
-          sh.lineTo(-w / 2, r);
-          sh.quadraticCurveTo(-w / 2, 0, -w / 2 + r, 0);
-          const g = new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: true, bevelThickness: 0.022, bevelSize: 0.02, bevelSegments: 3, curveSegments: 16 });
-          g.translate(0, 0, -d / 2);
-          return g;
-        };
-        const palm = mesh(slab(0.25, 0.25, 0.07, 0.05), castMat);
-        palm.position.y = -0.12;
-        handIn.add(palm);
-        const piv = new THREE.Group();
-        piv.position.set(0, 0.11, 0);
-        piv.rotation.x = 0.32;
-        handIn.add(piv);
-        const fing = mesh(slab(0.23, 0.29, 0.06, 0.038, true), castMat);
-        fing.position.y = 0.0;
-        piv.add(fing);
-        [-0.058, 0, 0.058].forEach(x => {
-          const sm = mesh(new THREE.BoxGeometry(0.008, 0.2, 0.01), hotMat, false);
-          sm.position.set(x, 0.14, 0.042);
-          piv.add(sm);
-        });
-        const kn = mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.25, 12), plateMat);
-        kn.rotation.z = Math.PI / 2;
-        kn.position.set(0, 0.11, -0.02);
-        kn.scale.set(1, 1, 0.8);
-        handIn.add(kn);
-        const tp = new THREE.Group();
-        tp.position.set(0.12, -0.04, 0.01);
-        tp.rotation.set(0.35, -0.2, -0.75);
-        handIn.add(tp);
-        tp.add(mesh(slab(0.075, 0.17, 0.035, 0.035, true), castMat));
-        const sig = mesh(new THREE.TorusGeometry(0.07, 0.01, 6, 32), hotMat, false);
-        sig.position.set(0, 0.0, 0.05);
+        const mitt = mesh(new THREE.SphereGeometry(0.135, 32, 22), steelMat);
+        mitt.scale.set(1.1, 0.62, 1.28);
+        mitt.position.z = 0.11;
+        handIn.add(mitt);
+        const knuck = mesh(new THREE.SphereGeometry(0.12, 32, 12, 0, TAU, 0, Math.PI * 0.4), plateMat);
+        knuck.scale.set(1.12, 0.52, 1.22);
+        knuck.position.set(0, 0.035, 0.11);
+        handIn.add(knuck);
+        const gem = mesh(new THREE.OctahedronGeometry(0.03, 0), hotMat, false);
+        gem.position.set(0, 0.098, 0.1);
+        gem.scale.set(1, 0.5, 1.3);
+        handIn.add(gem);
+        const th = new THREE.Group();
+        th.position.set(0.11, 0.0, 0.06);
+        th.rotation.set(-0.15, 0.85, 0);
+        handIn.add(th);
+        const tm = mesh(new THREE.SphereGeometry(0.05, 20, 14), steelMat);
+        tm.scale.set(0.95, 0.8, 1.7);
+        tm.position.z = 0.05;
+        th.add(tm);
+        const sig = mesh(new THREE.TorusGeometry(0.058, 0.008, 6, 40), hotMat, false);
+        sig.rotation.x = Math.PI / 2;
+        sig.position.set(0, -0.082, 0.1);
         handIn.add(sig);
-        const sig2 = mesh(new THREE.TorusGeometry(0.035, 0.008, 6, 24), hotMat, false);
-        sig2.position.set(0, 0.0, 0.05);
+        const sig2 = mesh(new THREE.CircleGeometry(0.022, 24), hotMat, false);
+        sig2.rotation.x = Math.PI / 2;
+        sig2.position.set(0, -0.083, 0.1);
         handIn.add(sig2);
-        const dot = mesh(new THREE.SphereGeometry(0.016, 10, 8), hotMat, false);
-        dot.position.set(0, 0, 0.05);
-        handIn.add(dot);
-      }
-      const cuff = add(bodyG, new THREE.Group());
-      {
-        const r = mesh(new THREE.TorusGeometry(0.1, 0.028, 10, 32), castMat);
-        cuff.add(r);
-        const r2 = mesh(new THREE.TorusGeometry(0.1, 0.01, 6, 32), hotMat, false);
-        r2.position.z = 0.02;
-        cuff.add(r2);
-        for (let k = 0; k < 6; k++) {
-          const a = (k / 6) * TAU;
-          const b = mesh(new THREE.BoxGeometry(0.03, 0.03, 0.05), plateMat);
-          b.position.set(Math.cos(a) * 0.125, Math.sin(a) * 0.125, 0);
-          b.rotation.z = a;
-          cuff.add(b);
-        }
+        const wr = mesh(new THREE.TorusGeometry(0.085, 0.016, 8, 32), darkSteel);
+        wr.position.z = -0.01;
+        handIn.add(wr);
       }
       const cap = add(socket, new THREE.Group());
       {
@@ -6513,12 +6499,10 @@ Pets.register({
         bodyG.add(m);
         return m;
       });
-      const fy = V3(0, 1, 0.1).normalize();
-      const fz = V3(0.2, 0, 1).normalize();
-      const fwant = V3(0, 1, 0.1);
-      const pwant = V3(0.2, 0, 1);
-      let orbR = 0.48;
-      const orbW = { r: 0.48, spd: 1.4 };
+      let bend = 0.2;
+      const bendW = { v: 0.2 };
+      let orbR = 0.3;
+      const orbW = { r: 0.3, spd: 1.4 };
       let orbA = 0;
       let lastT = null;
       let handBig = V3();
@@ -6532,23 +6516,19 @@ Pets.register({
           plateMat.color.setHex(shiny ? 0xf0d488 : 0xa8407e);
         },
         rest(S, t, motion) {
-          S.hL.set(0.98, TIP + 1.0 + Math.sin(t * 1.6) * 0.05 * motion, 0.38);
-          fwant.set(0.05, 1, 0.15);
-          pwant.set(0.35, 0, 1);
-          orbW.r = 0.48;
+          S.hL.set(0.74, TIP + 0.5 + Math.sin(t * 1.6) * 0.03 * motion, 0.36);
+          bendW.v = 0.25 + 0.08 * Math.sin(t * 1.1) * motion;
+          orbW.r = 0.3;
           orbW.spd = 1.4;
         },
         act(nm, p, S) {
           if (nm === "swipe") {
             const wind = smooth(0.04, 0.3, p) * (1 - smooth(0.34, 0.42, p));
             const push = smooth(0.34, 0.46, p) * (1 - smooth(0.76, 0.95, p));
-            S.hL.lerp(V3(1.05, TIP + 1.3, -0.35), wind);
-            fwant.lerp(V3(0.3, 1, -0.3), wind);
-            pwant.lerp(V3(-0.6, 0.2, 0.6), wind);
-            S.hL.lerp(V3(0.3, TIP + 1.15, 1.25), push);
-            fwant.lerp(V3(0, 1, 0.05), push);
-            pwant.lerp(V3(0, 0, 1), push);
-            orbW.r = lerp(orbW.r, 0.85, push);
+            S.hL.lerp(V3(0.95, TIP + 1.2, -0.3), wind);
+            S.hL.lerp(V3(0.32, TIP + 1.12, 0.98), push);
+            bendW.v = lerp(bendW.v, 1.25, push);
+            orbW.r = lerp(orbW.r, 0.5, push);
             orbW.spd = lerp(orbW.spd, 7, Math.max(wind, push));
             S.spinY += 0.3 * wind - 0.35 * push;
             S.lean += -0.06 * wind + 0.14 * push;
@@ -6563,13 +6543,11 @@ Pets.register({
           if (nm === "fling") {
             const raise = smooth(0.04, 0.38, p) * (1 - smooth(0.42, 0.5, p));
             const thrust = smooth(0.42, 0.52, p) * (1 - smooth(0.84, 0.98, p));
-            S.hL.lerp(V3(0.72, TIP + 2.0, 0.2), raise);
-            fwant.lerp(V3(0, 0.3, 1), raise);
-            pwant.lerp(V3(0, 1, -0.2), raise);
-            S.hL.lerp(V3(0.4, TIP + 1.2, 1.05), thrust);
-            fwant.lerp(V3(0, 1, 0.1), thrust);
-            pwant.lerp(V3(0, 0, 1), thrust);
-            orbW.r = lerp(orbW.r, 0.7, raise);
+            S.hL.lerp(V3(0.62, TIP + 1.85, 0.2), raise);
+            bendW.v = lerp(bendW.v, -0.5, raise);
+            S.hL.lerp(V3(0.38, TIP + 1.15, 0.95), thrust);
+            bendW.v = lerp(bendW.v, 1.25, thrust);
+            orbW.r = lerp(orbW.r, 0.45, raise);
             orbW.spd = lerp(orbW.spd, 9, Math.max(raise, thrust));
             S.hR.lerp(V3(-0.82, TIP + 1.25, 0.25), raise);
             S.hover += 0.25 * raise - 0.04 * thrust;
@@ -6587,60 +6565,73 @@ Pets.register({
           }
           if (nm === "spin") {
             S.hL.lerp(V3(1.05, TIP + 1.0, 0.1), S.spinK);
-            pwant.lerp(V3(1, 0, 0), S.spinK);
-            orbW.r = lerp(orbW.r, 0.8, S.spinK);
+            bendW.v = lerp(bendW.v, 0.9, S.spinK);
+            orbW.r = lerp(orbW.r, 0.5, S.spinK);
             orbW.spd = lerp(orbW.spd, 6, S.spinK);
           }
           if (nm === "jump") {
             S.hL.lerp(V3(0.85, TIP + 1.55, 0.25), S.air);
-            fwant.lerp(V3(0, 1, 0), S.air);
-            pwant.lerp(V3(0.2, 0, 1), S.air);
+            bendW.v = lerp(bendW.v, -0.3, S.air);
           }
           return false;
         },
         arm(S, t, motion) {
           const dt = lastT === null ? 0 : Math.min(0.1, Math.max(0, t - lastT));
           lastT = t;
-          fy.lerp(fwant.clone().normalize(), 0.3).normalize();
-          fz.lerp(pwant.clone().normalize(), 0.3);
-          fz.addScaledVector(fy, -fz.dot(fy)).normalize();
-          const fx = fy.clone().cross(fz).normalize();
-          const H = S.hL.clone();
-          hand.position.copy(H);
-          hand.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(fx, fy, fz));
-          const W = H.clone().addScaledVector(fy, -0.24 * HS);
-          cuff.position.copy(W).addScaledVector(fy, Math.sin(t * 2.2) * 0.012 * motion);
-          cuff.quaternion.setFromUnitVectors(V3(0, 0, 1), fy);
-          const A = shoulders[1].clone().add(V3(0.12, -0.02, 0));
-          const W2 = W.clone().addScaledVector(fy, -0.08);
-          const mid = A.clone().lerp(W2, 0.5).add(V3(0.1, -0.16, 0));
-          const cv = new THREE.QuadraticBezierCurve3(A, mid, W2);
-          beads.forEach((b, i) => {
-            const u = (i + 0.7) / NB;
-            const pp = cv.getPointAt(u);
-            pp.y += Math.sin(t * 2.4 + i * 1.3) * 0.022 * motion;
-            pp.x += Math.cos(t * 1.9 + i * 0.9) * 0.012 * motion;
-            b.position.copy(pp);
-            b.quaternion.setFromUnitVectors(V3(0, 1, 0), cv.getTangentAt(u));
-            const r = lerp(0.072, 0.04, u) * (1 + 0.12 * Math.sin(t * 3 + i * 2));
-            b.scale.set(r, r * 1.3, r);
+          const A = shoulders[1];
+          const r = ik(A, S.hL, L1, L2, V3(0, -0.5, -0.5));
+          const E = r.elbow;
+          const Wp = r.end;
+          const ua = E.clone().sub(A);
+          const fa = Wp.clone().sub(E);
+          const uaN = ua.clone().normalize();
+          const faN = fa.clone().normalize();
+          const bob = k => Math.sin(t * 2.2 + k * 1.7) * 0.014 * motion;
+          drops.forEach((d, i) => {
+            const u = 0.48 + i * 0.27;
+            d.position.copy(A).addScaledVector(ua, u).add(V3(0, bob(i), 0));
+            d.quaternion.setFromUnitVectors(V3(0, 1, 0), uaN);
+            const rr = 0.064 - i * 0.004;
+            const pul = 1 + 0.08 * Math.sin(t * 3 + i * 2);
+            d.scale.set(rr * pul, rr * 1.3 * pul, rr * pul);
           });
+          elbowO.position.copy(E).add(V3(0, bob(4), 0));
+          elbowO.scale.setScalar(0.082 * (1 + 0.06 * Math.sin(t * 2.6)));
+          elbowR.position.copy(elbowO.position);
+          elbowR.quaternion.setFromUnitVectors(V3(0, 0, 1), uaN.clone().add(faN).normalize());
+          elbowR.rotateZ(t * 2);
+          const bc = E.clone().addScaledVector(fa, 0.52).add(V3(0, bob(5), 0));
+          brace.position.copy(bc);
+          brace.quaternion.setFromUnitVectors(V3(0, 1, 0), faN);
+          brace.rotateY(t * 0.6);
+          wristO.position.copy(E).addScaledVector(fa, 0.93).add(V3(0, bob(6), 0));
+          wristO.scale.setScalar(0.05 * (1 + 0.1 * Math.sin(t * 3.3)));
+          bend = lerp(bend, bendW.v, 0.3);
+          const { hx, hy } = frame(faN);
+          const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(hx, hy, faN));
+          q.multiply(new THREE.Quaternion().setFromAxisAngle(V3(1, 0, 0), -bend));
+          hand.position.copy(Wp).addScaledVector(faN, 0.05).add(V3(0, bob(7), 0));
+          hand.quaternion.copy(q);
+          const H = hand.position.clone();
+          const palmN = V3(0, -1, 0).applyQuaternion(q);
+          const palmC = H.clone().addScaledVector(V3(0, 0, 1).applyQuaternion(q), 0.13 * HS);
           orbR = lerp(orbR, orbW.r, 0.25);
-          orbA += dt * orbW.spd + (dt === 0 ? 0 : 0);
+          orbA += dt * orbW.spd;
           const oa = dt === 0 ? t * orbW.spd : orbA;
-          const hB = big.worldToLocal(bodyG.localToWorld(H.clone()));
-          handBig = hB;
+          const ox = V3(1, 0, 0).applyQuaternion(brace.quaternion);
+          const oz = V3(0, 0, 1).applyQuaternion(brace.quaternion);
+          handBig = big.worldToLocal(bodyG.localToWorld(palmC.clone()));
           const k = S.waveK >= 0 ? S.waveK : -1;
           const out = k >= 0 ? smooth(0, 0.5, k) * (1 - smooth(0.62, 1, k)) : 0;
           discs.forEach(D => {
             const a = oa + (D.i / 3) * TAU;
-            const op = H.clone().addScaledVector(fx, Math.cos(a) * orbR * HS * 0.75).addScaledVector(fy, 0.06 + Math.sin(a) * orbR * HS * 0.75);
+            const op = bc.clone().addScaledVector(ox, Math.cos(a) * orbR).addScaledVector(oz, Math.sin(a) * orbR);
             const dir = V3(Math.sin((D.i - 1) * 0.4), 0.02, Math.cos((D.i - 1) * 0.4));
             D.g.position.copy(op).addScaledVector(dir, out * 3.3);
-            const nrm = fz.clone().lerp(V3(0, 1, 0), out).normalize();
+            const nrm = faN.clone().lerp(V3(0, 1, 0), out).normalize();
             D.g.quaternion.setFromUnitVectors(V3(0, 0, 1), nrm);
             D.g.rotateZ(t * (8 + 10 * out) + D.i);
-            D.g.scale.setScalar(1 + 0.5 * out);
+            D.g.scale.setScalar(0.72 * (1 + 0.6 * out));
           });
           leadBig = big.worldToLocal(bodyG.localToWorld(discs[1].g.position.clone()));
           haloB.forEach((b, i) => {
@@ -6662,8 +6653,8 @@ Pets.register({
             const kk = pk - i * 0.15;
             m.visible = kk > 0 && kk < 1;
             if (!m.visible) return;
-            m.position.copy(H).addScaledVector(fz, 0.08 + kk * 0.6);
-            m.quaternion.setFromUnitVectors(V3(0, 0, 1), fz);
+            m.position.copy(palmC).addScaledVector(palmN, 0.06 + kk * 0.6);
+            m.quaternion.setFromUnitVectors(V3(0, 0, 1), palmN);
             m.scale.setScalar(0.12 + kk * 0.75);
           });
           pulseMat.opacity = pk >= 0 ? 0.75 * (1 - smooth(0.4, 1, pk)) : 0;
