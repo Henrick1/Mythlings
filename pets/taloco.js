@@ -6070,6 +6070,63 @@ Pets.register({
         });
         tailClaw.add(mesh(new THREE.SphereGeometry(0.06, 14, 10), castMat));
       }
+      const smokeTex = (() => {
+        const cv = document.createElement("canvas");
+        cv.width = 64;
+        cv.height = 64;
+        const cx = cv.getContext("2d");
+        let s9 = 3;
+        const r9 = () => (s9 = (s9 * 16807) % 2147483647) / 2147483647;
+        for (let i = 0; i < 14; i++) {
+          const x = 32 + (r9() - 0.5) * 22;
+          const y = 32 + (r9() - 0.5) * 22;
+          const r = 10 + r9() * 12;
+          const gr = cx.createRadialGradient(x, y, 0, x, y, r);
+          gr.addColorStop(0, "rgba(255,255,255,0.35)");
+          gr.addColorStop(1, "rgba(255,255,255,0)");
+          cx.fillStyle = gr;
+          cx.beginPath();
+          cx.arc(x, y, r, 0, TAU);
+          cx.fill();
+        }
+        return new THREE.CanvasTexture(cv);
+      })();
+      const smoke = add(bodyG, new THREE.Group());
+      let s10 = 17;
+      const r10 = () => (s10 = (s10 * 16807) % 2147483647) / 2147483647;
+      const eyeAt = HP(0.36, -0.02).addScaledVector(HN(HP(0.36, -0.02)), 0.03);
+      const puffs = Array.from({ length: 42 }, (_, i) => {
+        const eye = i >= 34;
+        const ember = eye || i % 7 === 0;
+        const m = new THREE.SpriteMaterial({ map: smokeTex, color: ember ? 0x5a0a18 : 0x140a1a, transparent: true, depthWrite: false, opacity: 0 });
+        const sp = new THREE.Sprite(m);
+        smoke.add(sp);
+        return { sp, m, ph: r10(), sp0: eye ? 0.07 + r10() * 0.04 : 0.18 + r10() * 0.12, last: 1, o: V3(), d: V3(), rot: r10() * TAU, ember, eye, claw: !eye && i % 2 === 0 };
+      });
+      const smokeFrom = P => {
+        if (P.eye) {
+          P.o.copy(bodyG.worldToLocal(head.localToWorld(eyeAt.clone())));
+          P.d.set(0.25 + r10() * 0.1, 0.12 + r10() * 0.1, -0.45 - r10() * 0.2);
+          P.rot = r10() * TAU;
+          return;
+        }
+        if (P.claw) {
+          const k = Math.floor(r10() * 3);
+          const u = 0.25 + r10() * 0.7;
+          const loc = V3((k - 1) * 0.0 + 0.3 * u * u, 0.1 + u * 0.85, (k - 1) * 0.15).multiplyScalar(CL);
+          P.o.copy(loc.applyQuaternion(claws.quaternion).add(claws.position));
+        } else {
+          const r = r10();
+          if (r < 0.35) P.o.copy(shoulders[1]).add(V3((r10() - 0.3) * 0.25, 0.1 + r10() * 0.15, (r10() - 0.5) * 0.3));
+          else {
+            const a = 0.5 + r10() * 2.2;
+            const y = 0.55 + r10() * 0.55;
+            P.o.copy(TP(a, y).addScaledVector(TN(a, y), 0.05)).add(V3(0, TIP, 0));
+          }
+        }
+        P.d.set((r10() - 0.5) * 0.25, 0.55 + r10() * 0.35, (r10() - 0.5) * 0.25 - 0.1);
+        P.rot = r10() * TAU;
+      };
       const markGeo = (() => {
         const sh = new THREE.Shape();
         sh.absarc(0, 0, 0.62, -1.0, 1.0, false);
@@ -6196,6 +6253,20 @@ Pets.register({
             Sp.m.quaternion.setFromUnitVectors(V3(0, 1, 0), up.clone().addScaledVector(tu, -0.9).normalize());
           });
           slitMat.color.copy(trailMat.color).lerp(new THREE.Color(1, 1, 1), 0.25);
+          const boost = Math.min(1, (S.glow || 0) * 0.8);
+          puffs.forEach(P => {
+            const rate = P.eye ? 0.9 : P.claw ? 0.55 + boost * 0.5 : 0.32;
+            const life = (t * rate + P.ph) % 1;
+            if (life < P.last) smokeFrom(P);
+            P.last = life;
+            P.sp.position.copy(P.o).addScaledVector(P.d, life * (P.claw ? 0.6 : 0.85));
+            P.sp.position.x += Math.sin(t * 1.3 + P.ph * 9) * 0.05 * life;
+            const sc = P.sp0 * (0.6 + life * 1.8) * (P.claw ? 0.8 + boost * 0.4 : 1);
+            P.sp.scale.set(sc, sc, 1);
+            P.m.rotation = P.rot + life * 1.2;
+            const a = Math.sin(Math.PI * life) * smooth(0, 0.15, life);
+            P.m.opacity = a * (P.eye ? 0.8 : P.ember ? 0.55 : 0.75) * (P.claw ? 0.75 + boost * 0.25 : 1) * (motion > 0 ? 1 : 1);
+          });
           tipBig = big.worldToLocal(bodyG.localToWorld(end.clone().addScaledVector(y, 0.9).addScaledVector(x, 0.3)));
         },
         fx(S, nm) {
