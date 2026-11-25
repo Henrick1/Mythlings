@@ -267,7 +267,7 @@ Pets.register({
     const GLOW = {
       fire: 0xff6a1e, water: 0x1e8cff, grass: 0x18d060, electric: 0xffd400, ice: 0x48f8ff, fighting: 0xff2626,
       poison: 0x9a28ff, ground: 0xc8902a, flying: 0x9c8cff, psychic: 0xff3c78, bug: 0x9ad000, rock: 0xd09018,
-      ghost: 0xa64cff, dragon: 0x4020ff, dark: 0xa0081a, steel: 0x8ea0b8, light: 0xfff4c0
+      ghost: 0xa64cff, dragon: 0x4020ff, dark: 0xa0081a, steel: 0x8ea0b8, light: 0xffb81e
     };
     let coreType = null;
 
@@ -6751,7 +6751,397 @@ Pets.register({
       };
     })();
 
-    const KITS = { steel: shieldKit, rock: hammerKit, fire: swordKit, water: tridentKit, grass: bowKit, dragon: dragonKit, fighting: fistKit, ice: iceKit, poison: poisonKit, bug: bugKit, electric: railKit, ghost: scytheKit, flying: wingKit, dark: clawKit, psychic: psyKit };
+    const sunKit = (() => {
+      const K = makeKit();
+      const { add } = K;
+      const arm = dyn(moltenMat);
+      K.parts.push(arm);
+      const goldMat = new THREE.MeshStandardMaterial({ color: 0xf0c050, roughness: 0.32, metalness: 0.45, emissive: 0x3a2200 });
+      const goldDark = new THREE.MeshStandardMaterial({ color: 0xa8742a, roughness: 0.38, metalness: 0.45 });
+      const sunCore = new THREE.MeshStandardMaterial({ color: 0xffe9a0, emissive: 0xff8c00, emissiveIntensity: 0.85, roughness: 0.55, metalness: 0 });
+      const glowTex = (() => {
+        const cv = document.createElement("canvas");
+        cv.width = 128;
+        cv.height = 128;
+        const cx = cv.getContext("2d");
+        const gr = cx.createRadialGradient(64, 64, 0, 64, 64, 64);
+        gr.addColorStop(0, "rgba(255,255,255,1)");
+        gr.addColorStop(0.22, "rgba(255,240,200,0.9)");
+        gr.addColorStop(0.45, "rgba(255,200,90,0.35)");
+        gr.addColorStop(1, "rgba(255,170,40,0)");
+        cx.fillStyle = gr;
+        cx.fillRect(0, 0, 128, 128);
+        return new THREE.CanvasTexture(cv);
+      })();
+      const coronaMat = new THREE.SpriteMaterial({ map: glowTex, color: 0xffb030, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending });
+      const flareMat = new THREE.MeshBasicMaterial({ color: 0xffb428, transparent: true, opacity: 0.9, depthWrite: false });
+      const SR = 0.17;
+      const SC = 0.3;
+      const makeSun = () => {
+        const g = new THREE.Group();
+        g.add(mesh(new THREE.SphereGeometry(SR, 40, 28), sunCore, false));
+        const shell = new THREE.Mesh(new THREE.SphereGeometry(SR * 1.12, 40, 28), new THREE.MeshBasicMaterial({ color: 0xff8a10, transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending }));
+        g.add(shell);
+        const cor = new THREE.Sprite(coronaMat);
+        cor.scale.set(SR * 3.6, SR * 3.6, 1);
+        g.add(cor);
+        const fl = new THREE.Group();
+        const cone = new THREE.ConeGeometry(0.016, 0.16, 6, 1, true);
+        cone.translate(0, 0.1, 0);
+        for (let k = 0; k < 12; k++) {
+          const m = new THREE.Mesh(cone, flareMat);
+          const a = (k / 12) * TAU;
+          const e = (k % 3 - 1) * 0.55;
+          m.quaternion.setFromUnitVectors(V3(0, 1, 0), V3(Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e)).normalize());
+          m.position.copy(V3(0, 1, 0).applyQuaternion(m.quaternion).multiplyScalar(SR * 0.95));
+          m.scale.set(1, 0.6 + (k % 2) * 0.5, 1);
+          m.userData.k = k;
+          fl.add(m);
+        }
+        g.add(fl);
+        const ring = new THREE.Mesh(new THREE.TorusGeometry(SR * 1.45, 0.01, 6, 64), flareMat);
+        ring.rotation.x = 1.2;
+        g.add(ring);
+        g.userData = { shell, cor, fl, ring };
+        return g;
+      };
+      const grip = add(bodyG, new THREE.Group());
+      const sun = makeSun();
+      sun.position.y = SC;
+      grip.add(sun);
+      {
+        const cup = mesh(new THREE.LatheGeometry([V2(0.075, -0.06), V2(0.095, -0.02), V2(0.118, 0.03), V2(0.128, 0.06), V2(0.11, 0.075)], 40), goldMat);
+        grip.add(cup);
+        const band = mesh(new THREE.TorusGeometry(0.1, 0.016, 10, 40), goldDark);
+        band.rotation.x = Math.PI / 2;
+        band.position.y = -0.03;
+        grip.add(band);
+        const tal = [];
+        const gems = [];
+        for (let k = 0; k < 4; k++) {
+          const a = (k / 4) * TAU + Math.PI / 4;
+          const dir = V3(Math.cos(a), 0, Math.sin(a));
+          const P = (r, y) => dir.clone().multiplyScalar(r).add(V3(0, y, 0));
+          const pts = [P(0.1, 0.04), P(0.19, 0.12), P(0.222, 0.24), P(0.205, 0.36), P(0.14, 0.46), P(0.06, 0.5)];
+          tal.push(tubeGeo(pts, (u, v) => {
+            const r = lerp(0.04, 0.006, Math.pow(u, 1.2)) * (1 + 0.5 * smooth(0, 0.12, u) * (1 - smooth(0.12, 0.3, u)));
+            return r * (1 + 0.28 * Math.max(0, Math.cos(v * TAU)));
+          }, 60, 14).g);
+          gems.push(P(0.21, 0.13));
+          const kn = mesh(new THREE.SphereGeometry(0.032, 16, 12), goldDark);
+          kn.position.copy(P(0.2, 0.13));
+          kn.scale.set(1, 1.25, 1);
+          grip.add(kn);
+        }
+        const tm = mesh(mergeGeos(tal), goldMat);
+        grip.add(tm);
+        gems.forEach(pp => {
+          const gm = mesh(new THREE.OctahedronGeometry(0.018, 0), hotMat, false);
+          gm.position.copy(pp).multiplyScalar(1.12).setY(pp.y);
+          grip.add(gm);
+        });
+      }
+      const bracer = add(bodyG, new THREE.Group());
+      {
+        bracer.add(mesh(new THREE.LatheGeometry([V2(0.118, -0.1), V2(0.136, -0.08), V2(0.142, 0.0), V2(0.136, 0.08), V2(0.118, 0.1)], 40), goldMat));
+        for (let k = 0; k < 6; k++) {
+          const a = (k / 6) * TAU;
+          const sp = mesh(spike(V3(Math.cos(a) * 0.135, 0.02, Math.sin(a) * 0.135), V3(Math.cos(a), 0.9, Math.sin(a)), 0.1, 0.022, 4), goldDark);
+          bracer.add(sp);
+        }
+        const ln = mesh(new THREE.TorusGeometry(0.143, 0.007, 6, 48), hotMat, false);
+        ln.rotation.x = Math.PI / 2;
+        bracer.add(ln);
+      }
+      const star = (R, r, n, d) => {
+        const sh = new THREE.Shape();
+        for (let k = 0; k <= n * 2; k++) {
+          const a = (k / (n * 2)) * TAU + Math.PI / 2;
+          const rr = k % 2 ? r : R;
+          if (k === 0) sh.moveTo(Math.cos(a) * rr, Math.sin(a) * rr);
+          else sh.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+        }
+        const g = new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: true, bevelThickness: d * 0.6, bevelSize: d * 0.5, bevelSegments: 2 });
+        g.translate(0, 0, -d / 2);
+        return g;
+      };
+      const blade = (L, w, d) => {
+        const sh = new THREE.Shape();
+        sh.moveTo(-w / 2, 0);
+        sh.quadraticCurveTo(-w * 0.45, L * 0.55, 0, L);
+        sh.quadraticCurveTo(w * 0.45, L * 0.55, w / 2, 0);
+        sh.lineTo(-w / 2, 0);
+        const g = new THREE.ExtrudeGeometry(sh, { depth: d, bevelEnabled: true, bevelThickness: d * 0.7, bevelSize: d * 0.6, bevelSegments: 2, curveSegments: 10 });
+        g.translate(0, 0, -d / 2);
+        const q = g.attributes.position;
+        for (let i = 0; i < q.count; i++) q.setZ(i, q.getZ(i) * lerp(1, 0.3, q.getY(i) / L));
+        g.computeVertexNormals();
+        return g;
+      };
+      const crown = add(head, new THREE.Group());
+      {
+        crown.position.set(0, HH * 0.22, -HD * 0.55);
+        const R0 = HW * 1.02;
+        const ring = mesh(new THREE.TorusGeometry(R0, 0.022, 10, 72, Math.PI * 1.3), goldMat);
+        ring.rotation.z = -Math.PI * 0.15;
+        crown.add(ring);
+        const ring2 = mesh(new THREE.TorusGeometry(R0 - 0.035, 0.008, 6, 72, Math.PI * 1.3), hotMat, false);
+        ring2.rotation.z = -Math.PI * 0.15;
+        crown.add(ring2);
+        const rays = [];
+        for (let k = 0; k < 11; k++) {
+          const a = lerp(-Math.PI * 0.6, Math.PI * 0.6, k / 10);
+          const L = k % 2 ? 0.12 : 0.2 + 0.06 * (1 - Math.abs(k - 5) / 5);
+          const g = blade(L, k % 2 ? 0.05 : 0.07, 0.02);
+          g.translate(0, R0 - 0.01, 0);
+          g.rotateZ(a);
+          rays.push(g);
+        }
+        crown.add(mesh(mergeGeos(rays), goldMat));
+      }
+      const fstar = add(head, new THREE.Group());
+      {
+        const ep = HP(0, 0.4);
+        const n = HN(ep);
+        fstar.position.copy(ep).addScaledVector(n, 0.012);
+        fstar.quaternion.setFromUnitVectors(V3(0, 0, 1), n);
+        fstar.add(mesh(star(0.075, 0.03, 4, 0.014), goldMat));
+        const sm = mesh(star(0.05, 0.015, 4, 0.01), hotMat, false);
+        sm.rotation.z = Math.PI / 4;
+        sm.position.z = 0.014;
+        fstar.add(sm);
+      }
+      const chest = add(port, new THREE.Group());
+      {
+        const rr = [];
+        for (let k = 0; k < 12; k++) {
+          const a = (k / 12) * TAU;
+          const L = k % 2 ? 0.08 : 0.14;
+          const g = blade(L, k % 2 ? 0.04 : 0.06, 0.016);
+          g.rotateX(-0.25);
+          g.translate(0, 0.2, 0.0);
+          g.rotateZ(a);
+          rr.push(g);
+        }
+        chest.add(mesh(mergeGeos(rr), goldMat));
+        const t = mesh(new THREE.TorusGeometry(0.19, 0.016, 8, 64), goldDark);
+        chest.add(t);
+        chest.position.z = 0.02;
+      }
+      const paul = add(socket, new THREE.Group());
+      {
+        paul.position.set(0.03, 0.05, 0);
+        paul.rotation.z = -0.35;
+        const sh = mesh(new THREE.SphereGeometry(0.2, 32, 14, 0, TAU, 0, Math.PI * 0.45), goldMat);
+        sh.scale.set(1, 0.7, 1.1);
+        paul.add(sh);
+        const rm = mesh(new THREE.TorusGeometry(0.2 * Math.sin(Math.PI * 0.45), 0.014, 8, 40), goldDark);
+        rm.rotation.x = Math.PI / 2;
+        rm.position.y = 0.2 * Math.cos(Math.PI * 0.45) * 0.7;
+        rm.scale.set(1, 1.1, 1);
+        paul.add(rm);
+        const bl = [];
+        for (let k = 0; k < 9; k++) {
+          const a = lerp(-Math.PI * 0.72, Math.PI * 0.72, k / 8);
+          const d = V3(Math.cos(a), -0.3, Math.sin(a)).normalize();
+          const zz = V3(0, 1, 0).addScaledVector(d, -d.y).normalize();
+          const xx = d.clone().cross(zz).normalize();
+          const g = blade(k % 2 ? 0.09 : 0.15, k % 2 ? 0.05 : 0.07, 0.014);
+          g.applyMatrix4(new THREE.Matrix4().makeBasis(xx, d, zz));
+          g.translate(Math.cos(a) * 0.185, 0.0, Math.sin(a) * 0.2);
+          bl.push(g);
+        }
+        paul.add(mesh(mergeGeos(bl), goldMat));
+        const gm = mesh(new THREE.SphereGeometry(0.04, 16, 12), hotMat, false);
+        gm.position.set(0, 0.135, 0);
+        gm.scale.y = 0.6;
+        paul.add(gm);
+      }
+      const tailS = add(tailTip, new THREE.Group());
+      {
+        const st = mesh(star(0.1, 0.035, 4, 0.02), goldMat);
+        tailS.add(st);
+        const c = mesh(new THREE.SphereGeometry(0.035, 14, 10), hotMat, false);
+        tailS.add(c);
+        tailS.position.z = 0.06;
+      }
+      const shot = makeSun();
+      shot.visible = false;
+      big.add(shot);
+      const beamMat = new THREE.MeshBasicMaterial({ color: 0xffd27a, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide });
+      const burst = new THREE.Group();
+      {
+        const bl = new THREE.ConeGeometry(0.05, 1, 6, 1, true);
+        bl.translate(0, 0.5, 0);
+        for (let k = 0; k < 14; k++) {
+          const m = new THREE.Mesh(bl, beamMat);
+          const a = (k / 14) * TAU;
+          m.quaternion.setFromUnitVectors(V3(0, 1, 0), V3(Math.cos(a), Math.sin(a), 0.6).normalize());
+          m.scale.set(1, 0.6 + (k % 3) * 0.25, 1);
+          burst.add(m);
+        }
+        burst.visible = false;
+        bodyG.add(burst);
+      }
+      let fwd = V3(0, 0, 1);
+      const want = V3(0, 0, 1);
+      let sunK = 1;
+      let shotFrom = V3();
+      let shotDir = V3(0, 0, 1);
+      let launched = false;
+      let sunBig = V3();
+      return {
+        customTail: true,
+        set: on => {
+          K.set(on);
+          if (!on) {
+            shot.visible = false;
+            burst.visible = false;
+          }
+        },
+        style(shiny) {
+          goldMat.color.setHex(shiny ? 0xe4ecf6 : 0xf0c050);
+          goldMat.emissive.setHex(shiny ? 0x101828 : 0x3a2200);
+          goldDark.color.setHex(shiny ? 0x8a94a8 : 0xa8742a);
+          sunCore.color.setHex(shiny ? 0xe0f4ff : 0xffe9a0);
+          sunCore.emissive.setHex(shiny ? 0x2a8cff : 0xff8c00);
+          coronaMat.color.setHex(shiny ? 0x70c0ff : 0xffb030);
+          flareMat.color.setHex(shiny ? 0x7ac8ff : 0xffb428);
+          beamMat.color.copy(flareMat.color);
+        },
+        rest(S, t, motion) {
+          S.hL.set(0.92, TIP + 0.72 + Math.sin(t * 1.5) * 0.03 * motion, 0.34);
+          want.set(0.25, 0.55, 1);
+          sunK = 1;
+        },
+        act(nm, p, S) {
+          if (nm === "swipe") {
+            const wind = smooth(0.04, 0.3, p) * (1 - smooth(0.34, 0.42, p));
+            const hit = smooth(0.34, 0.46, p) * (1 - smooth(0.76, 0.95, p));
+            S.hL.lerp(V3(1.0, TIP + 1.2, -0.3), wind);
+            want.lerp(V3(0.3, 1, -0.4), wind);
+            S.hL.lerp(V3(0.3, TIP + 1.0, 1.05), hit);
+            want.lerp(V3(-0.1, 0.1, 1), hit);
+            S.spinY += 0.3 * wind - 0.4 * hit;
+            S.lean += -0.06 * wind + 0.16 * hit;
+            S.trailK = p > 0.34 && p < 0.58 ? Math.sin(Math.PI * smooth(0.34, 0.58, p)) : 0;
+            S.burstK = p > 0.42 && p < 0.8 ? smooth(0.42, 0.8, p) : -1;
+            S.glow = 0.6 * wind + 1.0 * hit;
+            S.flash = 0.6 * hit;
+            S.impact = p > 0.44 && p < 0.6 ? 1 - smooth(0.44, 0.6, p) : 0;
+            S.sparkK = p > 0.44 && p < 0.7 ? smooth(0.44, 0.7, p) : -1;
+            S.mouthK = 0.5 * hit;
+            return true;
+          }
+          if (nm === "fling") {
+            const raise = smooth(0.04, 0.4, p) * (1 - smooth(0.44, 0.52, p));
+            const thr = smooth(0.44, 0.54, p) * (1 - smooth(0.82, 0.98, p));
+            S.hL.lerp(V3(0.55, TIP + 2.0, 0.1), raise);
+            want.lerp(V3(0, 1, 0.1), raise);
+            S.hL.lerp(V3(0.4, TIP + 1.1, 0.95), thr);
+            want.lerp(V3(0, 0.2, 1), thr);
+            S.hR.lerp(V3(-0.82, TIP + 1.2, 0.2), raise);
+            S.hover += 0.22 * raise - 0.04 * thr;
+            S.lean += -0.14 * raise + 0.22 * thr;
+            S.glow = 1.5 * raise + 1.0 * thr;
+            S.flash = 0.8 * raise + 0.7 * thr;
+            S.waveK = p > 0.5 && p < 0.98 ? smooth(0.5, 0.98, p) : -1;
+            S.impact = p > 0.5 && p < 0.66 ? 1 - smooth(0.5, 0.66, p) : 0;
+            S.sparkK = p > 0.62 && p < 0.84 ? smooth(0.62, 0.84, p) : -1;
+            S.headPitch += 0.1 * thr - 0.18 * raise;
+            S.mouthK = 0.7 * thr;
+            S.legK = 0.4 * raise;
+            sunK = 1 + 0.6 * raise;
+            return true;
+          }
+          if (nm === "spin") {
+            S.hL.lerp(V3(1.05, TIP + 1.0, 0.1), S.spinK);
+            want.lerp(V3(1, 0.2, 0.1), S.spinK);
+          }
+          if (nm === "jump") {
+            S.hL.lerp(V3(0.75, TIP + 1.6, 0.25), S.air);
+            want.lerp(V3(0.1, 1, 0.2), S.air);
+          }
+          return false;
+        },
+        arm(S, t, motion) {
+          const rad = u => lerp(0.125, 0.09, smooth(0.3, 0.9, u));
+          const c = moltenArm(arm, shoulders[1], S.hL, t, motion, rad, 0.72);
+          const end = c.getPointAt(1);
+          const tg = c.getTangentAt(1);
+          fwd.lerp(tg.clone().multiplyScalar(0.5).add(want.clone().normalize()).normalize(), 0.4).normalize();
+          const { hx } = frame(fwd);
+          const z = hx.clone().cross(fwd).normalize();
+          grip.position.copy(end).addScaledVector(tg, 0.04);
+          grip.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(hx, fwd, z));
+          bracer.position.copy(c.getPointAt(0.72));
+          bracer.quaternion.setFromUnitVectors(V3(0, 1, 0), c.getTangentAt(0.72));
+          const inFlight = S.waveK >= 0 && S.waveK < 0.9;
+          const regrow = S.waveK >= 0 ? smooth(0.7, 1, S.waveK) : 1;
+          const g = (S.glow || 0);
+          const sk = (inFlight ? 0.25 + 0.75 * regrow : 1) * sunK * (1 + 0.04 * Math.sin(t * 4));
+          sun.scale.setScalar(sk);
+          const U = sun.userData;
+          U.fl.rotation.y = t * 0.6;
+          U.fl.rotation.x = Math.sin(t * 0.4) * 0.3;
+          U.fl.children.forEach(m => {
+            const k = m.userData.k;
+            const l = 0.6 + (k % 2) * 0.5 + 0.25 * Math.sin(t * 5 + k * 1.7) + 0.4 * g;
+            m.scale.set(1, l, 1);
+          });
+          U.ring.rotation.z = t * 1.2;
+          U.cor.scale.setScalar(SR * (3.6 + 1.6 * g + 0.25 * Math.sin(t * 3)));
+          U.shell.scale.setScalar(1 + 0.05 * Math.sin(t * 6));
+          sunBig = big.worldToLocal(grip.localToWorld(V3(0, SC, 0)));
+          const bk = S.burstK !== undefined ? S.burstK : -1;
+          burst.visible = bk >= 0;
+          if (burst.visible) {
+            burst.position.copy(grip.localToWorld(V3(0, SC, 0)));
+            burst.parent.worldToLocal(burst.position);
+            burst.quaternion.setFromUnitVectors(V3(0, 0, 1), fwd);
+            burst.scale.setScalar(0.2 + bk * 1.1);
+            beamMat.opacity = 0.8 * (1 - smooth(0.3, 1, bk));
+          }
+        },
+        fx(S, nm) {
+          if (nm === "swipe")
+            trail.forEach((a, i) => {
+              a.position.copy(shoulders[1]).add(V3(-0.2, 0.05, 0.05));
+              a.rotation.set(Math.PI / 2 - 0.1, 0, -0.45 + i * 0.05);
+              a.scale.setScalar(1.6 + i * 0.07);
+            });
+          bodyG.updateWorldMatrix(true, true);
+          big.updateWorldMatrix(true, false);
+          sunBig = big.worldToLocal(grip.localToWorld(V3(0, SC, 0)));
+          if (S.waveK >= 0 && !launched) {
+            launched = true;
+            shotFrom = sunBig.clone();
+            const f = big.worldToLocal(bodyG.localToWorld(V3(0, 0, 1))).sub(big.worldToLocal(bodyG.localToWorld(V3(0, 0, 0))));
+            f.y = 0;
+            shotDir = f.normalize();
+          }
+          if (S.waveK < 0) launched = false;
+          const k = S.waveK;
+          shot.visible = k >= 0 && k < 0.9;
+          if (shot.visible) {
+            shot.position.copy(shotFrom).addScaledVector(shotDir, 0.2 + k * 3.6);
+            shot.position.y = shotFrom.y - 0.15 * smooth(0, 0.4, k);
+            const sc = (1.6 + 0.6 * k) * (1 - smooth(0.75, 0.9, k));
+            shot.scale.setScalar(sc + 0.001);
+            shot.userData.fl.rotation.y += 0.2;
+            shot.userData.ring.rotation.z += 0.15;
+            return shot.position.clone();
+          }
+          return sunBig;
+        },
+        hide() {
+          shot.visible = false;
+          burst.visible = false;
+        }
+      };
+    })();
+
+    const KITS = { steel: shieldKit, rock: hammerKit, fire: swordKit, water: tridentKit, grass: bowKit, dragon: dragonKit, fighting: fistKit, ice: iceKit, poison: poisonKit, bug: bugKit, electric: railKit, ghost: scytheKit, flying: wingKit, dark: clawKit, psychic: psyKit, light: sunKit };
     let kitNow = hammerKit;
 
     const food = berry();
@@ -6768,7 +7158,7 @@ Pets.register({
       if (kitNow) kitNow.style(shinyOn);
     };
     const applyCore = () => {
-      pal = palOf(GLOW[coreType || "steel"], coreType === "dark" ? 0.25 : 1);
+      pal = palOf(GLOW[coreType || "steel"], coreType === "dark" ? 0.25 : coreType === "light" ? 0.6 : 1);
       paint();
       const hotC = new THREE.Color().setRGB(pal.hot[0] / 255, pal.hot[1] / 255, pal.hot[2] / 255);
       const deepC = new THREE.Color().setRGB(pal.deep[0] / 255, pal.deep[1] / 255, pal.deep[2] / 255);
@@ -6792,7 +7182,7 @@ Pets.register({
       const half = kitNow === bowKit || kitNow === dragonKit || kitNow === clawKit;
       browFull.visible = !half;
       browHalf.visible = half;
-      crestM.visible = kitNow !== dragonKit && kitNow !== fistKit && kitNow !== bugKit && kitNow !== scytheKit && kitNow !== wingKit && kitNow !== clawKit && kitNow !== psyKit;
+      crestM.visible = kitNow !== dragonKit && kitNow !== fistKit && kitNow !== bugKit && kitNow !== scytheKit && kitNow !== wingKit && kitNow !== clawKit && kitNow !== psyKit && kitNow !== sunKit;
 
       restyle();
     };
