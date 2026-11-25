@@ -5185,28 +5185,89 @@ Pets.register({
       });
       const crown = add(head, new THREE.Group());
       {
-        crown.position.set(0.02, 0, 0);
-        crown.rotation.set(-0.12, 0, 0.2);
-        const Y = 0.62;
-        const N = 48;
-        const ring = [];
-        for (let i = 0; i <= N; i++) ring.push(onHeadRing(Y, (i / N) * TAU));
-        crown.add(mesh(strip(ring, ring.map(HN), () => 0.06, () => 0.028), plateMat));
-        const hs = [0.28, 0.16, 0.34, 0.12, 0.24, 0.18, 0.3, 0.14];
+        const a0 = Math.asin(0.52 / Math.sqrt(0.75));
+        const wa = a => Math.abs(Math.atan2(Math.sin(a), Math.cos(a)));
+        const vY = w => {
+          let y = 0.04;
+          for (let k = 0; k < 30; k++) y = 0.04 + 0.46 * Math.min(1, (Math.sin(w) * Math.sqrt(1 - y * y)) / 0.52);
+          return y;
+        };
+        const yE = a => {
+          const w = wa(a);
+          return w <= a0 ? vY(w) : lerp(0.5, 0.08, smooth(a0, a0 + 1.2, w));
+        };
+        const OFF = 0.028;
+        const hp = (a, y, off) => {
+          const p = onHeadRing(y, a);
+          return p.addScaledVector(HN(p), off);
+        };
+        const NA = 120;
+        const NS = 30;
+        const pos = [];
+        const idx = [];
+        for (let i = 0; i <= NA; i++) {
+          const a = Math.PI + (i / NA) * TAU;
+          const f0 = Math.asin(yE(a));
+          for (let j = 0; j <= NS; j++) {
+            const y = Math.sin(lerp(f0, Math.PI / 2 - 0.001, j / NS));
+            pos.push(...hp(a, y, OFF).toArray());
+          }
+        }
+        for (let i = 0; i < NA; i++)
+          for (let j = 0; j < NS; j++) {
+            const q = i * (NS + 1) + j;
+            const r = q + NS + 1;
+            idx.push(q, r, q + 1, r, r + 1, q + 1);
+          }
+        const shell = new THREE.BufferGeometry();
+        shell.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+        shell.setIndex(idx);
+        shell.computeVertexNormals();
+        crown.add(mesh(shell, plateMat));
+        const RN = 80;
+        const rim = [];
+        for (let i = 0; i <= RN; i++) {
+          const a = lerp(a0, TAU - a0, i / RN);
+          rim.push(onHeadRing(yE(a), a));
+        }
+        crown.add(mesh(strip(rim, rim.map(HN), i => 0.046 + 0.018 * smooth(a0 + 0.4, Math.PI, wa(lerp(a0, TAU - a0, i / RN))), () => 0.052), plateMat));
+        {
+          const t0 = Math.asin(0.24);
+          const t1 = Math.PI - Math.asin(0.16);
+          const K = 50;
+          const pts = [];
+          const hs = [];
+          for (let k = 0; k <= K; k++) {
+            const u = k / K;
+            const th = lerp(t0, t1, u);
+            const p = V3(0, Math.sin(th) * HH, Math.cos(th) * HD);
+            pts.push(p.addScaledVector(HN(p), OFF - 0.006));
+            hs.push(0.03 + 0.05 * Math.pow(Math.sin(Math.PI * u), 0.7));
+          }
+          crown.add(mesh(strip(pts, pts.map(HN), k => 0.026 * (1 - 0.5 * smooth(0.85, 1, Math.abs(k / K - 0.5) * 2)), k => hs[k], 0.5), plateMat));
+        }
+        const yB = a => lerp(0.5, 0.6, smooth(a0, a0 + 0.7, wa(a)));
+        const band = [];
+        for (let i = 0; i <= RN; i++) {
+          const a = lerp(a0, TAU - a0, i / RN);
+          band.push(hp(a, yB(a), OFF - 0.01));
+        }
+        crown.add(mesh(strip(band, band.map(HN), () => 0.04, () => 0.05), plateMat));
+        const hs = [0.2, 0.3, 0.16, 0.36, 0.16, 0.3, 0.2];
         const sp = [];
+        const gems = [];
         hs.forEach((h, i) => {
-          const a = (i / hs.length) * TAU + 0.2;
-          const p = onHeadRing(Y + 0.02, a);
+          const a = lerp(a0 + 0.55, TAU - a0 - 0.55, i / (hs.length - 1));
+          const p = hp(a, yB(a) + 0.03, OFF + 0.02);
           const n = HN(p);
-          const tilt = (i % 3) - 1;
-          sp.push(spike(p.clone().addScaledVector(n, 0.02), V3(0, 1, 0).addScaledVector(n, 0.25).add(V3(tilt * 0.15, 0, 0)), h, 0.045, 4));
+          sp.push(spike(p, V3(0, 1, 0).addScaledVector(n, 0.4), h, 0.05, 4));
+          if (i % 2 === 0) gems.push(hp(a, yB(a) - 0.05, OFF + 0.06));
         });
         crown.add(mesh(mergeGeos(sp), plateMat));
-        [0, 3, 5].forEach(i => {
-          const a = (i / hs.length) * TAU + 0.2;
-          const p = onHeadRing(Y, a);
-          const g = mesh(new THREE.OctahedronGeometry(0.03, 0), hotMat, false);
-          g.position.copy(p).addScaledVector(HN(p), 0.05);
+        gems.push(hp(0, 0.2, OFF + 0.012));
+        gems.forEach((p, i) => {
+          const g = mesh(new THREE.OctahedronGeometry(i === gems.length - 1 ? 0.04 : 0.028, 0), hotMat, false);
+          g.position.copy(p);
           crown.add(g);
         });
       }
