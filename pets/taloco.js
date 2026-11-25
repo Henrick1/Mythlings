@@ -5804,7 +5804,7 @@ Pets.register({
         fist.scale.set(1.25, 1.05, 1.6);
         fist.position.y = -0.02;
         claws.add(fist);
-        [[-0.2, 0.84, -0.16], [-0.068, 1.02, -0.05], [0.068, 1.0, 0.05], [0.2, 0.8, 0.16]].forEach(([z, L, sp]) => {
+        [[-0.15, 0.9, -0.15], [0, 1.04, 0], [0.15, 0.88, 0.15]].forEach(([z, L, sp]) => {
           const t = talon(shadeMat, slitMat);
           t.position.set(-0.02, 0.06, z);
           t.rotation.x = sp * 0.9;
@@ -6081,7 +6081,7 @@ Pets.register({
       })();
       const markDark = new THREE.MeshBasicMaterial({ color: 0x0c0612, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false });
       const markGlow = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
-      const marks = [0, 1, 2, 3].map(i => {
+      const marks = [0, 1, 2].map(i => {
         const g = new THREE.Group();
         const d = new THREE.Mesh(markGeo, markDark);
         g.add(d);
@@ -6232,7 +6232,7 @@ Pets.register({
             const dir = flying ? fdir : fB;
             const sd = V3(0, 1, 0).cross(dir).normalize();
             const base = flying ? from.clone().addScaledVector(dir, 0.3 + k * 3.0) : big.worldToLocal(bodyG.localToWorld(V3(0.05, TIP + 0.95, 1.0)));
-            const off = (M.i - 1.5) * (flying ? 0.2 + k * 0.1 : 0.15);
+            const off = (M.i - 1) * (flying ? 0.22 + k * 0.1 : 0.17);
             const tilt = V3(0, 1, 0).applyAxisAngle(dir, 0.6).normalize();
             const across = tilt.clone().cross(dir).normalize();
             M.g.position.copy(base).addScaledVector(across, off);
