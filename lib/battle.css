@@ -1769,3 +1769,44 @@
     bottom: 120px;
   }
 }
+
+@media (min-width: 980px) and (min-height: 520px) {
+  .bt-panel {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 10px;
+  }
+
+  .bt-prompt {
+    min-height: 0;
+    padding: 10px 16px 10px 22px;
+    align-items: center;
+  }
+
+  .bt-msg {
+    font-size: 19px;
+    padding-top: 0;
+  }
+
+  .bt-cmd,
+  .bt-sheet {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .bt-cmd {
+    height: auto;
+  }
+
+  .bt-cmds {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .bt-cmds .bt-tile {
+    height: 96px;
+  }
+
+  .bt-panel .bt-cmd .bt-moves {
+    height: 150px;
+  }
+}
