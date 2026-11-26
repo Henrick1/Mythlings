@@ -1047,10 +1047,101 @@
 
 .bt-xp li {
   display: flex;
-  justify-content: space-between;
-  padding: 6px 12px;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px 10px;
   background: var(--b-mist);
   font-weight: 700;
+}
+
+.bt-xp li.up {
+  animation: bt-xp-up 0.5s ease-out;
+}
+
+.bt-xp-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.bt-xp-lv {
+  font-size: 12.5px;
+  color: var(--b-ink-2);
+}
+
+.bt-xp-gain {
+  margin-left: auto;
+  font-size: 13.5px;
+  color: var(--b-leaf);
+}
+
+.bt-xp-bar {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.12);
+  overflow: hidden;
+}
+
+.bt-xp-bar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, #4f9cf5, #7cc4ff);
+}
+
+.bt-xp-extra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  animation: bt-fade 0.3s ease-out;
+}
+
+.bt-xp-up,
+.bt-xp-new {
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--b-leaf);
+}
+
+.bt-xp-new {
+  background: #7c5cd6;
+}
+
+.bt-drops {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.bt-drops-lbl {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--b-ink-2);
+}
+
+.bt-drops-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bt-drop {
+  padding: 4px 10px;
+  font-size: 13.5px;
+  font-weight: 800;
+  background: var(--b-mist);
+  box-shadow: inset 3px 0 0 #b8860b;
+}
+
+@keyframes bt-xp-up {
+  30% {
+    transform: scale(1.04);
+    box-shadow: 0 0 0 2px var(--b-sun);
+  }
 }
 
 .bt-result-card .bt-primary {
