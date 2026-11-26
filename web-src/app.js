@@ -1118,7 +1118,7 @@
     const to = meta[target];
     evolvingNow = true;
     const wrap = $("stage-wrap");
-    ["feed", "treat", "party-btn", "feed-all", "ball-btn", "call-btn", "brush-btn", "pet-btn"].forEach(b => ($(b).disabled = true));
+    ["feed", "treat", "party-btn", "feed-all", "ball-btn", "call-btn", "pet-btn"].forEach(b => ($(b).disabled = true));
     cardOpen = false;
     $("pet-card").hidden = true;
     if (habitat) {
@@ -1145,7 +1145,7 @@
           scheduleSync();
         }
         lastPetId = state.pet + ":" + Game.speciesOf(state);
-        ["party-btn", "ball-btn", "call-btn", "brush-btn", "pet-btn"].forEach(b => ($(b).disabled = false));
+        ["party-btn", "ball-btn", "call-btn", "pet-btn"].forEach(b => ($(b).disabled = false));
         setTimeout(() => {
           wrap.classList.remove("burst", "evolving");
           hatchLabel(wrap, "");
@@ -1683,7 +1683,6 @@
   }
 
   function cleanPet(uid) {
-    $("brush-btn").classList.remove("on");
     if (!habitat) return;
     if (!uid || !state) return habitat.brushCancel();
     const name = (meta[Game.speciesOf(state, uid)] || {}).name || "";
@@ -1699,57 +1698,6 @@
     habitat.scrub(uid);
     setTimeout(() => showToast(name + " ficou limpinho!"), 1900);
     render();
-  }
-
-  function bindBrush() {
-    const b = $("brush-btn");
-    let down = null;
-    let dragging = false;
-    b.addEventListener("pointerdown", e => {
-      if (!habitat || b.disabled) return;
-      if (b.classList.contains("on")) {
-        b.classList.remove("on");
-        habitat.brushCancel();
-        down = null;
-        return;
-      }
-      e.preventDefault();
-      down = { x: e.clientX, y: e.clientY };
-      dragging = false;
-      try {
-        b.setPointerCapture(e.pointerId);
-      } catch (err) {
-        down = { x: e.clientX, y: e.clientY };
-      }
-      sfx("pick");
-      b.classList.add("on");
-      habitat.brushStart(cleanPet);
-    });
-    b.addEventListener("pointermove", e => {
-      if (!down) return;
-      if (!dragging && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12) dragging = true;
-      if (dragging) habitat.brushAt(e.clientX, e.clientY);
-    });
-    const end = e => {
-      if (!down) return;
-      down = null;
-      if (!dragging) return;
-      dragging = false;
-      cleanPet(habitat.brushAt(e.clientX, e.clientY));
-    };
-    b.addEventListener("pointerup", end);
-    b.addEventListener("pointercancel", () => {
-      down = null;
-      dragging = false;
-      b.classList.remove("on");
-      if (habitat) habitat.brushCancel();
-    });
-    document.addEventListener("keydown", e => {
-      if (e.key === "Escape" && b.classList.contains("on")) {
-        b.classList.remove("on");
-        if (habitat) habitat.brushCancel();
-      }
-    });
   }
 
   function expTypes(id) {
@@ -2428,7 +2376,7 @@
     $("evolve-btn").hidden = !evo;
 
     if (evolvingNow) {
-      ["feed", "treat", "party-btn", "feed-all", "ball-btn", "call-btn", "brush-btn", "pet-btn"].forEach(b => ($(b).disabled = true));
+      ["feed", "treat", "party-btn", "feed-all", "ball-btn", "call-btn", "pet-btn"].forEach(b => ($(b).disabled = true));
     } else {
       $("party-btn").disabled = false;
     }
@@ -2467,7 +2415,7 @@
     if (!evolvingNow) {
       $("feed-all").disabled = !v.party.some(p => !p.away && p.hunger < 100);
       $("pet-btn").disabled = v.dying || v.joy >= 100;
-      ["ball-btn", "call-btn", "brush-btn"].forEach(b => ($(b).disabled = !v.party.some(p => !p.away)));
+      ["ball-btn", "call-btn"].forEach(b => ($(b).disabled = !v.party.some(p => !p.away)));
     }
   }
 
@@ -2851,7 +2799,6 @@
 
     $("daynight").addEventListener("click", () => setNight(!(habitat && habitat.isNight())));
     bindHand();
-    bindBrush();
 
     $("treat").addEventListener("click", () => {
       const r = Game.treat(state);
@@ -3175,6 +3122,7 @@
       stageOf: evoStage,
       paused: () => !!document.querySelector("dialog.sheet[open]"),
       onTap: onHabitatTap,
+      onBrush: uid => cleanPet(uid),
       onKick: uid => petAction(uid, id => Game.play(state, Date.now(), id)),
       onEmpty: () => {
         if (!cardOpen) return;
