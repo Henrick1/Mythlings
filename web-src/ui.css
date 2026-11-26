@@ -2987,3 +2987,25 @@ a:focus-visible {
   overflow-y: auto;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+
+#store-list .sec-plate + .item {
+  margin-top: 2px;
+}
+
+#store-list .item.offer {
+  box-shadow: inset 0 -3px 0 var(--edge), inset 4px 0 0 var(--sun);
+}
+
+.offer-left {
+  margin-left: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  color: #c2410c;
+}
+
+#store-list .btn.primary.small s {
+  margin-right: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.6;
+}

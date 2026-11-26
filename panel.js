@@ -271,6 +271,9 @@ function effect(it) {
   if (it.hunger) parts.push(it.hunger >= 100 ? "Fome cheia" : "+" + it.hunger + " fome");
   if (it.life && !it.revive) parts.push(it.life >= 100 ? "Vida cheia" : "+" + it.life + " vida");
   if (it.joy) parts.push(it.joy >= 100 ? "Felicidade cheia" : "+" + it.joy + " felicidade");
+  if (it.joyLock) parts.push("não cai por " + Math.round(it.joyLock / 60) + " h");
+  if (it.all) parts.push("todo o grupo");
+  if (it.train) parts.push("XP em dobro nas próximas " + it.train + " vitórias");
   if (it.xp) parts.push("+" + it.xp + " XP");
   if (!parts.length && it.sell) parts.push("Vale " + it.sell + " moedas");
   return parts.join(" · ");
@@ -451,6 +454,9 @@ const ITEM_ICONS = {
   reviver: '<path d="M12 2l2.6 6.3 6.4.4-5 4.2 1.7 6.6L12 16l-5.7 3.5L8 12.9 3 8.7l6.4-.4z" fill="#ffca28"/><path d="M12 8v6M9 11h6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>',
   dourada: '<circle cx="12" cy="14" r="7" fill="#f6c343"/><circle cx="9.5" cy="11.5" r="1.8" fill="#fff6c8"/><path d="M12 7c0-2 1-3 3-4" stroke="#6b4423" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M13 6c2-1 4 0 5 1-2 1-4 1-5-1z" fill="#4caf50"/>',
   cristal: '<path d="M12 2l6 7-6 13-6-13z" fill="#9c7cf4"/><path d="M6 9h12M12 2l-2 7 2 13 2-13z" stroke="#e6dcff" stroke-width="1" fill="none"/>',
+  banquete: '<path d="M3 13h18a9 6 0 0 1-18 0z" fill="#c98a4b"/><circle cx="8" cy="11" r="2.6" fill="#e5484d"/><circle cx="12.5" cy="10" r="2.8" fill="#f6c343"/><circle cx="16.5" cy="11.2" r="2.3" fill="#4caf50"/>',
+  brinquedos: '<path d="M3 11h18v9H3z" fill="#d9a066"/><circle cx="8.5" cy="8.5" r="3.5" fill="#59b7ff"/><path d="M14 9l2-5 2 5z" fill="#ff6f9c"/>',
+  treino: '<path d="M3 9c4 1 14 1 18 0v5c-4 1-14 1-18 0z" fill="#e5484d"/><path d="M10 14l-2 7 3-2 1 3 1-8z" fill="#c62828"/><circle cx="12" cy="11.5" r="2" fill="#ffcd3c"/>',
   ovo: '<path d="M12 2.5c3.8 0 7 6 7 11a7 7 0 0 1-14 0c0-5 3.2-11 7-11z" fill="#fff3df" stroke="#d9c7a8" stroke-width="1"/><circle cx="9.5" cy="12" r="2" fill="#b9a7d6"/><circle cx="14.5" cy="16" r="1.6" fill="#b9a7d6"/>'
 };
 
@@ -925,7 +931,7 @@ function renderItemsPart(s) {
   have.forEach(it => {
     const row = itemLine(it, "x" + it.count);
     const box = el("span", "it-btns");
-    if (it.hunger || it.life || it.joy || it.xp || it.revive) box.appendChild(btn("Usar", "", () => eco({ op: "use", item: it.id }), !it.canUse));
+    if (it.hunger || it.life || it.joy || it.xp || it.revive || it.train) box.appendChild(btn("Usar", "", () => eco({ op: "use", item: it.id }), !it.canUse));
     if (it.sell) box.appendChild(btn("Vender " + it.sell, "ghost", () => eco({ op: "sell", item: it.id })));
     row.appendChild(box);
     bagScroll.appendChild(row);

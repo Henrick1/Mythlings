@@ -125,7 +125,10 @@
     "pocao-grande": '<path d="M9 2h6v4l4 6a7 7 0 1 1-14 0l4-6z" fill="#d32f2f"/><rect x="8.5" y="1" width="7" height="2.4" rx="1" fill="#8d6e63"/><path d="M9 14h6M12 11v6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>',
     reviver: '<path d="M12 2l2.6 6.3 6.4.4-5 4.2 1.7 6.6L12 16l-5.7 3.5L8 12.9 3 8.7l6.4-.4z" fill="#ffca28"/><path d="M12 8v6M9 11h6" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>',
     dourada: '<circle cx="12" cy="14" r="7" fill="#f6c343"/><circle cx="9.5" cy="11.5" r="1.8" fill="#fff6c8"/><path d="M12 7c0-2 1-3 3-4" stroke="#6b4423" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M13 6c2-1 4 0 5 1-2 1-4 1-5-1z" fill="#4caf50"/>',
-    cristal: '<path d="M12 2l6 7-6 13-6-13z" fill="#9c7cf4"/><path d="M6 9h12M12 2l-2 7 2 13 2-13z" stroke="#e6dcff" stroke-width="1" fill="none"/>'
+    cristal: '<path d="M12 2l6 7-6 13-6-13z" fill="#9c7cf4"/><path d="M6 9h12M12 2l-2 7 2 13 2-13z" stroke="#e6dcff" stroke-width="1" fill="none"/>',
+    banquete: '<path d="M3 13h18a9 6 0 0 1-18 0z" fill="#c98a4b"/><path d="M3 13h18" stroke="#8a5a2b" stroke-width="1.4"/><circle cx="8" cy="11" r="2.6" fill="#e5484d"/><circle cx="12.5" cy="10" r="2.8" fill="#f6c343"/><circle cx="16.5" cy="11.2" r="2.3" fill="#4caf50"/><path d="M8 8.4c0-1.2.5-1.8 1.4-2.2" stroke="#6b4423" stroke-width="1.2" fill="none" stroke-linecap="round"/>',
+    brinquedos: '<path d="M3 11h18v9H3z" fill="#d9a066"/><path d="M3 11h18" stroke="#9c6b3c" stroke-width="1.6"/><circle cx="8.5" cy="8.5" r="3.5" fill="#59b7ff"/><path d="M5 8.5h7M8.5 5v7" stroke="#fff" stroke-width="1.1"/><path d="M14 9l2-5 2 5z" fill="#ff6f9c"/><circle cx="16" cy="9" r="1.6" fill="#ffcd3c"/>',
+    treino: '<path d="M3 9c4 1 14 1 18 0v5c-4 1-14 1-18 0z" fill="#e5484d"/><path d="M10 14l-2 7 3-2 1 3 1-8z" fill="#c62828"/><circle cx="12" cy="11.5" r="2" fill="#ffcd3c"/>'
   };
 
   const EXP_LABEL = { curta: "30 min", media: "2 h", longa: "8 h" };
@@ -1178,6 +1181,9 @@
     if (it.hunger) parts.push(it.hunger >= 100 ? "Fome cheia" : "+" + it.hunger + " fome");
     if (it.life && !it.revive) parts.push(it.life >= 100 ? "Vida cheia" : "+" + it.life + " vida");
     if (it.joy) parts.push(it.joy >= 100 ? "Felicidade cheia" : "+" + it.joy + " felicidade");
+    if (it.joyLock) parts.push("não cai por " + Math.round(it.joyLock / 60) + " h");
+    if (it.all) parts.push("todo o grupo");
+    if (it.train) parts.push("XP em dobro nas próximas " + it.train + " vitórias");
     if (it.xp) parts.push("+" + it.xp + " XP");
     if (!parts.length && it.sell) parts.push("Vale " + it.sell + " moedas");
     return parts.join(" · ");
@@ -1432,6 +1438,61 @@
     $("store-hint").textContent = "";
     const store = $("store-list");
     store.replaceChildren();
+    if (Game.offerList) {
+      const offers = Game.offerList(state);
+      const head = document.createElement("div");
+      head.className = "sec-plate";
+      const left = Math.max(0, offers.length ? offers[0].endsAt - Date.now() : 0);
+      const hh = Math.floor(left / 3600000);
+      const mm = Math.floor((left % 3600000) / 60000);
+      head.append(Object.assign(document.createElement("span"), { textContent: "Ofertas do dia" }), Object.assign(document.createElement("span"), { textContent: "Renova em " + (hh ? hh + " h " + String(mm).padStart(2, "0") + " min" : mm + " min") }));
+      store.append(head);
+      offers.forEach(o => {
+        const it = Game.ITEMS[o.item];
+        const key = "offer-" + o.i;
+        const el = itemRow(o.item, it, o.n > 1 ? "x" + o.n : "");
+        el.classList.add("offer");
+        const tag = document.createElement("span");
+        tag.className = "offer-left";
+        tag.textContent = o.left ? (o.left === 1 ? "Resta 1" : "Restam " + o.left) : "Esgotado";
+        el.querySelector(".name-line").append(tag);
+        const buy = document.createElement("button");
+        buy.type = "button";
+        buy.className = "btn primary small";
+        const done = bought[key] && bought[key] > Date.now();
+        if (done) buy.textContent = "Comprado!";
+        else if (!o.left) buy.textContent = "Esgotado";
+        else buy.innerHTML = (o.full > o.price ? "<s>" + o.full + "</s>" : "") + '<i class="coin" aria-hidden="true"></i><span>' + o.price + "</span>";
+        buy.classList.toggle("bought", !!done);
+        buy.setAttribute("aria-label", "Comprar " + it.name + (o.n > 1 ? " x" + o.n : "") + " por " + o.price + " moedas");
+        buy.disabled = !done && (!o.left || state.coins < o.price);
+        buy.addEventListener("click", () => {
+          const before = state.coins;
+          const r = Game.buyOffer(state, o.i);
+          if (!r.changed) return sfx("deny");
+          saveState();
+          scheduleSync();
+          sfx("buy");
+          buzz(18);
+          shownCoins = before;
+          setBagCoins(state.coins, true);
+          bought[key] = Date.now() + 900;
+          setTimeout(() => $("shop-sheet").open && renderShop(), 950);
+          flyTo(itemIcon(o.item), el.querySelector(".item-ico"), $("shop-bag"), () => {
+            bagNew += r.n;
+            showBagNew();
+          });
+          renderShop();
+          render();
+        });
+        el.append(buy);
+        store.append(el);
+      });
+      const head2 = document.createElement("div");
+      head2.className = "sec-plate";
+      head2.append(Object.assign(document.createElement("span"), { textContent: "Sempre à venda" }));
+      store.append(head2);
+    }
     Object.keys(Game.ITEMS).filter(k => Game.ITEMS[k].price).forEach(k => {
       const it = Game.ITEMS[k];
       const el = itemRow(k, it, state.inventory[k] ? "tem " + state.inventory[k] : "");
@@ -1483,7 +1544,7 @@
       const el = itemRow(k, it, "x" + state.inventory[k]);
       const box = document.createElement("span");
       box.className = "row-btns";
-      if (it.hunger || it.life || it.joy || it.xp || it.revive) {
+      if (it.hunger || it.life || it.joy || it.xp || it.revive || it.train) {
         const use = document.createElement("button");
         use.type = "button";
         use.className = "btn primary small";
@@ -1565,10 +1626,12 @@
     saveState();
     scheduleSync();
     if (habitat) {
-      habitat.act(uid, it.hunger ? "eat" : "jump");
-      habitat.emote(uid, "heart");
+      (r.all || [uid]).forEach(u => {
+        habitat.act(u, it.hunger ? "eat" : "jump");
+        habitat.emote(u, "heart");
+      });
     }
-    showToast(r.levels > 0 ? name + " subiu para o nível " + r.level + "!" : name + " recebeu " + it.name.toLowerCase());
+    showToast(r.all ? "O grupo todo aproveitou " + it.name.toLowerCase() : r.levels > 0 ? name + " subiu para o nível " + r.level + "!" : name + " recebeu " + it.name.toLowerCase());
     cardOpen = true;
     dropHand();
     render();
