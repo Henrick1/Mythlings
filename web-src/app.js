@@ -1118,7 +1118,7 @@
     const to = meta[target];
     evolvingNow = true;
     const wrap = $("stage-wrap");
-    ["feed", "treat", "party-btn", "feed-all", "ball-btn", "call-btn", "pet-btn"].forEach(b => ($(b).disabled = true));
+    ["feed", "treat", "party-btn", "feed-all", "ball-btn", "call-btn", "brush-btn", "pet-btn"].forEach(b => ($(b).disabled = true));
     cardOpen = false;
     $("pet-card").hidden = true;
     if (habitat) {
@@ -1145,7 +1145,7 @@
           scheduleSync();
         }
         lastPetId = state.pet + ":" + Game.speciesOf(state);
-        ["party-btn", "ball-btn", "call-btn", "pet-btn"].forEach(b => ($(b).disabled = false));
+        ["party-btn", "ball-btn", "call-btn", "brush-btn", "pet-btn"].forEach(b => ($(b).disabled = false));
         setTimeout(() => {
           wrap.classList.remove("burst", "evolving");
           hatchLabel(wrap, "");
@@ -1679,6 +1679,76 @@
     $("hand-x").addEventListener("click", () => {
       sfx("drop");
       dropHand();
+    });
+  }
+
+  function cleanPet(uid) {
+    $("brush-btn").classList.remove("on");
+    if (!habitat) return;
+    if (!uid || !state) return habitat.brushCancel();
+    const name = (meta[Game.speciesOf(state, uid)] || {}).name || "";
+    const r = Game.clean(state, uid);
+    if (!r.changed) {
+      sfx("deny");
+      showToast(name + " já está limpinho");
+      habitat.brushCancel();
+      return;
+    }
+    saveState();
+    scheduleSync();
+    habitat.scrub(uid);
+    setTimeout(() => showToast(name + " ficou limpinho!"), 1900);
+    render();
+  }
+
+  function bindBrush() {
+    const b = $("brush-btn");
+    let down = null;
+    let dragging = false;
+    b.addEventListener("pointerdown", e => {
+      if (!habitat || b.disabled) return;
+      if (b.classList.contains("on")) {
+        b.classList.remove("on");
+        habitat.brushCancel();
+        down = null;
+        return;
+      }
+      e.preventDefault();
+      down = { x: e.clientX, y: e.clientY };
+      dragging = false;
+      try {
+        b.setPointerCapture(e.pointerId);
+      } catch (err) {
+        down = { x: e.clientX, y: e.clientY };
+      }
+      sfx("pick");
+      b.classList.add("on");
+      habitat.brushStart(cleanPet);
+    });
+    b.addEventListener("pointermove", e => {
+      if (!down) return;
+      if (!dragging && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 12) dragging = true;
+      if (dragging) habitat.brushAt(e.clientX, e.clientY);
+    });
+    const end = e => {
+      if (!down) return;
+      down = null;
+      if (!dragging) return;
+      dragging = false;
+      cleanPet(habitat.brushAt(e.clientX, e.clientY));
+    };
+    b.addEventListener("pointerup", end);
+    b.addEventListener("pointercancel", () => {
+      down = null;
+      dragging = false;
+      b.classList.remove("on");
+      if (habitat) habitat.brushCancel();
+    });
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && b.classList.contains("on")) {
+        b.classList.remove("on");
+        if (habitat) habitat.brushCancel();
+      }
     });
   }
 
@@ -2358,7 +2428,7 @@
     $("evolve-btn").hidden = !evo;
 
     if (evolvingNow) {
-      ["feed", "treat", "party-btn", "feed-all", "ball-btn", "call-btn", "pet-btn"].forEach(b => ($(b).disabled = true));
+      ["feed", "treat", "party-btn", "feed-all", "ball-btn", "call-btn", "brush-btn", "pet-btn"].forEach(b => ($(b).disabled = true));
     } else {
       $("party-btn").disabled = false;
     }
@@ -2378,7 +2448,7 @@
   }
 
   function habitatRows(v) {
-    return v.party.filter(p => !p.away && hasPet(p.species)).map(p => ({ uid: p.id, species: p.species, variant: !!p.variant, core: p.core || null, name: (meta[p.species] && meta[p.species].name) || p.name, purse: p.purse || 0, cap: Game.C.PURSE_CAP, hunger: p.hunger, life: p.life, joy: p.joy, dying: p.dying }));
+    return v.party.filter(p => !p.away && hasPet(p.species)).map(p => ({ uid: p.id, species: p.species, variant: !!p.variant, core: p.core || null, name: (meta[p.species] && meta[p.species].name) || p.name, purse: p.purse || 0, cap: Game.C.PURSE_CAP, hunger: p.hunger, life: p.life, joy: p.joy, dirt: p.dirt || 0, dying: p.dying }));
   }
 
   function renderHabitat(v, info) {
@@ -2397,7 +2467,7 @@
     if (!evolvingNow) {
       $("feed-all").disabled = !v.party.some(p => !p.away && p.hunger < 100);
       $("pet-btn").disabled = v.dying || v.joy >= 100;
-      ["ball-btn", "call-btn"].forEach(b => ($(b).disabled = !v.party.some(p => !p.away)));
+      ["ball-btn", "call-btn", "brush-btn"].forEach(b => ($(b).disabled = !v.party.some(p => !p.away)));
     }
   }
 
@@ -2781,6 +2851,7 @@
 
     $("daynight").addEventListener("click", () => setNight(!(habitat && habitat.isNight())));
     bindHand();
+    bindBrush();
 
     $("treat").addEventListener("click", () => {
       const r = Game.treat(state);

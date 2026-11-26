@@ -2389,6 +2389,15 @@ a:focus-visible {
   gap: 8px;
 }
 
+#brush-btn {
+  margin-right: auto;
+}
+
+#brush-btn.on {
+  background: var(--sun);
+  color: #0f3a28;
+}
+
 .hab-acts .act {
   min-height: 64px;
   padding: 9px 4px 10px;
