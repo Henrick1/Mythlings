@@ -196,6 +196,21 @@ Pets.register({
     food.visible = false;
     squash.add(food);
 
+    const model = kit.glb
+      ? kit.glb({
+          src: "assets/models/musgalho.glb",
+          parent: root,
+          owner: root,
+          id: "cascalhinho",
+          height: 1.73,
+          clips: { roll: "Roll Attack", stomp: "Stomp", jump: "Jump", eat: "Eat" },
+          onReady: () => {
+            squash.visible = false;
+            root.add(food);
+          }
+        })
+      : null;
+
     return {
       root,
       update(s) {
@@ -205,6 +220,46 @@ Pets.register({
         const roll = action && action.name === "roll" ? action : null;
         const stomp = action && action.name === "stomp" ? action : null;
         const ph = eat ? eatPhase(eat.p) : null;
+        if (model && model.active) {
+          model.drive(t, action ? action.name : null, action ? action.p : 0);
+          root.position.set(0, 0, 0);
+          root.rotation.set(0, lookYaw * 0.5, 0);
+          const ap = action ? action.p : 0;
+          const imp = stomp ? (ap > 0.6 ? 1 - smooth(0.6, 0.9, ap) : 0) : roll ? (ap > 0.5 ? 1 - smooth(0.5, 0.75, ap) : 0) : 0;
+          const fx = imp > 0.05;
+          pebbles.forEach(pb => {
+            pb.m.visible = fx;
+            if (!fx) return;
+            const u = 1 - imp;
+            const r = 0.7 + u * 0.6 * pb.sp;
+            pb.m.position.set(Math.cos(pb.a) * r, 0.06 + Math.sin(u * Math.PI) * 0.4 * pb.sp, Math.sin(pb.a) * r);
+            pb.m.rotation.set(t * 4 + pb.k, t * 3, 0);
+          });
+          dust.forEach(d => {
+            d.m.visible = fx;
+            if (!fx) return;
+            const u = 1 - imp;
+            const r = 0.8 + u * 0.5;
+            d.m.position.set(Math.cos(d.a) * r, 0.1 + u * 0.15, Math.sin(d.a) * r);
+            d.m.scale.setScalar(0.6 + u * 0.8);
+            dustMat.opacity = 0.45 * imp;
+          });
+          if (ph) {
+            food.visible = ph.visible;
+            const jaw = model.bone("Jaw");
+            let ty = BODY_Y - 0.12;
+            let tz = 0.95;
+            if (jaw) {
+              root.updateMatrixWorld(true);
+              const w = root.worldToLocal(jaw.getWorldPosition(new THREE.Vector3()));
+              ty = w.y;
+              tz = w.z + 0.15;
+            }
+            food.position.set(0, lerp(3.0, ty, ph.fall * ph.fall), lerp(0.95, tz, ph.fall));
+            food.scale.setScalar((1 - 0.85 * ph.bite) * 0.8);
+          } else food.visible = false;
+          return;
+        }
 
         let y = 0;
         let sy = 1 + Math.sin(t * 1.4) * 0.012 * motion;
