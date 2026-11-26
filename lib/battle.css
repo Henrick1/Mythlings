@@ -1947,7 +1947,19 @@
 }
 
 .bt-mbtn.off {
-  background: #e7ece9;
+  background: transparent;
+  color: var(--b-ink);
+  box-shadow: inset 0 0 0 2px var(--b-ink-2);
+}
+
+.bt-minfo-fx {
+  margin: -4px 0 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--b-ink-2);
+}
+
+.bt-minfo-fx b {
   color: var(--b-ink);
 }
 
