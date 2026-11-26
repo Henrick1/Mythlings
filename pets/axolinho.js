@@ -290,10 +290,24 @@ Pets.register({
     };
     let flickAt = 2;
     let flickK = 0;
+    let lastT = null;
+    const spr = {};
+    const spring = (k, target, dt, stiff = 140, damp = 13) => {
+      const s0 = spr[k] || (spr[k] = { x: target, v: 0 });
+      const n = Math.max(1, Math.ceil(dt / 0.016));
+      const h = dt / n;
+      for (let i = 0; i < n; i++) {
+        s0.v += ((target - s0.x) * stiff - s0.v * damp) * h;
+        s0.x += s0.v * h;
+      }
+      return s0.x;
+    };
     function rig(s) {
       const { t, blink, action, motion, lookYaw, lookPitch } = s;
       const P = model.pose;
       P.reset();
+      const dt = lastT === null ? 0 : Math.max(0, Math.min(0.05, t - lastT));
+      lastT = t;
       const swim = s.swim || 0;
       const name = action ? action.name : null;
       const p = action ? action.p : 0;
@@ -309,7 +323,7 @@ Pets.register({
       let gillUp = 0;
       let gillBack = swim * 0.35;
       let gillSpeed = 2.2;
-      let gillAmp = 0.06;
+      let gillAmp = 0.1;
       let tailAmp = 0.22 + swim * 0.25;
       let tailSpeed = 2.4 + swim * 3.5;
       let tailCurl = 0;
@@ -323,7 +337,7 @@ Pets.register({
         flickAt = t + 3 + Math.random() * 4;
         flickK = 1;
       }
-      flickK = Math.max(0, flickK - 0.045);
+      flickK = Math.max(0, flickK - dt * 2.4);
       const flick = flickK > 0.7 ? (1 - flickK) / 0.3 : flickK / 0.7;
       gillUp += flick * 0.35 * m;
 
@@ -397,6 +411,11 @@ Pets.register({
       const k = Math.max(0.5, sy);
       root.scale.set(1 / Math.sqrt(k) + sx, k, 1 / Math.sqrt(k) + sx * 0.5);
 
+      gillUp = spring("gu", gillUp, dt, 160, 11);
+      gillBack = spring("gb", gillBack, dt, 120, 12);
+      tailCurl = spring("tc", tailCurl, dt, 90, 9);
+      bub = spring("bb", bub, dt, 220, 14);
+      headPitch = spring("hp", headPitch, dt, 260, 20);
       if (headPitch) P.rot("Corpo", headPitch, 0, 0);
       ["Branquia.Alta", "Branquia.Baixa"].forEach((g, i) => {
         [-1, 1].forEach(sd => {
@@ -413,7 +432,7 @@ Pets.register({
         const paddle = Math.sin(t * 7 + ph * Math.PI) * 0.5 * swim * m;
         P.rot(f, paddle + feetTuck * (i < 2 ? -0.5 : 0.5), 0, 0);
       });
-      const ey = Math.max(0.08, Math.min(1.2, eyes));
+      const ey = Math.max(0.12, Math.min(1.15, eyes));
       P.scale("Olho.L", 1, ey, 1);
       P.scale("Olho.R", 1, ey, 1);
       if (mouth > 0) P.scale("Boca", 1 + mouth * 0.15, 1 + mouth * 0.9, 1);
