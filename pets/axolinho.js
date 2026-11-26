@@ -276,6 +276,8 @@ Pets.register({
           owner: root,
           id: "axolinho",
           height: 1.91,
+          clips: { attack: "Attack", bubble: "Special", jump: "Jump", eat: "Eat" },
+          idle: "Idle",
           onReady: () => {
             squash.visible = false;
             root.add(food);
@@ -304,146 +306,17 @@ Pets.register({
     };
     function rig(s) {
       const { t, blink, action, motion, lookYaw, lookPitch } = s;
-      const P = model.pose;
-      P.reset();
-      const dt = lastT === null ? 0 : Math.max(0, Math.min(0.05, t - lastT));
-      lastT = t;
-      const swim = s.swim || 0;
       const name = action ? action.name : null;
       const p = action ? action.p : 0;
-      const m = motion;
-
-      let y = 0;
-      let sy = 1 + Math.sin(t * 2.1) * 0.018 * m;
-      let sx = 0;
-      let z = 0;
-      let pitch = 0;
-      let roll = Math.sin(t * 1.3) * 0.03 * m * (1 - swim);
-      let spin = 0;
-      let gillUp = 0;
-      let gillBack = swim * 0.35;
-      let gillSpeed = 2.2;
-      let gillAmp = 0.1;
-      let tailAmp = 0.22 + swim * 0.25;
-      let tailSpeed = 2.4 + swim * 3.5;
-      let tailCurl = 0;
-      let feetTuck = 0;
-      let mouth = 0;
-      let eyes = blink;
-      let bub = 0;
-      let headPitch = 0;
-      let whip = 0;
-
-      if (t > flickAt) {
-        flickAt = t + 3 + Math.random() * 4;
-        flickK = 1;
+      model.drive(t, name, p, { Swim: s.swim || 0 });
+      root.position.set(0, 0, 0);
+      root.scale.set(1, 1, 1);
+      root.rotation.set(lookPitch * 0.5, lookYaw, 0);
+      if (blink < 0.9) {
+        const e = Math.max(0.12, blink);
+        model.pose.scale("Olho.L", 1, e, 1);
+        model.pose.scale("Olho.R", 1, e, 1);
       }
-      flickK = Math.max(0, flickK - dt * 2.4);
-      const flick = flickK > 0.7 ? (1 - flickK) / 0.3 : flickK / 0.7;
-      gillUp += flick * 0.35 * m;
-
-      if (name === "jump") {
-        const crouch = pop(p, 0, 0.16) * (1 - pop(p, 0.18, 0.24));
-        const air = p > 0.2 && p < 0.76 ? (p - 0.2) / 0.56 : -1;
-        const land = pop(p, 0.76, 0.8) * (1 - pop(p, 0.84, 1));
-        sy -= crouch * 0.13 + land * 0.15;
-        sx += crouch * 0.03 + land * 0.04;
-        if (air >= 0) {
-          y = Math.sin(air * Math.PI) * 1.25;
-          sy += air < 0.35 ? (1 - air / 0.35) * 0.1 : 0;
-          feetTuck = 1;
-          gillUp += 0.5;
-          tailCurl = 0.5;
-          if (action.n % 3 === 0 && !s.reduceMotion) spin = pop(air, 0.1, 0.8) * Math.PI * 2;
-        }
-        gillUp -= crouch * 0.4;
-        eyes = crouch > 0.3 || land > 0.3 ? 0.25 : air >= 0 ? 1.15 : eyes;
-        mouth = air >= 0 ? 0.8 : 0;
-      }
-
-      if (name === "eat") {
-        const look = pop(p, 0, 0.12) * (1 - pop(p, 0.28, 0.33));
-        const chomp = pop(p, 0.29, 0.33) * (1 - pop(p, 0.36, 0.45));
-        const chewing = p > 0.33 && p < 0.85;
-        const chew = chewing ? Math.pow(Math.abs(Math.sin((p - 0.33) * Math.PI * 9)), 0.6) : 0;
-        headPitch = -look * 0.28 + chomp * 0.22;
-        mouth = chewing ? chew * 1.4 - 0.9 : look;
-        sy += chomp * -0.07 + chew * -0.03;
-        sx += chew * 0.025;
-        eyes = chewing ? 0.25 : eyes;
-        gillAmp = chewing ? 0.14 : gillAmp;
-        gillSpeed = chewing ? 9 : gillSpeed;
-        tailAmp = chewing ? 0.4 : tailAmp;
-        tailSpeed = chewing ? 9 : tailSpeed;
-        roll += chewing ? Math.sin(p * 40) * 0.03 : 0;
-      }
-
-      if (name === "bubble") {
-        const inhale = pop(p, 0, 0.3) * (1 - pop(p, 0.38, 0.44));
-        const hold = p > 0.3 && p < 0.38 ? Math.sin(p * 160) * 0.012 : 0;
-        const blow = pop(p, 0.38, 0.42) * (1 - pop(p, 0.75, 0.95));
-        sx += inhale * 0.14 + hold;
-        sy += inhale * 0.08 - blow * 0.06;
-        headPitch = -inhale * 0.12 + blow * 0.12;
-        bub = inhale * 0.45 - blow * 0.2;
-        mouth = blow;
-        eyes = inhale > 0.2 ? 0.3 : eyes;
-        gillUp += inhale * 0.3 - blow * 0.2;
-        gillBack += blow * 0.4;
-        z = -blow * 0.08;
-      }
-
-      if (name === "attack") {
-        const at = strike(p);
-        if (!s.reduceMotion) spin = pop(p, 0.28, 0.62) * Math.PI * 2;
-        whip = ease(0.28, 0.4, p) * (1 - ease(0.58, 0.75, p));
-        z = at.lunge * 0.4 - at.wind * 0.15;
-        sy -= at.wind * 0.1 - at.impact * 0.04;
-        sx += at.wind * 0.03;
-        pitch = at.wind * -0.22 + at.lunge * 0.3;
-        tailCurl = at.wind * 0.9 - at.lunge * 0.6;
-        gillUp += at.wind * -0.3 + at.lunge * 0.45;
-        gillBack += at.lunge * 0.4;
-        eyes = at.wind > 0.2 ? 0.25 : eyes;
-        mouth = at.lunge * 0.9;
-        y = at.lunge * 0.15;
-      }
-
-      root.position.set(0, y, z);
-      root.rotation.set(lookPitch * 0.5 + pitch, lookYaw + spin, roll);
-      const k = Math.max(0.5, sy);
-      root.scale.set(1 / Math.sqrt(k) + sx, k, 1 / Math.sqrt(k) + sx * 0.5);
-
-      gillUp = spring("gu", gillUp, dt, 160, 11);
-      gillBack = spring("gb", gillBack, dt, 120, 12);
-      tailCurl = spring("tc", tailCurl, dt, 90, 9);
-      bub = spring("bb", bub, dt, 220, 14);
-      headPitch = spring("hp", headPitch, dt, 260, 20);
-      if (headPitch) P.rot("Corpo", headPitch, 0, 0);
-      ["Branquia.Alta", "Branquia.Baixa"].forEach((g, i) => {
-        [-1, 1].forEach(sd => {
-          const nm = g + (sd > 0 ? ".L" : ".R");
-          const w = Math.sin(t * gillSpeed + i * 0.9 + (sd > 0 ? 0 : 1.7)) * gillAmp * m;
-          P.rot(nm, -gillBack * 0.6, sd * gillBack * 0.15, sd * (gillUp + w));
-        });
-      });
-      ["Cauda.01", "Cauda.02", "Cauda.03"].forEach((c, i) => {
-        const w = Math.sin(t * tailSpeed - i * 0.8) * tailAmp * m * (0.6 + i * 0.25) * (1 - whip);
-        P.rot(c, tailCurl * (0.35 + i * 0.15), w + whip * (0.25 + i * 0.2), 0);
-      });
-      [["Pata.Frente.L", 0], ["Pata.Frente.R", 1], ["Pata.Tras.L", 1], ["Pata.Tras.R", 0]].forEach(([f, ph], i) => {
-        const paddle = Math.sin(t * 7 + ph * Math.PI) * 0.5 * swim * m;
-        P.rot(f, paddle + feetTuck * (i < 2 ? -0.5 : 0.5), 0, 0);
-      });
-      const ey = Math.max(0.12, Math.min(1.15, eyes));
-      P.scale("Olho.L", 1, ey, 1);
-      P.scale("Olho.R", 1, ey, 1);
-      if (mouth > 0) P.scale("Boca", 1 + mouth * 0.15, 1 + mouth * 0.9, 1);
-      else if (mouth < 0) P.rot("Boca", -mouth * 0.5, 0, 0);
-      const g1 = 1 + bub + Math.sin(t * 2.6) * 0.04 * m;
-      const g2 = 1 + bub * 1.3 + Math.sin(t * 2.6 - 1.6) * 0.06 * m;
-      P.scale("Bolha.Grande", g1, g1, g1);
-      P.scale("Bolha.Pequena", g2, g2, g2);
       const blowP = name === "bubble" ? p : -1;
       let mo = null;
       const jawB = model.bone("Boca");
@@ -477,7 +350,6 @@ Pets.register({
       update(s) {
         const { t, pointer, lookYaw, lookPitch, blink, action, motion, reduceMotion } = s;
         if (model && model.active) {
-          model.drive(t, null, 0);
           rig(s);
           return;
         }
