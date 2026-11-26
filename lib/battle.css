@@ -1810,3 +1810,260 @@
     height: 150px;
   }
 }
+
+.bt-passive {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border-left: 0;
+  padding: 11px 14px 12px 12px;
+  background: var(--b-plate);
+  color: #fff;
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+
+.bt-passive-ic {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--b-sun, #ffd23c);
+  color: #2a2410;
+}
+
+.bt-passive-tx {
+  display: grid;
+  gap: 2px;
+}
+
+.bt-passive-tx small {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #9ee8b8;
+}
+
+.bt-passive .bt-passive-tx b {
+  font-size: 17px;
+  color: #fff;
+}
+
+.bt-passive .bt-passive-tx span {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.bt-hint {
+  margin: -2px 0 2px;
+  font-size: 12.5px;
+  color: var(--b-ink-2);
+}
+
+.bt-mrow {
+  cursor: pointer;
+}
+
+.bt-mrow.locked {
+  opacity: 0.7;
+}
+
+.bt-mrow.open {
+  background: var(--b-paper);
+  opacity: 1;
+  box-shadow: inset 5px 0 0 var(--tc), 0 0 0 2px var(--tc);
+}
+
+.bt-chev {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: var(--b-ink-2);
+  transition: transform 0.18s;
+}
+
+.bt-mrow.open .bt-chev {
+  transform: rotate(90deg);
+}
+
+.bt-minfo {
+  margin: -3px 0 4px 10px;
+  padding: 12px 14px 12px;
+  background: var(--b-paper);
+  border-left: 4px solid var(--tc);
+  display: grid;
+  gap: 10px;
+  animation: bt-minfo-in 0.18s ease-out both;
+}
+
+.bt-minfo-d {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--b-ink);
+}
+
+.bt-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.bt-fact {
+  display: grid;
+  gap: 3px;
+}
+
+.bt-fact small {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--b-ink-2);
+}
+
+.bt-fact b {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.bt-minfo-act {
+  display: flex;
+}
+
+.bt-mbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  background: var(--b-plate);
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+
+.bt-mbtn.off {
+  background: #e7ece9;
+  color: var(--b-ink);
+}
+
+.bt-minfo-lock {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--b-ink-2);
+}
+
+@keyframes bt-minfo-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.bt-lbody {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.bt-row {
+  cursor: pointer;
+}
+
+.bt-row.sel {
+  box-shadow: inset 0 -3px 0 var(--b-edge), inset 5px 0 0 var(--b-plate);
+}
+
+.bt-side {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  overflow-y: auto;
+  background: var(--b-mist);
+  padding: 0 16px 20px;
+}
+
+.bt-side.open {
+  display: block;
+}
+
+.bt-side-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  background: var(--b-mist);
+}
+
+.bt-side-art {
+  width: 84px;
+  height: 84px;
+  flex: none;
+}
+
+.bt-side-info {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.bt-side-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.bt-side-name b {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.bt-side-info .bt-types {
+  margin: 0;
+}
+
+.bt-side-body .bt-insp {
+  display: grid;
+  gap: 10px;
+}
+
+@media (min-width: 980px) and (min-height: 520px) {
+  .bt-lbody {
+    flex-direction: row;
+    gap: 20px;
+    padding: 0 24px;
+  }
+
+  .bt-lobby .bt-lbody .bt-team {
+    flex: none;
+    width: 440px;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .bt-side {
+    display: block;
+    position: relative;
+    inset: auto;
+    flex: 1;
+    min-width: 0;
+    padding: 0 18px 18px;
+    background: var(--b-mist);
+    box-shadow: inset 0 -3px 0 var(--b-edge);
+    margin-bottom: 16px;
+  }
+
+  .bt-side-back {
+    display: none;
+  }
+}
