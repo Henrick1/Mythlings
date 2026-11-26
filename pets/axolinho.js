@@ -332,6 +332,7 @@ Pets.register({
       let eyes = blink;
       let bub = 0;
       let headPitch = 0;
+      let whip = 0;
 
       if (t > flickAt) {
         flickAt = t + 3 + Math.random() * 4;
@@ -394,6 +395,8 @@ Pets.register({
 
       if (name === "attack") {
         const at = strike(p);
+        if (!s.reduceMotion) spin = pop(p, 0.28, 0.62) * Math.PI * 2;
+        whip = ease(0.28, 0.4, p) * (1 - ease(0.58, 0.75, p));
         z = at.lunge * 0.4 - at.wind * 0.15;
         sy -= at.wind * 0.1 - at.impact * 0.04;
         sx += at.wind * 0.03;
@@ -425,8 +428,8 @@ Pets.register({
         });
       });
       ["Cauda.01", "Cauda.02", "Cauda.03"].forEach((c, i) => {
-        const w = Math.sin(t * tailSpeed - i * 0.8) * tailAmp * m * (0.6 + i * 0.25);
-        P.rot(c, tailCurl * (0.35 + i * 0.15), w, 0);
+        const w = Math.sin(t * tailSpeed - i * 0.8) * tailAmp * m * (0.6 + i * 0.25) * (1 - whip);
+        P.rot(c, tailCurl * (0.35 + i * 0.15), w + whip * (0.25 + i * 0.2), 0);
       });
       [["Pata.Frente.L", 0], ["Pata.Frente.R", 1], ["Pata.Tras.L", 1], ["Pata.Tras.R", 0]].forEach(([f, ph], i) => {
         const paddle = Math.sin(t * 7 + ph * Math.PI) * 0.5 * swim * m;
